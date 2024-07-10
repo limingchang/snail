@@ -1,4 +1,9 @@
 {
+  "compilerOptions":{
+    /*Decorator */
+    "experimentalDecorators":true,
+    "emitDecoratorMetadata": true
+  },
   "files": [],
   "references": [
     {

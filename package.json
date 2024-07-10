@@ -1,36 +1,41 @@
 {
-  "name": "snail",
+  "name": "@snail-js/snail",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
+  "description": "snail js component lib core package",
+  "main": "lib/index.js",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview",
-    "lint": "eslint --fix src",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "preview": "vite preview"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/limich/snail.git"
+  },
+  "files": [
+    "lib"
+  ],
+  "keywords": [],
+  "author": "mc.lee",
+  "license": "MIT",
   "dependencies": {
-    "axios": "^1.6.4",
-    "jwt-decode": "^4.0.0",
     "vue": "^3.4.29"
+  },
+  "directories": {
+    "doc": "docs"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
     "@commitlint/config-conventional": "^19.2.2",
-    "@vitejs/plugin-vue": "^5.0.5",
     "commitizen": "^4.3.0",
     "cz-git": "^1.9.3",
     "husky": "^9.0.11",
-    "prettier": "^3.3.2",
-    "sass": "^1.69.3",
-    "sass-loader": "^14.2.1",
+    "@vitejs/plugin-vue": "^5.0.5",
     "typescript": "^5.2.2",
-    "vite": "^5.3.1",
-    "vite-plugin-eslint": "^1.8.1",
     "vitepress": "^1.2.3",
+    "vite": "^5.3.1",
     "vue-tsc": "^2.0.21"
   },
   "config": {

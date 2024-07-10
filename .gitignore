@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vscode
+pnpm-lock.yaml
+lib
 *.local
 
 # Editor directories and files
@@ -22,9 +25,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-pnpm-lock.yaml
-components.d.ts
-auto-imports.d.ts
+
 # vitePress
 docs/.vitepress/cache/
 docs/.vitepress/dist/

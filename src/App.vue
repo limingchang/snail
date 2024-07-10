@@ -1,5 +1,14 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
+import { Model } from './core'
+@Model('用户')
+class User {
+  static name: 'lmc'
+  constructor() { }
+}
+
+console.log(JSON.stringify(new User()))
+
 </script>
 
 <template>
@@ -21,9 +30,11 @@ import HelloWorld from './components/HelloWorld.vue'
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.vue:hover {
   filter: drop-shadow(0 0 2em #42b883aa);
 }

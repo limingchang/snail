@@ -13,10 +13,7 @@ import type { IconPropsType } from './type';
 // 引入iconFont图标
 import './iconFont/iconfont.js';
 
-
-
 const props = defineProps<IconPropsType>();
-
 
 // 图标在 iconfont 中的名字
 const iconClassName = computed(() => {
@@ -24,8 +21,6 @@ const iconClassName = computed(() => {
 })
 
 </script>
-
-
 <style scoped lang="scss">
 .snail-icon {
   font-size: 18px;
