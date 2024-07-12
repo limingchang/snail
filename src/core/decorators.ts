@@ -19,7 +19,7 @@ export class SnailDecorators {
 export function Model(name: string): ClassDecorator {
   // console.log('set Model name:',name)
   return function (target: any) {
-    console.log("set Model name:", target);
+    // console.log("set Model name:", target);
     SnailDecorators.setModelName(target, name);
     target[Symbol.toPrimitive] = (hint: "string" | "number" | "default") => {
       if (hint === "string") {
