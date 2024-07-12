@@ -22,6 +22,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    /* Decorator */
+    "experimentalDecorators":true,
+    "emitDecoratorMetadata": true
     
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
