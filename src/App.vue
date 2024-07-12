@@ -12,7 +12,7 @@ class User extends SnailModel {
 
 const u1 = new User()
 console.log(u1.toJson())
-const m1 = User.fromJson([{ _name: 'lmc' }])
+const m1 = User.fromJson([{ _name: 'lmc' }] as IJson[])
 console.log("m:", m1)
 console.log(m1.toJson())
 

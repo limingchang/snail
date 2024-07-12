@@ -31,7 +31,7 @@ export class SnailModel {
    * @param json json数据或数组
    * @returns
    */
-  static fromJson<T extends SnailModel, R extends IJson | Array<IJson>>(
+  static fromJson<T extends SnailModel, R extends IJson | IJson[]>(
     this: new () => T,
     json: R,
   ): FromJsonReturnType<R> {
