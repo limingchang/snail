@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
-import { Model, SnailModel, Field, Alias, IJson } from './core'
+import { Model, SnailModel, Field, Alias } from './core'
 
 @Model('用户')
 class User extends SnailModel {
   @Field('姓名')
   @Alias('_name')
-  name: string = ''
+  name!: string
 }
 
 
 const u1 = new User()
-console.log(u1.toJson())
-const m1 = User.fromJson([{ _name: 'lmc' }] as IJson[])
+console.log(u1)
+const m1 = User.fromJson([{ _name: 'lmc' }])
 console.log("m:", m1)
 console.log(m1.toJson())
 

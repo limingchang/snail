@@ -21,15 +21,7 @@ export function Model(name: string): ClassDecorator {
   return function (target: any) {
     // console.log("set Model name:", target);
     SnailDecorators.setModelName(target, name);
-    target[Symbol.toPrimitive] = (hint: "string" | "number" | "default") => {
-      if (hint === "string") {
-        return `[Snail Model: ${name}]`;
-      }
-    };
-    target.prototype.toString = function () {
-      return `[Snail Model: ${name}]`;
-    };
-  };
+  }
 }
 
 /**

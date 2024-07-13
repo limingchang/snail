@@ -1,4 +1,6 @@
-import { getSymbol } from "./utils";
+import { merge,unique } from 'radash'
+
+import { getSymbol, getSymbolFields } from "./utils";
 
 import { IJson, FromJsonReturnType, SnailModelInstance, SnailModelInstanceArray } from "./types";
 
@@ -55,18 +57,30 @@ export class SnailModel {
   static parse<T extends SnailModel>(instance: T, json: IJson) {
     // const instance = new this();
     // const fields = Object.keys(instance);
-
-    const fields = Reflect.ownKeys(instance);
-    console.log("fields:", fields);
-    // const proto_keys = Reflect.ownKeys(Reflect.getPrototypeOf(instance));
-    // console.log("proto_keys:", proto_keys);
+    console.log("instance:", instance);
+    const keys = Reflect.ownKeys(instance);
+    console.log("key:", keys);
+    const prototype = Reflect.getPrototypeOf(instance);
+    let symbolFields = []
+    if (prototype == null) {
+      throw new Error("custom model need extends SnailModel");
+      // return instance;
+    } else {
+      symbolFields = getSymbolFields(prototype);
+      // console.log("symbolFields:", symbolFields);
+    }
+    // }
+    const fields = unique(keys.concat(symbolFields));
+    // console.log("fields:", fields);
     for (const key of fields) {
       const defaultValue = getSymbol(instance, key.toString());
       const alias = getSymbol(instance, `alias[${key.toString()}]`);
       const fieldData = json[alias || key.toString()];
       if (fieldData == undefined) {
+        // console.log("set:", key, defaultValue);
         Reflect.set(instance, key, defaultValue);
       } else {
+        // console.log("set:", key, fieldData);
         Reflect.set(instance, key, fieldData);
       }
     }

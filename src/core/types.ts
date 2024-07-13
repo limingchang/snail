@@ -14,7 +14,5 @@ export interface SnailModelInstanceArray extends Array<SnailModelInstance> {
   toJson: () => IJson[]
 }
 
-export type FromJsonReturnType<R extends IJson | IJson[]> =
-  R extends IJson ? SnailModelInstance :
-  R extends IJson[] ? SnailModelInstanceArray :
-  never
+export type FromJsonReturnType<R> =
+  R extends any[] ? SnailModelInstanceArray : SnailModelInstance
