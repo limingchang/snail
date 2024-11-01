@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
-import { Model, SnailModel, Field, Alias } from './core'
+import { Model, createEntityForClass, Field } from './core'
 
-@Model('用户')
-class User extends SnailModel {
-  @Field('姓名')
-  @Alias('_name')
-  name: string = ''
+@Model({ name: '用户' })
+class User {
+  @Field()
+  name: string
+
+  @Field()
+  age: number
 }
+const u1 = createEntityForClass(User)
 
+const a = { name: '张三', age: 18 }
 
-const u1 = new User()
-console.log(u1.toJson())
-const m1 = User.fromJson({ _name: 'lmc' })
-console.log("m:", m1)
-console.log(m1.toJson())
+u1.fromJson(a)
+
 
 </script>
 

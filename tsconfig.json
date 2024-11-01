@@ -1,8 +1,10 @@
 {
-  "compilerOptions":{
+  "compilerOptions": {
     /*Decorator */
-    "experimentalDecorators":true,
-    "emitDecoratorMetadata": true
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    /*关闭ts的检测class初始化的配置 */
+    "strictPropertyInitialization": false
   },
   "files": [],
   "references": [

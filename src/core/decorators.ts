@@ -1,78 +1,43 @@
-import { setSymbol } from "./utils";
+import { SnailModelOptions, SnailFieldOptions } from "./types";
+import { setModelMeta } from "./utils";
+import { DEFAULT_FIELD_OPTIONS } from "./constant";
 
-import { PropertyTarget } from "./types";
+export const Model = (options: SnailModelOptions) => {
+  const fn: ClassDecorator = (target: any) => {
+    Object.keys(options).forEach((key) => {
+      setModelMeta(target.prototype, key, (options as any)[key]);
+    });
+  };
+  return fn;
+};
 
-/**
- * 装饰器助手
- */
-export class SnailDecorators {
-  static setModelName(target: any, name: string) {
-    return setSymbol(target, "modelName", name);
+export const Field = (options?: SnailFieldOptions): PropertyDecorator => {
+  let config: SnailFieldOptions = DEFAULT_FIELD_OPTIONS;
+  if (options) {
+    config = {
+      ...config,
+      ...options,
+    };
   }
-}
 
-/**
- * 为模型类标注模型名称,并添加方法
- * @param name 模型名称
- * @returns 装饰器工厂
- */
-export function Model(name: string): ClassDecorator {
-  // console.log('set Model name:',name)
-  return function (target: any) {
-    console.log("set Model name:", target);
-    SnailDecorators.setModelName(target, name);
-    target[Symbol.toPrimitive] = (hint: "string" | "number" | "default") => {
-      if (hint === "string") {
-        return `[Snail Model: ${name}]`;
-      }
-    };
-    target.prototype.toString = function () {
-      return `[Snail Model: ${name}]`;
-    };
-  };
-}
-
-/**
- * 为字段属性标记默认值
- * @param value 默认值
- * @returns
- */
-export function Default(value: string): PropertyDecorator {
-  return function (target: PropertyTarget, key: string | symbol) {
-    if (typeof value === typeof target[key.toString()]) {
+  const fn: PropertyDecorator = (target: Object, key: string | symbol) => {
+    const keyStr = typeof key === "symbol" ? key.toString() : key;
+    setModelMeta(target, `[required]${keyStr}`, config.required);
+    setModelMeta(target, `[default]${keyStr}`, config.default);
+    if ((config as SnailFieldOptions<{ alias: string }>).alias) {
+      setModelMeta(
+        target,
+        `[alias]${keyStr}`,
+        (config as SnailFieldOptions<{ alias: string }>).alias
+      );
     }
-    setSymbol(target, `default[${key.toString()}]`, value);
+    if ((config as SnailFieldOptions<{ prefix: string }>).prefix) {
+      setModelMeta(
+        target,
+        `[prefix]${keyStr}`,
+        (config as SnailFieldOptions<{ prefix: string }>).prefix
+      );
+    }
   };
-}
-
-/**
- * 为字段属性标记必须提供
- * @returns
- */
-export function Required() {
-  return function (target: any, key: string) {
-    setSymbol(target, `required[${key.toString()}]`, true);
-  };
-}
-
-/**
- * 为字段属性标记名称
- * @param name 字段名称
- * @returns
- */
-export function Field(name: string) {
-  return function (target: Object, key: string) {
-    setSymbol(target, `field[${key.toString()}]`, name);
-  };
-}
-
-/**
- * 为字段属性标记别名
- * @param name 字段别名
- * @returns
- */
-export function Alias(name: string): PropertyDecorator {
-  return function (target: Object, key: string | symbol) {
-    setSymbol(target, `alias[${key.toString()}]`, name);
-  };
-}
+  return fn;
+};
