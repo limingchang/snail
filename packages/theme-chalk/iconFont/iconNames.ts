@@ -1,4 +1,7 @@
 export const IconNames = [
+  'icon-shouji',
+  'icon-erweima',
+  'icon-mima',
   'icon-jian',
   'icon-plus',
   'icon-hetongqianshu',
