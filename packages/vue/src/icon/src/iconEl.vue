@@ -1,3 +1,4 @@
+<!-- 聚合ElIcon组件 -->
 <template>
   <ElIcon v-if="typeof icon === 'string' && Object.keys(Icons).includes(icon)" class="snail-icon" v-bind="$attrs">
     <!-- ElIcon名称引用 -->
@@ -19,11 +20,11 @@
 import { computed, isVNode, CSSProperties } from 'vue';
 import { ElIcon } from 'element-plus'
 import * as Icons from "@element-plus/icons-vue";
-import { IconPropsType, IconSize } from './type';
+import { SELIconPropsType, IconSize } from './type';
 // 引入iconFont图标
-import '@snail-js/theme-chalk/iconFont/iconfont.js';
+import '@snail-js/vue/src/theme-chalk/iconFont/iconfont.js';
 
-const props = defineProps<IconPropsType>();
+const props = defineProps<SELIconPropsType>();
 const emits = defineEmits(['click']);
 
 const handleClick = (e: MouseEvent) => {
@@ -58,7 +59,7 @@ const fontSize = computed(() => {
   return 'inherit'
 })
 defineOptions({
-  name: "s-icon",
+  name: "s-el-icon",
 });
 
 </script>

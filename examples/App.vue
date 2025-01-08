@@ -13,7 +13,5 @@ import { SIcon,SClickCopy } from "@snail-js/vue"
 </script>
 
 <style lang="scss">
-@use '@snail-js/theme-chalk/style/index.scss';
 
-@use '@snail-js/theme-chalk/style/snailVariables.scss';
 </style>

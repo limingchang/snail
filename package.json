@@ -24,10 +24,8 @@
     "@element-plus/icons-vue": "^2.3.1",
     "@snail-js/api": "workspace:^",
     "@snail-js/shared": "workspace:^",
-    "@snail-js/theme-chalk": "workspace:^",
     "@snail-js/vue": "workspace:^",
     "element-plus": "^2.9.2",
-    "radash": "^12.1.0",
     "vue": "^3.5.13"
   },
   "directories": {

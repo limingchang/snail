@@ -70,7 +70,7 @@ export const IconNames = [
   'icon-Excel',
   'icon-permission',
 ] as const;
-const ElIconNames = [
+export const ElIconNames = [
   'AddLocation',
   'Aim',
   'AlarmClock',
