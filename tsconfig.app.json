@@ -30,5 +30,5 @@
     "strictPropertyInitialization": false
     
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["examples/**/*.ts", "examples/**/*.tsx", "examples/**/*.vue", "examples/main.ts", "examples/index.ts"]
 }

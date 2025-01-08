@@ -10,15 +10,15 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' }
+      { text: 'Snail', link: '/' },
+      { text: '组件库', link: '/components' }
     ],
 
     sidebar: [
       {
-        text: 'Examples',
+        text: '组件库',
         items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
+          { text: '图标', link: '/vue/sicon' },
           { text: 'Runtime API Examples', link: '/api-examples' }
         ]
       }
