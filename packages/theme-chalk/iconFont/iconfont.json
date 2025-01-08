@@ -6,6 +6,27 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "925318",
+      "name": "手机",
+      "font_class": "shouji",
+      "unicode": "e608",
+      "unicode_decimal": 58888
+    },
+    {
+      "icon_id": "15685054",
+      "name": "二维码",
+      "font_class": "erweima",
+      "unicode": "e6c5",
+      "unicode_decimal": 59077
+    },
+    {
+      "icon_id": "15686582",
+      "name": "密码",
+      "font_class": "mima",
+      "unicode": "e6cb",
+      "unicode_decimal": 59083
+    },
+    {
       "icon_id": "16350231",
       "name": "减",
       "font_class": "jian",
