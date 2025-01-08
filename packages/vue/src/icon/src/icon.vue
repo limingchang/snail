@@ -1,5 +1,5 @@
 <template>
-  <i class="iconfont" :class="icon"></i>
+  <i class="iconfont" :class="icon" :style="iconStyle"></i>
 </template>
 
 <script setup lang="ts">
@@ -11,10 +11,6 @@ import { SIconPropsType, IconSize } from "./type";
 
 const props = defineProps<SIconPropsType>();
 const emits = defineEmits(["click"]);
-
-const handleClick = (e: MouseEvent) => {
-  emits("click", e);
-};
 
 // 图标在 iconfont 中的名字
 // const iconClassName = computed(() => {

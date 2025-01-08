@@ -26,7 +26,7 @@ lib
 *.njsproj
 *.sln
 *.sw?
-
+.env
 # vitePress
 docs/.vitepress/cache/
 docs/.vitepress/dist/

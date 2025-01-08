@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import { onMounted, PropType } from 'vue'
 import { CaptchaConfig, CaptchaHandle } from './type'
-
+import initCaptcha from './ct4.js'
 declare global {
   interface Window {
     initAlicom4: (config: CaptchaConfig, handler: CaptchaHandle) => void;
@@ -26,26 +26,27 @@ const props = defineProps({
 })
 
 onMounted(() => {
-  createScript()
+  initCaptcha(window)
+  window.initAlicom4({ captchaId: props.captchaId, product: "bind" }, props.handle)
 })
 
-const createScript = () => {
-  const script = document.createElement('script')
-  script.type = 'text/javascript'
-  script.async = true
-  script.src = '/js/ct4.js'
-  document.body.appendChild(script)
-  script.onload = () => {
-    console.log('加载完成')
-    window.initAlicom4({ captchaId: props.captchaId, product: "bind" }, props.handle)
-  }
-  script.onerror = () => {
-    console.log('加载失败')
-  }
-}
+// const createScript = () => {
+//   const script = document.createElement('script')
+//   script.type = 'text/javascript'
+//   script.async = true
+//   script.src = '/js/ct4.js'
+//   document.body.appendChild(script)
+//   script.onload = () => {
+//     console.log('加载完成')
+//     window.initAlicom4({ captchaId: props.captchaId, product: "bind" }, props.handle)
+//   }
+//   script.onerror = () => {
+//     console.log('加载失败')
+//   }
+// }
 
 defineOptions({
-  name: "AliCaptcha"
+  name: "ali-captcha"
 })
 </script>
 

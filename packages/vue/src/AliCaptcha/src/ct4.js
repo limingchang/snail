@@ -1,6 +1,6 @@
 "v1.0.0 Captcha4 Inc.";
 
-(function (window) {
+export default function (window) {
     "use strict";
     if (typeof window === 'undefined') {
         throw new Error('Captcha4 requires browser environment');
@@ -485,4 +485,4 @@ window.initAlicom4 = function (userConfig,callback) {
 };
 
 
-})(window);
+};
