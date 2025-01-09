@@ -9,7 +9,10 @@
 - 在页面中引入组件：
 
 ```html
+<!-- 仅iconFont -->
 <SIcon icon="icon-hetongqianshu"></SIcon>
+<!-- 兼容El图标 -->
+<SElIcon icon="icon-hetongqianshu"></SElIcon>
 ```
 
 - 点击下列图标可复制 icon 名称

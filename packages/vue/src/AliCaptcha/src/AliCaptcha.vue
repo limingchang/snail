@@ -6,8 +6,8 @@
 
 <script setup lang="ts">
 import { onMounted, PropType } from 'vue'
-import { CaptchaConfig, CaptchaHandle } from './type'
-import initCaptcha from './ct4.js'
+import { CaptchaConfig, CaptchaHandle, CaptchaObj } from './type'
+import initCaptcha from './ct4'
 declare global {
   interface Window {
     initAlicom4: (config: CaptchaConfig, handler: CaptchaHandle) => void;
@@ -27,7 +27,13 @@ const props = defineProps({
 
 onMounted(() => {
   initCaptcha(window)
-  window.initAlicom4({ captchaId: props.captchaId, product: "bind" }, props.handle)
+  window.initAlicom4(
+    {
+      captchaId: props.captchaId,
+      product: "bind"
+    },
+    props.handle
+  )
 })
 
 // const createScript = () => {

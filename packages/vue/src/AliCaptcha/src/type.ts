@@ -1,9 +1,23 @@
+import { PropType } from "vue";
 export interface CaptchaConfig {
   captchaId: string;
   product: "bind";
 }
 
-type TCallBack = () => void;
+export type TCallBack = () => void;
+export type TErrorCallBack = (error?: {
+  code: number;
+  msg: string;
+  desc: any;
+}) => void;
+
+export interface CaptchaSuccessResult {
+  captcha_id: string; //验证ID。
+  lot_number: string; //验证流水号。
+  captcha_output: string; //验证输出信息。
+  pass_token: string; //验证通过标识。
+  gen_time: string; //验证通过时间戳。
+}
 
 export interface CaptchaObj {
   /**
@@ -12,9 +26,9 @@ export interface CaptchaObj {
    */
   onSuccess(callback: TCallBack): void;
   /**
-   * 进行服务端二次校验
+   * 获取结果进行服务端二次校验
    */
-  getValidate(): void;
+  getValidate(): CaptchaSuccessResult;
   /**
    *  调起验证码
    */
@@ -25,35 +39,35 @@ export interface CaptchaObj {
    * 按钮DOM生成完毕
    * @param callback 回调函数
    */
-  onReady?(callback: TCallBack): void;
+  onReady(callback: TCallBack): void;
   /**
    * 验证码下一步资源加载完毕
    * @param callback 回调函数
    */
-  onNextReady?(callback: TCallBack): void;
+  onNextReady(callback: TCallBack): void;
   /**
    * 验证失败
    * @param callback 回调函数
    */
-  onFail?(callback: TCallBack): void;
+  onFail(callback: TCallBack): void;
   /**
    * 验证出错
    * @param callback 回调函数
    */
-  onError?(callback: TCallBack): void;
+  onError(callback: TErrorCallBack): void;
   /**
    * 验证被用户关闭
    * @param callback 回调函数
    */
-  onClose?(callback: TCallBack): void;
+  onClose(callback: TCallBack): void;
   /**
    * 重置验证状态
    */
-  reset?(): void;
+  reset(): void;
   /**
    * 移除验证实例
    */
-  destroy?(): void;
+  destroy(): void;
 }
 
 export type CaptchaHandle = (captchaObj: CaptchaObj) => void;

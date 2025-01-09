@@ -6,14 +6,11 @@
     </button>
     <SClickCopy text="复制内容"></SClickCopy>
     <p>
-      <button
-        ref="btn"
-        style="background-color: var(--snail-color-danger); color: #fff"
-      >
+      <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
         <SIcon icon="icon-hetongqianshu"></SIcon>图形验证
       </button>
     </p>
-    <!-- <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha> -->
+    <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha>
   </div>
 </template>
 
@@ -21,20 +18,31 @@
 import { ref, onMounted, useTemplateRef } from "vue";
 import { SIcon, SClickCopy, AliCaptcha, CaptchaObj } from "@snail-js/vue";
 const captchaId = ref(import.meta.env.VITE_APP_CAPTCHA_ID);
+// const captchaId = ref('xxxxxx');
 
 const btnRef = useTemplateRef("btn");
 onMounted(() => {
   console.log(captchaId.value);
-  console.log(btnRef.value?);
 });
 
-const handle = (captchaObj: CaptchaObj) => {
-  
-};
 
-const clickHanle = () => {
+const handle = (captchaObj: CaptchaObj) => {
+  captchaObj.onReady(()=>{
+    clickHanle.value=()=>{
+      captchaObj.showCaptcha()
+    }
+  })
+  captchaObj.onSuccess(() => {
+    console.log(captchaObj.getValidate());
+  });
+  captchaObj.onError((error) => {
+    console.log(error);
+  });
+}
+
+const clickHanle = ref(() => {
   console.log("click");
-};
+});
 </script>
 
 <style lang="scss"></style>
