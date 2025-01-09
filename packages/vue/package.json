@@ -1,13 +1,39 @@
 {
   "name": "@snail-js/vue",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
-  "description": "",
+  "module": "dist/snail-vue.js",
+  "types": "./dist/index.d.ts",
+  "exports":{
+    ".":{
+      "import":"./dist/snail-vue.js",
+      "require":"./dist/snail-vue.umd.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "description": "vue components lib",
   "main": "index.ts",
   "scripts": {
+    "build":"vite build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "files": [
+    "LICENSE",
+    "README.md",
+    "dist"
+  ],
+  "peerDependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "element-plus": "^2.9.2",
+    "vue": ">=3.5.13"
+  },
+  "devDependencies": {
+    "sass": "^1.83.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.3",
+    "vue-tsc": "^2.0.21"
+  }
 }

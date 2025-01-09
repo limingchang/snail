@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 import { onMounted, PropType } from 'vue'
-import { CaptchaConfig, CaptchaHandle, CaptchaObj } from './type'
+import { CaptchaConfig, CaptchaHandle } from './type'
 import initCaptcha from './ct4'
 declare global {
   interface Window {

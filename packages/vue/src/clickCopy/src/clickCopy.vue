@@ -4,9 +4,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, useTemplateRef, ref } from 'vue'
+import { onMounted, useTemplateRef, ref,ComponentInstance } from 'vue'
 import { ElMessage } from 'element-plus'
-import { SIcon } from "@snail-js/vue"
+import { SIcon } from "../../icon"
 
 const iconRef = useTemplateRef('iconRef')
 
@@ -29,7 +29,7 @@ const isShow = ref(true)
 
 onMounted(() => {
   if (!props.display) {
-    const parent: HTMLElement = iconRef.value?.$el.parentElement
+    const parent = (iconRef.value! as ComponentInstance<typeof SIcon>).$el.parentElement!
     parent.addEventListener('click', handleCopy)
     isShow.value = false
   }

@@ -1,4 +1,3 @@
-import { PropType } from "vue";
 export interface CaptchaConfig {
   captchaId: string;
   product: "bind";

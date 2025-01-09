@@ -76,7 +76,7 @@ const stop = () => {
   clearInterval(intervalId.value)
 }
 
-const intervalId = ref<number>()
+const intervalId = ref<NodeJS.Timeout>()
 
 onMounted(() => {
   animate()

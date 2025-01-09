@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, CSSProperties } from "vue";
+import { computed } from "vue";
 // import * as Icons from "@element-plus/icons-vue";
 import { SIconPropsType, IconSize } from "./type";
 // 引入iconFont图标
@@ -16,7 +16,7 @@ const emits = defineEmits(["click"]);
 // const iconClassName = computed(() => {
 //   return `#${props.iconName}`;
 // })
-const iconStyle: CSSProperties = computed(() => {
+const iconStyle = computed(() => {
   return {
     color: props.color || "inherit",
     fontSize: fontSize.value,

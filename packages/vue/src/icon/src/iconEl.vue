@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, isVNode, CSSProperties } from 'vue';
+import { computed, isVNode } from 'vue';
 import { ElIcon } from 'element-plus'
 import * as Icons from "@element-plus/icons-vue";
 import { SELIconPropsType, IconSize } from './type';
@@ -35,7 +35,7 @@ const handleClick = (e: MouseEvent) => {
 // const iconClassName = computed(() => {
 //   return `#${props.iconName}`;
 // })
-const iconStyle: CSSProperties = computed(() => {
+const iconStyle = computed(() => {
   return {
     color: props.color || 'inherit',
     fontSize: fontSize.value

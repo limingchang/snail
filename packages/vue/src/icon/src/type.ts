@@ -1,5 +1,5 @@
-import type { TIconNames } from "@snail-js/vue";
-import { IconNames } from "@snail-js/vue";
+import type { TIconNames } from "../../theme-chalk";
+import { IconNames } from "../../theme-chalk";
 
 export enum IconType {
   SUCCESS = "success",

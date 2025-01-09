@@ -96,7 +96,7 @@ var callbacks = {};
 var status = {};
 
 var random = function () {
-    return parseInt(Math.random() * 10000) + (new Date()).valueOf();
+    return parseInt((Math.random() * 10000).toString()) + (new Date()).valueOf();
 };
 
 // bind 函数polify, 不带new功能的bind
@@ -248,15 +248,18 @@ var makeURL = function (protocol, domain, path, query) {
 };
 
 var load = function (config, protocol, domains, path, query, cb, handleCb) {
+    // @ts-ignore
     var tryRequest = function (at) {
         // 处理jsonp回调，这里为了保证每个不同jsonp都有唯一的回调函数
         if(handleCb){
             var cbName = "captcha4_" + random();
             // 需要与预先定义好cbname参数，删除对象
+            // @ts-ignore
             window[cbName] = bind(handleCb, null, cbName);
             query.callback = cbName;
         }
         var url = makeURL(protocol, domains[at], path, query);
+        // @ts-ignore
         loadScript(url, function (err) {
             if (err) {
                 // 超时或者出错的时候 移除回调
