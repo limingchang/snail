@@ -6,6 +6,7 @@
 import { computed } from "vue";
 // import * as Icons from "@element-plus/icons-vue";
 import { SIconPropsType, IconSize } from "./type";
+
 // 引入iconFont图标
 // import initIconFont from '@snail-js/vue/theme-chalk/iconFont/iconfont.js';
 
@@ -48,8 +49,6 @@ defineOptions({
 });
 </script>
 <style scoped lang="scss">
-// @use "@snail-js/vue/src/theme-chalk/iconFont/iconfont.css";
-@use "@snail-js/theme/iconFont/iconfont.css";
 .snail-icon {
   font-size: 18px;
   margin-left: 5px;

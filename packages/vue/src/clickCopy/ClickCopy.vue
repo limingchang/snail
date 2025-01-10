@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef, ref, ComponentInstance } from 'vue'
 import { ElMessage } from 'element-plus'
-import { SIcon } from '@snail-js/icon'
+import { SIcon } from '@snail-js/vue'
 
 const iconRef = useTemplateRef('iconRef')
 

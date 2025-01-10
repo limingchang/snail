@@ -1,5 +1,5 @@
-import Icon from "./src/icon.vue";
-import ElIcon from "./src/iconEl.vue";
+import Icon from "./icon.vue";
+import ElIcon from "./iconEl.vue";
 
 Icon.install = (app:any) => {
   app.component(Icon.name || "s-icon", Icon);

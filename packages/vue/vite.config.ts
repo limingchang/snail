@@ -1,8 +1,10 @@
 // packages/shared/vite.config.ts
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { join } from 'node:path'
 
 export default defineConfig({
+  plugins: [vue()],
   build: {
     // 产物输出目录
     outDir: "dist",
@@ -12,7 +14,7 @@ export default defineConfig({
     // 参考：https://cn.vitejs.dev/config/build-options.html#build-lib
     lib: {
       // 构建的入口文件
-      entry: "index.ts",
+      entry: "./src/index.ts",
 
       // 产物的生成格式，默认为 ['es', 'umd']。我们使用默认值，注释掉此字段。
       // formats: ['es', 'umd'],
@@ -34,10 +36,19 @@ export default defineConfig({
       },
     },
   },
-  plugins: [vue()],
+
   css: {
     preprocessorOptions: {
       scss: { api: "modern-compiler" },
     },
+  },
+  resolve: {
+    alias: [
+      {
+        find: /^@snail-js\/(.+)$/,
+        // replacement: join(__dirname, "..", "packages", "$1", "src"),
+        replacement: join(__dirname, "..", "$1", "src"),
+      },
+    ],
   },
 });

@@ -17,16 +17,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, isVNode } from 'vue';
+import { computed, isVNode, onMounted } from 'vue';
 import { ElIcon } from 'element-plus'
 import * as Icons from "@element-plus/icons-vue";
 import { SELIconPropsType, IconSize } from './type';
 // 引入iconFont图标
-import "@snail-js/theme/iconFont/iconfont.js"
+// import { InitIconFont } from "@snail-js/theme"
 // import '@snail-js/vue/src/theme-chalk/iconFont/iconfont.js';
 
 const props = defineProps<SELIconPropsType>();
 const emits = defineEmits(['click']);
+
+onMounted(() => {
+  // InitIconFont()
+})
 
 const handleClick = (e: MouseEvent) => {
   emits('click', e);
@@ -82,7 +86,8 @@ defineOptions({
   margin: auto;
   fill: currentColor;
 }
-.pointer-icon{
+
+.pointer-icon {
   cursor: pointer;
 }
 </style>

@@ -1,34 +1,12 @@
 {
+  // 继承基础配置
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // "composite": true,
-    "target": "ES2021",
-    "useDefineForClassFields": true,
-    "module": "ESNext",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "skipLibCheck": true,
-
-    /* Bundler mode */
+    "composite": true,
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "noImplicitThis":false,
-    // "noEmit": true,
-    "jsx": "preserve",
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    /* Decorator */
-    "experimentalDecorators":true,
-    "emitDecoratorMetadata": true,
-
-    /*关闭ts的检测class初始化的配置 */
-    "strictPropertyInitialization": false
-    
+    // 组件库依赖浏览器的 DOM API
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["node"],
   },
-  "include": ["packages/vue/**/*.vue","packages/vue/**/*.ts"]
+  "include": ["typings/env.d.ts", "packages/**/src"]
 }

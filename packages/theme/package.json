@@ -1,10 +1,17 @@
 {
   "name": "@snail-js/theme",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "",
   "main": "index.ts",
+  "type": "module",
+  "exports":{
+    ".":"./dist/index.css",
+    "./iconfont":"./dist/iconFont/iconfont.css"
+  },
   "scripts": {
-    "build":"vue-tsc -b --noEmit && vite build",
+    "cp:style":"tsx ./src/script.ts",
+    "clean:dist": "rimraf ./dist",
+    "build":"pnpm run clean:dist && vite build &&pnpm run cp:style",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

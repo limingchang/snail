@@ -15,7 +15,8 @@
   "description": "vue components lib",
   "main": "index.ts",
   "scripts": {
-    "build":"vite build",
+    "clean:dist": "rimraf ./dist",
+    "build":"pnpm run clean:dist && vite build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -28,12 +29,8 @@
   ],
   "dependencies": {
     "@snail-js/shared": "workspace:*",
-    "@snail-js/icon": "workspace:*",
-    "@snail-js/click-copy": "workspace:*",
-    "@snail-js/theme": "workspace:*",
-    "@snail-js/word-cloud": "workspace:*",
-    "@snail-js/right-key-menu": "workspace:*",
-    "@snail-js/ali-captcha": "workspace:*"
+    "@snail-js/api": "workspace:*",
+    "@snail-js/theme": "workspace:*"
   },
   "peerDependencies": {
     "@element-plus/icons-vue": "^2.3.1",

@@ -1,9 +1,9 @@
-export * from "@snail-js/theme"
-export * from "./src/components";
-import * as components from "./src/components";
+// export * from "@snail-js/theme"
+export * from "./components";
+import * as components from "./components";
 
 // 引入样式
-import "@snail-js/theme/index.scss";
+// import "@snail-js/theme/index.scss";
 
 export default {
   install(app:any) {

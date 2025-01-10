@@ -1,10 +1,10 @@
 <template>
   <div>
-    monorepo 组件开发测试
+    <p>monorepo 组件开发测试</p>
     <button style="background-color: var(--snail-color-danger); color: #fff">
       <SIcon icon="icon-hetongqianshu"></SIcon>按钮测试
+      <SClickCopy text="复制内容" :display="false"></SClickCopy>
     </button>
-    <SClickCopy text="复制内容"></SClickCopy>
     <p>
       <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
         <SIcon icon="icon-hetongqianshu"></SIcon>图形验证
@@ -46,4 +46,6 @@ const clickHanle = ref(() => {
 });
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+@use "@snail-js/theme/iconfont"
+</style>

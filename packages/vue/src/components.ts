@@ -1,3 +1,3 @@
-export { SIcon, SElIcon } from "@snail-js/icon";
-export { SClickCopy } from "@snail-js/click-copy";
-export * from "@snail-js/ali-captcha";
+export { SIcon, SElIcon } from "./icon";
+export { SClickCopy } from "./clickCopy";
+export * from "./aliCaptcha";

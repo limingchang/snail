@@ -1,9 +1,11 @@
 {
   "name": "@snail-js/shared",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "",
   "main": "index.ts",
   "scripts": {
+    "clean:dist": "rimraf ./dist",
+    "build":"pnpm run clean:dist && vite build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

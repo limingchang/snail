@@ -5,6 +5,8 @@ import Components from "unplugin-vue-components/vite";
 import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
 import vue from "@vitejs/plugin-vue";
 
+import { join } from "node:path";
+
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
@@ -25,4 +27,12 @@ export default defineConfig({
       scss: { api: "modern-compiler" },
     },
   },
+  // resolve: {
+  //   alias: [
+  //     {
+  //       find: /^@snail-js\/(.+)$/,
+  //       replacement: join(__dirname, "..", "packages", "$1", "dist"),
+  //     },
+  //   ],
+  // },
 });

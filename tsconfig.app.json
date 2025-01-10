@@ -23,12 +23,21 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     /* Decorator */
-    "experimentalDecorators":true,
+    "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
 
     /*关闭ts的检测class初始化的配置 */
     "strictPropertyInitialization": false
-    
   },
-  "include": ["packages/**/*.vue","packages/**/*.ts","examples/**/*.ts", "examples/**/*.tsx", "examples/**/*.vue", "packages/vue/src/AliCaptcha/src/ct4.js"]
+  "include": [
+    "examples/**/*.ts",
+    "examples/**/*.tsx",
+    "examples/**/*.vue",
+    // "packages/vue/src/AliCaptcha/src/ct4.js",
+    "typings/env.d.ts",
+    "packages/**/src"
+  ],
+  "path": {
+    "@snail-js/*": ["packages/*/src"]
+  }
 }

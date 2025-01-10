@@ -1,8 +1,8 @@
-import Captcha from "./src/AliCaptcha.vue";
+import Captcha from "./AliCaptcha.vue";
 
 Captcha.install = (app:any) => {
   app.component(Captcha.name || "ali-captcha", Captcha);
 };
 export const AliCaptcha = Captcha;
-export * from "./src/type";
+export * from "./type";
 export default AliCaptcha;
