@@ -36,7 +36,7 @@ const handle = (captchaObj: CaptchaObj) => {
   captchaObj.onSuccess(() => {
     console.log(captchaObj.getValidate());
   });
-  captchaObj.onError((error) => {
+  captchaObj.onError((error:any) => {
     console.log(error);
   });
 }

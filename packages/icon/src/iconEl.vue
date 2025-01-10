@@ -22,7 +22,8 @@ import { ElIcon } from 'element-plus'
 import * as Icons from "@element-plus/icons-vue";
 import { SELIconPropsType, IconSize } from './type';
 // 引入iconFont图标
-import '@snail-js/vue/src/theme-chalk/iconFont/iconfont.js';
+import "@snail-js/theme/iconFont/iconfont.js"
+// import '@snail-js/vue/src/theme-chalk/iconFont/iconfont.js';
 
 const props = defineProps<SELIconPropsType>();
 const emits = defineEmits(['click']);

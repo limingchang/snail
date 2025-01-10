@@ -9,7 +9,8 @@
       "import":"./dist/snail-vue.js",
       "require":"./dist/snail-vue.umd.cjs",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./index.css":"./dist/index.css"
   },
   "description": "vue components lib",
   "main": "index.ts",
@@ -31,7 +32,8 @@
     "@snail-js/click-copy": "workspace:*",
     "@snail-js/theme": "workspace:*",
     "@snail-js/word-cloud": "workspace:*",
-    "@snail-js/right-key-menu": "workspace:*"
+    "@snail-js/right-key-menu": "workspace:*",
+    "@snail-js/ali-captcha": "workspace:*"
   },
   "peerDependencies": {
     "@element-plus/icons-vue": "^2.3.1",

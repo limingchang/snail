@@ -1,5 +1,5 @@
 <template>
-  <i class="iconfont" :class="icon" :style="iconStyle"></i>
+  <i class="iconfont" :class="icon" :style="iconStyle" @click="clickhandle"></i>
 </template>
 
 <script setup lang="ts">
@@ -23,6 +23,10 @@ const iconStyle = computed(() => {
   };
 });
 
+const clickhandle = () => {
+  emits("click");
+};
+
 const sizeMap = {
   large: "1.2em",
   normal: "1em",
@@ -44,7 +48,8 @@ defineOptions({
 });
 </script>
 <style scoped lang="scss">
-@use "@snail-js/vue/src/theme-chalk/iconFont/iconfont.css";
+// @use "@snail-js/vue/src/theme-chalk/iconFont/iconfont.css";
+@use "@snail-js/theme/iconFont/iconfont.css";
 .snail-icon {
   font-size: 18px;
   margin-left: 5px;

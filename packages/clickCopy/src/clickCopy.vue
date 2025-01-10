@@ -4,9 +4,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, useTemplateRef, ref,ComponentInstance } from 'vue'
+import { onMounted, useTemplateRef, ref, ComponentInstance } from 'vue'
 import { ElMessage } from 'element-plus'
-import { SIcon } from "../../icon"
+import { SIcon } from '@snail-js/icon'
 
 const iconRef = useTemplateRef('iconRef')
 
@@ -41,6 +41,10 @@ const handleCopy = async () => {
     message: props.message || '复制成功'
   })
 }
+
+defineOptions({
+  name: "s-click-copy"
+})
 </script>
 
 <style scoped>
