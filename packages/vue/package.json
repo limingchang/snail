@@ -18,6 +18,7 @@
   "scripts": {
     "clean:dist": "rimraf ./dist",
     "build": "pnpm run clean:dist && vite build",
+    "publish":"npm publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -28,8 +29,6 @@
     "dist"
   ],
   "dependencies": {
-    "@snail-js/shared": "workspace:*",
-    "@snail-js/api": "workspace:*",
     "@snail-js/theme": "workspace:*"
   },
   "peerDependencies": {

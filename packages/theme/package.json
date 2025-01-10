@@ -1,18 +1,19 @@
 {
   "name": "@snail-js/theme",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "index.ts",
   "type": "module",
-  "exports":{
-    ".":"./dist/index.css",
-    "./iconfont":"./dist/iconFont/iconfont.css",
+  "exports": {
+    ".": "./dist/index.css",
+    "./iconfont": "./dist/iconFont/iconfont.css",
     "./*": "./*"
   },
   "scripts": {
-    "cp:style":"tsx ./src/script.ts",
+    "cp:style": "tsx ./src/script.ts",
     "clean:dist": "rimraf ./dist",
-    "build":"pnpm run clean:dist && vite build &&pnpm run cp:style",
+    "build": "pnpm run clean:dist && vite build &&pnpm run cp:style",
+    "publish": "npm publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

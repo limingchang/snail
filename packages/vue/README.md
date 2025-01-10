@@ -26,6 +26,8 @@ import '@snail-js/vue/index.css'
 import "@snail-js/theme"
 ```
 
+> 请先安装主题样式库`@snail-js/theme`
+
 #### 若使用图标组件，请在使用页面添加如下代码
 ```html
 <style lang="scss">
