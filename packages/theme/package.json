@@ -1,5 +1,5 @@
 {
-  "name": "@snail-js/api",
+  "name": "@snail-js/theme",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -8,8 +8,5 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "peerDependencies": {
-    "vue": "^3.5.13"
-  }
+  "license": "ISC"
 }

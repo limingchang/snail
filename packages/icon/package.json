@@ -1,5 +1,5 @@
 {
-  "name": "@snail-js/api",
+  "name": "@snail-js/icon",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -9,6 +9,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "@snail-js/theme": "workspace:*"
+  },
   "peerDependencies": {
     "vue": "^3.5.13"
   }

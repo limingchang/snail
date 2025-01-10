@@ -49,6 +49,10 @@ const style = computed<StyleValue>(() => {
   }
 })
 
+defineOptions({
+  name: "s-word-cloud"
+})
+
 </script>
 
 <style scoped>

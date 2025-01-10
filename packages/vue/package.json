@@ -25,6 +25,14 @@
     "README.md",
     "dist"
   ],
+  "dependencies": {
+    "@snail-js/shared": "workspace:*",
+    "@snail-js/icon": "workspace:*",
+    "@snail-js/click-copy": "workspace:*",
+    "@snail-js/theme": "workspace:*",
+    "@snail-js/word-cloud": "workspace:*",
+    "@snail-js/right-key-menu": "workspace:*"
+  },
   "peerDependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "element-plus": "^2.9.2",
