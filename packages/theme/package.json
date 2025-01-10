@@ -6,7 +6,8 @@
   "type": "module",
   "exports":{
     ".":"./dist/index.css",
-    "./iconfont":"./dist/iconFont/iconfont.css"
+    "./iconfont":"./dist/iconFont/iconfont.css",
+    "./*": "./*"
   },
   "scripts": {
     "cp:style":"tsx ./src/script.ts",
@@ -16,5 +17,9 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }

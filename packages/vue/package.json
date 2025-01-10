@@ -4,26 +4,26 @@
   "type": "module",
   "module": "dist/snail-vue.js",
   "types": "./dist/index.d.ts",
-  "exports":{
-    ".":{
-      "import":"./dist/snail-vue.js",
-      "require":"./dist/snail-vue.umd.cjs",
+  "exports": {
+    ".": {
+      "import": "./dist/snail-vue.js",
+      "require": "./dist/snail-vue.umd.cjs",
       "types": "./dist/index.d.ts"
     },
-    "./index.css":"./dist/index.css"
+    "./index.css": "./dist/index.css",
+    "./*": "./*"
   },
   "description": "vue components lib",
   "main": "index.ts",
   "scripts": {
     "clean:dist": "rimraf ./dist",
-    "build":"pnpm run clean:dist && vite build",
+    "build": "pnpm run clean:dist && vite build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "files": [
-    "LICENSE",
     "README.md",
     "dist"
   ],
