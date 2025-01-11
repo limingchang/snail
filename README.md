@@ -1,5 +1,10 @@
-# Vue 3 + TypeScript + Vite
+# Vue 3 + TypeScript 组件库
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## 组件库
+<img src="https://img.shields.io/npm/v/%40snail-js%2Fvue?&label=%40snail-js%2Fvue&labelColor=1e80ff&color=67C23A&link=https%3A%2F%2Fgitee.com%2Flimich%2Fsnail"></img>
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+- [@snail-js/vue](./packages/vue/)
+
+## 组件主题
+<img src="https://img.shields.io/npm/v/%40snail-js%2Ftheme?label=%40snail-js%2Ftheme&labelColor=1e80ff&color=67C23A"></img>
+- [@snail-js/theme](./packages/theme/)
