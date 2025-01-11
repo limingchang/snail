@@ -1,58 +1,35 @@
 import { h, render, ref } from "vue";
 import { VNode } from "vue";
-
-import * as Icons from "@element-plus/icons-vue";
-
-import { ElIcon } from "element-plus";
-
-// import { useUserStore } from "@/stores";
-
+// import * as Icons from "@element-plus/icons-vue";
+// import { ElIcon } from "element-plus";
+import { SElIcon } from "../icon";
 import { useMouse } from "@vueuse/core";
 const { x, y } = useMouse();
 
 import _ from "lodash";
 
-type HandlerCommand<T> = (context: T) => void;
-type SetDisabled<T> = (context: T) => boolean | Promise<boolean>;
-
-type TextAlign = "left" | "center" | "right" | "justify";
-
-export interface SnailRightKeyMenuItem<T = any> {
-  label: string;
-  icon?: string;
-  divider?: boolean;
-  hoverColor?: string;
-  permission?: string;
-  disabled?: boolean | SetDisabled<T>;
-  command: HandlerCommand<T>;
-}
-
-export interface SnailRightKeyMenuOptions<T = any> {
-  width?: number;
-  align?: TextAlign;
-  items: SnailRightKeyMenuItem<T>[];
-  checkPermission?: (permissionFlag: string) => boolean;
-}
+// types
+import { SnailPopUpMenuItemOptions, SnailPopUpMenuItem } from "./type";
 
 const menuRef = ref<VNode>();
 
-function generateItem(item: SnailRightKeyMenuItem, disabled?: boolean): VNode;
+function generateItem(item: SnailPopUpMenuItem, disabled?: boolean): VNode;
 
 function generateItem<T>(
-  item: SnailRightKeyMenuItem<typeof context>,
+  item: SnailPopUpMenuItem<typeof context>,
   context?: T
 ): VNode;
 
 function generateItem<T>(
-  item: SnailRightKeyMenuItem<typeof disabledOrContext>,
+  item: SnailPopUpMenuItem<typeof disabledOrContext>,
   disabledOrContext?: T
 ): VNode {
   const itemClass = disabledOrContext
-    ? "snail-right-key-menu-item item-enabled"
-    : "snail-right-key-menu-item item-disabled";
-  const innerElements = item.icon
+    ? "snail-pop-up-menu-item item-enabled"
+    : "snail-pop-up-menu-item item-disabled";
+  const innerVNode = item.icon
     ? [
-        h(ElIcon, null, () => h(Icons[item.icon as keyof typeof Icons])),
+        h(SElIcon, { icon: item.icon }),
         h("span", { class: "item-label" }, item.label),
       ]
     : [h("span", { class: "item-label" }, item.label)];
@@ -62,16 +39,16 @@ function generateItem<T>(
       class: itemClass,
       style: { "--hover-color": item.hoverColor ? item.hoverColor : "#66b1ff" },
       onClick: () => {
-        disabledOrContext && item.command(disabledOrContext);
+        disabledOrContext && item.click(disabledOrContext);
         // close();
         destroyed();
       },
     },
-    innerElements
+    () => innerVNode
   );
 }
 
-const defaultOptions: SnailRightKeyMenuOptions = {
+const defaultOptions: SnailPopUpMenuItemOptions = {
   width: 100,
   align: "left",
   items: [],
@@ -84,23 +61,21 @@ const destroyed = () => {
   document.body.removeEventListener("click", destroyed);
 };
 
-export const SnailRightKeyMenu = async <R = any>(
-  options: SnailRightKeyMenuOptions<typeof context>,
+export const SnailPopUpMenu = async <R = any>(
+  options: SnailPopUpMenuItemOptions<typeof context>,
   context?: R
 ) => {
   if (menuRef.value) {
-    // close();
-
     destroyed();
   }
-  const { width, align, items, checkPermission } = _.merge(
+  const { width, align, items, permission } = _.merge(
     defaultOptions,
     options
   );
   // 权限过滤
   const menuItems = items.filter((item) => {
-    if (checkPermission && item.permission) {
-      return checkPermission(item.permission!);
+    if (permission && item.permission) {
+      return permission(item.permission!);
     }
     return true;
   });
@@ -119,7 +94,7 @@ export const SnailRightKeyMenu = async <R = any>(
         );
       }
       if (item.divider) {
-        return [menuItem, h("div", { class: "snail-right-key-menu-divider" })];
+        return [menuItem, h("div", { class: "snail-pop-up-menu-item-divider" })];
       }
       return menuItem;
     })
@@ -127,7 +102,7 @@ export const SnailRightKeyMenu = async <R = any>(
   const newVNode = h(
     "div",
     {
-      class: "snail-right-key-menu",
+      class: "snail-pop-up-menu-item",
       style: {
         width: `${width}px`,
         textAlign: align,
