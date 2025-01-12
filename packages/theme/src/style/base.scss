@@ -33,11 +33,7 @@ button {
   .item-disabled {
     cursor: not-allowed;
     color: #999;
-    text-shadow:
-      -1px 0 #fff,
-      0 1px #fff,
-      1px 0 #fff,
-      0 -1px #fff;
+    text-shadow: -1px 0 #fff, 0 1px #fff, 1px 0 #fff, 0 -1px #fff;
   }
   .item-enabled:hover {
     background-color: var(--hover-color);
@@ -52,4 +48,18 @@ button {
   .s-pop-up-menu-item:not(:last-child) {
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   }
+}
+
+.s-icon {
+  --color: inherit;
+  align-items: center;
+  display: inline-flex;
+  height: 1em;
+  justify-content: center;
+  line-height: 1em;
+  position: relative;
+  width: 1em;
+  fill: currentColor;
+  color: var(--color);
+  font-size: inherit;
 }

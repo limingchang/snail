@@ -1,11 +1,10 @@
-// import { VNode } from "vue";
-import { TIconNames } from "@snail-js/theme";
+
 type HandlerClick<T> = (context?: T) => void;
 type SetDisabled<T> = (context: T) => boolean | Promise<boolean>;
 export type TextAlign = "left" | "center" | "right" | "justify";
 export interface SnailPopUpMenuItem<T = any> {
   label: string;
-  icon?: TIconNames;
+  icon?: string;
   divider?: boolean;
   hoverColor?: string;
   permission?: string;

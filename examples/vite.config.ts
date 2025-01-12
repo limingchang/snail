@@ -27,12 +27,28 @@ export default defineConfig({
       scss: { api: "modern-compiler" },
     },
   },
-  // resolve: {
-  //   alias: [
-  //     {
-  //       find: /^@snail-js\/(.+)$/,
-  //       replacement: join(__dirname, "..", "packages", "$1", "dist"),
-  //     },
-  //   ],
-  // },
+  resolve: {
+    alias: [
+      {
+        find: /^@snail-js\/(\w+)\/(.*)/,
+        // replacement: join(__dirname, "..", "$1", "src"),
+        replacement: join(
+          __dirname,
+          "../",
+          "packages",
+          "$1",
+          "src",
+          "$2"
+        ),
+      },
+      {
+        find: /^@snail-js\/(\w+)/,
+        // replacement: join(__dirname, "..", "$1", "src"),
+        replacement: join(__dirname, "../", "packages", "$1", "src"),
+      },
+    ],
+    // alias:{
+    //   "@snail-js/*": join(__dirname, "..", "packages/*")
+    // }
+  },
 });

@@ -1,10 +1,17 @@
-import { createApp } from 'vue'
-import App from './App.vue'
-import 'element-plus/dist/index.css'
-// import '@snail-js/vue/src/theme-chalk/index.scss';
-import '@snail-js/vue/index.css'
-import "@snail-js/theme"
+import { createApp } from "vue";
+import App from "./App.vue";
+import "element-plus/dist/index.css";
 
-const app = createApp(App)
-app.mount('#app')
+import * as SIcons from "@snail-js/theme"
+
+
+
+const app = createApp(App);
+
+for (const [key, component] of Object.entries(SIcons)) {
+  app.component(key, component)
+}
+
+
+app.mount("#app");
 

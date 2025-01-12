@@ -6,32 +6,48 @@
       <SClickCopy text="复制内容" :display="false"></SClickCopy>
     </button>
     <p>
-      <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
-        <SIcon icon="icon-hetongqianshu"></SIcon>图形验证
+      <button
+        ref="btn"
+        style="background-color: var(--snail-color-danger); color: #fff"
+        @click="clickHanle"
+      >
+        <SIcon size="large"><IconSign  /></SIcon>图形验证
+        <SIcon><Edit /></SIcon>兼容测试
       </button>
+      <ElButton type="primary"
+        ><ElIcon><Edit /></ElIcon>测试</ElButton
+      >
     </p>
     <button @click="menuHandle">点击菜单</button>
     <!-- <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha> -->
-    <SPopupMenu :width='150' :items="menuItems" :permission="() => true" v-model="showMenu"></SPopupMenu>
+    <SPopupMenu
+      :width="150"
+      :items="menuItems"
+      :permission="() => true"
+      v-model="showMenu"
+    ></SPopupMenu>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, useTemplateRef } from "vue";
 import { SIcon, SClickCopy } from "@snail-js/vue";
-import { AliCaptcha, CaptchaObj } from "@snail-js/vue"
-import { SPopupMenu, SnailPopUpMenuItem } from "@snail-js/vue"
+import { IconMobile,IconSign } from "@snail-js/theme";
+import { AliCaptcha, CaptchaObj } from "@snail-js/vue";
+import { ElButton, ElIcon } from "element-plus";
+import { Edit, EditPen } from "@element-plus/icons-vue";
+import { SPopupMenu, SnailPopUpMenuItem } from "@snail-js/vue";
 
 // import { SIcon,CaptchaObj,SClickCopy,AliCaptcha } from '../packages/vue'
 // const captchaId = ref(import.meta.env.VITE_APP_CAPTCHA_ID);
 // const captchaId = ref('xxxxxx');
 
-const showMenu = ref(false)
+const showMenu = ref(false);
 
 const menuItems = ref<Array<SnailPopUpMenuItem>>([
   {
     label: "菜单1",
-    icon: "Edit",
+    icon: "icon-snail-fill",
     click: () => {
       console.log("菜单1");
     },
@@ -39,12 +55,13 @@ const menuItems = ref<Array<SnailPopUpMenuItem>>([
   },
   {
     label: "菜单2",
+    icon: "icon-mobile",
     click: () => {
       console.log("菜单2");
     },
     disabled: false,
   },
-])
+]);
 
 onMounted(() => {
   // console.log(captchaId.value);
@@ -52,9 +69,8 @@ onMounted(() => {
 
 const menuHandle = () => {
   console.log("menu");
-  showMenu.value = true
-}
-
+  showMenu.value = true;
+};
 
 // const handle = (captchaObj: CaptchaObj) => {
 //   captchaObj.onReady(() => {
@@ -76,5 +92,11 @@ const clickHanle = ref(() => {
 </script>
 
 <style lang="scss">
-@use "@snail-js/theme/iconfont"
+// 发布包引用方式
+// @use "@snail-js/theme/iconfont";
+// 本地开发引用方式
+// @use "@snail-js/theme/src/iconFont/inconfont.css"
+
+@use "@snail-js/theme/index.scss";
+@use "@snail-js/theme/iconFont/iconfont.css";
 </style>
