@@ -35,8 +35,8 @@ const props = defineProps({
 
 onMounted(() => {
     // const parent = (iconRef.value! as ComponentInstance<typeof SIcon>).$el.parentElement!
-    const parent = clickCopyRef.value!.parentElement!
-    console.log(parent);
+    const parent = (clickCopyRef.value! as HTMLElement).parentElement!
+    // console.log(parent);
     parent.classList.add('s-click-copy-icon-parent')
 })
 

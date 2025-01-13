@@ -10,7 +10,8 @@ button {
 }
 
 .s-pop-up-menu {
-  position: flex;
+  position: absolute;
+  z-index: 9999;
   width: 100px;
   background-color: #fff;
   width: 100px;
@@ -27,7 +28,7 @@ button {
     padding: 8px;
     color: #444040;
     .item-label {
-      margin-left: 15px;
+      margin-left: 10px;
     }
   }
   .item-disabled {

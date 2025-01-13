@@ -1,20 +1,18 @@
 <template>
   <Teleport to="body">
     <div ref="sPopUpMenuRef" v-show="model" class="s-pop-up-menu" :style="menuStyle">
-      <MenuItem v-for="(item, index) in props.items" :options="item" :key="`s-pop-up-menu-item${index}`"
-        @hide="handleHide">
-      </MenuItem>
+      <slot></slot>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { PropType, computed, watch, ref } from 'vue'
-import MenuItem from './MenuItem.vue'
-import { TextAlign, SnailPopUpMenuItem } from './type'
+import { PropType, computed, watch, ref, provide, useTemplateRef } from 'vue'
+// import MenuItem from './PopupMenuItem.vue'
+import { TextAlign } from './type'
 
 import { useMouse } from "@vueuse/core";
-const { x, y } = useMouse();
+
 
 const props = defineProps({
   width: {
@@ -25,41 +23,49 @@ const props = defineProps({
     type: String as PropType<TextAlign>,
     default: () => 'left'
   },
-  items: {
-    type: Array as PropType<SnailPopUpMenuItem[]>,
-    default: () => {
-      return []
-    }
-  },
-  permission: {
-    type: Function as PropType<(flag?: string) => boolean>,
-    default: () => {
-      return () => true
-    }
-  }
 })
 
 const model = defineModel<boolean>({ required: true, default: () => false })
+const sPopUpMenuRef = useTemplateRef('sPopUpMenuRef')
 
 const handleHide = () => {
   model.value = false
 }
 
-const pos = ref({
-  x: 0,
-  y: 0
-})
+provide('s-popup-menu-handleHide', handleHide)
 
-watch(() => model.value, () => {
-  if (model.value && !props.permission()) {
-    model.value = false
-    return
-  }
-  if (model.value) {
-    pos.value = {
-      x: x.value,
-      y: y.value
+const posX = ref(0)
+const posY = ref(0)
+const { x, y } = useMouse({ touch: false });
+const setPositon = () => {
+  const clientX = document.documentElement.clientWidth
+  const clientY = document.documentElement.offsetHeight
+  const timer = setTimeout(() => {
+    const menuWidth = (sPopUpMenuRef.value! as HTMLElement).offsetWidth
+    if (x.value + menuWidth > clientX) {
+      posX.value = clientX - menuWidth
+    } else {
+      posX.value = x.value
     }
+    const menuHeight = (sPopUpMenuRef.value! as HTMLElement).offsetHeight
+    if (y.value + menuHeight > clientY) {
+      posY.value = clientY - menuHeight
+    } else {
+      posY.value = y.value
+    }
+    clearTimeout(timer)
+  }, 50)
+}
+
+watch(() => model.value, async () => {
+  if (model.value) {
+    setPositon()
+    const timer = setTimeout(() => {
+      document.body.addEventListener('click', handleHide)
+      clearTimeout(timer)
+    }, 50)
+  } else {
+    document.body.removeEventListener('click', handleHide)
   }
 })
 
@@ -67,8 +73,8 @@ const menuStyle = computed(() => {
   return {
     width: `${props.width}px`,
     textAlign: props.align,
-    top: `${pos.value.x - 5}px`,
-    left: `${pos.value.y - 5}px`,
+    top: `${posY.value - 5}px`,
+    left: `${posX.value - 5}px`,
     display: "block",
   }
 })

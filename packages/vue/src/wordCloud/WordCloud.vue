@@ -1,7 +1,7 @@
 <template>
   <div class="word-cloud" :style="style">
     <WordTag v-for="(word, index) in hotWords" :key="index" :RADIUS="radius" :label="word" :color="randomColor()"
-      :count="hotWords.length" :coefficient="computedCoefficient(index)"></WordTag>
+      :count="hotWords.length" :coefficient="computedCoefficient(index)" :SPEED="speed"></WordTag>
   </div>
 </template>
 
@@ -31,6 +31,7 @@ const props = defineProps<{
   radius: number
   baseFontSize?: number
   colors?: string[]
+  speed?: number
 }>()
 
 // const hotWords = ref([])

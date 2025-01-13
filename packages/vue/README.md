@@ -12,7 +12,7 @@
 ### Why it's snail?
 - Is it slow?
 - no! because it's my son's nickname!
-- I love my son and daughter,They always give me the motivation to programing.
+- He always give me the motivation to programing.
 
 ### 介绍
 - 基于Vue3开发的组件库
@@ -31,26 +31,35 @@
 ### 使用
 - main.ts
 ```ts
-import '@snail-js/vue/index.css'
-import "@snail-js/theme"
+// 在main.ts中添加样式库
+import "@snail-js/theme/index.scss";
 // 若使用图标组件，请添加如下代码
-import "@snail-js/theme/iconfont"
+import * as SIcons from "@snail-js/theme"
+
+const app = createApp(App);
+
+for (const [key, component] of Object.entries(SIcons)) {
+  app.component(key, component)
+}
+app.mount("#app");
 ```
 
 > 请先安装主题样式库`@snail-js/theme`
 
-#### 单独在页面中添加图标组件
+#### 或在页面中添加样式库
 ```html
+<!-- App.vue -->
 <style lang="scss">
-@use "@snail-js/theme/iconfont"
+@use "@snail-js/theme/index.scss";
 </style>
 ```
 
 ### 组件列表
 - AliCaptcha 阿里图形验证码
-- SIcon 图标组件
- - SElIcon 兼容Element Plus图标，可传入Element Plus图标/图标组件，也可使用iconfont图标
+- SIcon 图标组件,兼容Element Plus图标，可传入Element Plus图标/图标组件，也可使用主题库图标
 - SClickCopy 复制组件
+- SPopupMenu 弹出菜单组件
+ - SPopupMenuItem 弹出菜单子项组件
 - SWordCloud 3D旋转立体词云组件
 
 
