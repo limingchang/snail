@@ -39,7 +39,7 @@ const props = defineProps({
 });
 
 onMounted(() => {
-  console.log(props.options);
+  // console.log(props.options);
 });
 const clickHanle = () => {
   if (!props.options.disabled) return;

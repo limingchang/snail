@@ -63,3 +63,22 @@ button {
   color: var(--color);
   font-size: inherit;
 }
+
+.click-copy-icon-parent{
+  position: relative;
+}
+.click-copy-icon-parent:hover {
+  .click-copy-icon {
+    display: inline-block;
+  }
+}
+
+.click-copy-icon {
+  display: none;
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  font-size: 12px;
+  color: #409EFF;
+  cursor: pointer;
+}

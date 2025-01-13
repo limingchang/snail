@@ -1,16 +1,24 @@
 <template>
-  <SIcon v-if="isShow" icon="icon-copy" color="#409EFF" class="pointer-icon" @click="handleCopy()" ref="iconRef">
-  </SIcon>
+  <div ref="clickCopyRef" class="click-copy-icon" @click="handleCopy">
+    <SIcon><IconCopy /></SIcon>
+    <span>{{ label }}</span>
+  </div>
+
 </template>
 
 <script setup lang="ts">
-import { onMounted, useTemplateRef, ref, ComponentInstance } from 'vue'
+import { onMounted, useTemplateRef } from 'vue'
 import { ElMessage } from 'element-plus'
 import { SIcon } from '@snail-js/vue'
+import { IconCopy } from '@snail-js/theme'
 
-const iconRef = useTemplateRef('iconRef')
+const clickCopyRef = useTemplateRef('clickCopyRef')
 
 const props = defineProps({
+  label: {
+    type: String,
+    default: () => '复制'
+  },
   text: {
     type: String,
     required: true
@@ -25,14 +33,11 @@ const props = defineProps({
   }
 })
 
-const isShow = ref(true)
-
 onMounted(() => {
-  if (!props.display) {
-    const parent = (iconRef.value! as ComponentInstance<typeof SIcon>).$el.parentElement!
-    parent.addEventListener('click', handleCopy)
-    isShow.value = false
-  }
+    // const parent = (iconRef.value! as ComponentInstance<typeof SIcon>).$el.parentElement!
+    const parent = clickCopyRef.value!.parentElement!
+    console.log(parent);
+    parent.classList.add('click-copy-icon-parent')
 })
 
 const handleCopy = async () => {
@@ -47,9 +52,6 @@ defineOptions({
 })
 </script>
 
-<style scoped>
-.copy-icon {
-  cursor: pointer;
-  display: inline-block;
-}
+<style lang="scss" scoped>
+
 </style>

@@ -1,12 +1,16 @@
 <template>
   <div>
     <p>monorepo 组件开发测试</p>
-    <button style="background-color: var(--snail-color-danger); color: #fff">
-      <SIcon>
-        <IconContract />
-      </SIcon>按钮测试
-      <SClickCopy text="复制内容" :display="false"></SClickCopy>
-    </button>
+    <div style="width: 200px;">
+      <button style="background-color: var(--snail-color-danger); color: #fff">
+        <SIcon>
+          <IconContract />
+        </SIcon>按钮测试
+      </button>
+      <SClickCopy text="复制内容"></SClickCopy>
+    </div>
+
+
     <p>
       <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
         <SIcon size="large">
@@ -22,6 +26,15 @@
         </ElIcon>测试
       </ElButton>
     </p>
+    <div class="icon-box">
+      <span class="icon" v-for="(icon, index) in SnailIcons" :key="`${icon.name}`">
+        <SIcon>
+          <component :is="icon.name"></component>
+        </SIcon>
+        <span class="icon-name" style="display: inline-block;">{{ toPascalCase(icon.name!.replace('icon-', ''))
+          }}</span>
+      </span>
+    </div>
     <button @click="menuHandle">点击菜单</button>
     <!-- <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha> -->
     <SPopupMenu :width="150" :items="menuItems" :permission="() => true" v-model="showMenu"></SPopupMenu>
@@ -32,6 +45,8 @@
 import { ref, onMounted, useTemplateRef } from "vue";
 import { SIcon, SClickCopy } from "@snail-js/vue";
 import { IconMobile, IconSign, IconContract } from "@snail-js/theme";
+import * as SnailIcons from "@snail-js/theme";
+
 import { AliCaptcha, CaptchaObj } from "@snail-js/vue";
 import { ElButton, ElIcon } from "element-plus";
 import { Edit, EditPen } from "@element-plus/icons-vue";
@@ -88,8 +103,55 @@ const menuHandle = () => {
 const clickHanle = ref(() => {
   console.log("click");
 });
+
+// 转大驼峰函数
+
+const toPascalCase = (str: string) => {
+  // 分割字符串为数组，每个元素是以短横线分隔的单词
+  const words = str.split('-');
+  // 遍历数组，将每个单词的首字母大写，然后拼接成字符串
+  return words.map(word => {
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join('');
+}
+
 </script>
 
 <style lang="scss">
 @use "@snail-js/theme/index.scss";
+
+.icon-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-items: center;
+  color: #333;
+  padding: 20px;
+}
+
+.icon {
+  cursor: pointer;
+  display: inline-block;
+  padding: 15px;
+  text-align: center;
+  margin-left: -1px;
+  margin-top: -1px;
+  // display: flex;
+  // align-items: center;
+  width: 100px;
+  height: 80px;
+  border: 1px solid #333;
+
+  i {
+    font-size: 2em;
+    margin-bottom: 10px;
+  }
+}
+
+.icon-name {
+  display: inline-block;
+  font-size: 12px;
+  text-align: center;
+  width: 100%;
+}
 </style>
