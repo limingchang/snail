@@ -64,16 +64,16 @@ button {
   font-size: inherit;
 }
 
-.click-copy-icon-parent{
+.s-click-copy-icon-parent{
   position: relative;
 }
-.click-copy-icon-parent:hover {
+.s-click-copy-icon-parent:hover {
   .click-copy-icon {
     display: inline-block;
   }
 }
 
-.click-copy-icon {
+.s-click-copy-icon {
   display: none;
   position: absolute;
   right: 5px;

@@ -1,5 +1,5 @@
 <template>
-  <div ref="clickCopyRef" class="click-copy-icon" @click="handleCopy">
+  <div ref="clickCopyRef" class="s-click-copy-icon" @click="handleCopy">
     <SIcon><IconCopy /></SIcon>
     <span>{{ label }}</span>
   </div>
@@ -37,7 +37,7 @@ onMounted(() => {
     // const parent = (iconRef.value! as ComponentInstance<typeof SIcon>).$el.parentElement!
     const parent = clickCopyRef.value!.parentElement!
     console.log(parent);
-    parent.classList.add('click-copy-icon-parent')
+    parent.classList.add('s-click-copy-icon-parent')
 })
 
 const handleCopy = async () => {
