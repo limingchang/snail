@@ -10,13 +10,14 @@
       "require": "./dist/snail-theme.umd.cjs",
       "types": "./dist/index.d.ts"
     },
-    "./index.css": "./src/index.css",
-    "./icons":"./src/svgIcons",
+    "./index.css": "./dist/index.css",
+    "./icons":"./dist/svgIcons",
     "./*": "./*"
   },
   "scripts": {
     "clean:dist": "rimraf ./dist",
-    "build": "pnpm run clean:dist && vite build",
+    "add:icons": "tsx ./scripts/installIcons.ts",
+    "build": "pnpm run clean:dist && pnpm run add:icons && vite build",
     "publish": "npm publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

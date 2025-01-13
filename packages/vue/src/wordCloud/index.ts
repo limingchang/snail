@@ -1,6 +1,7 @@
+import type { App } from "vue";
 import WordCloud from "./WordCloud.vue";
 
-WordCloud.install = (app:any) => {
+WordCloud.install = (app:App) => {
   app.component(WordCloud.name || "s-word-cloud", WordCloud);
 };
 

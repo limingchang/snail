@@ -1,7 +1,7 @@
-// export * from './PopupMenu'
+import type { App } from "vue";
 import PopupMenu from "./PopupMenu.vue";
 
-PopupMenu.install = (app:any) => {
+PopupMenu.install = (app:App) => {
   app.component(PopupMenu.name || "s-popup-menu", PopupMenu);
 };
 

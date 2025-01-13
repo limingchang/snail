@@ -39,5 +39,9 @@
     "paths": {
       "@snail-js/*": ["packages/*/src"]
     }
-  }
+  },
+  "include": [
+    // demo 应用会引用其他子模块的源码，因此都要包含到 include 中 
+    "./packages/*/src",
+  ]
 }

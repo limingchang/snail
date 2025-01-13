@@ -2,37 +2,36 @@
   <div>
     <p>monorepo 组件开发测试</p>
     <button style="background-color: var(--snail-color-danger); color: #fff">
-      <SIcon icon="icon-hetongqianshu"></SIcon>按钮测试
+      <SIcon>
+        <IconContract />
+      </SIcon>按钮测试
       <SClickCopy text="复制内容" :display="false"></SClickCopy>
     </button>
     <p>
-      <button
-        ref="btn"
-        style="background-color: var(--snail-color-danger); color: #fff"
-        @click="clickHanle"
-      >
-        <SIcon size="large"><IconSign  /></SIcon>图形验证
-        <SIcon><Edit /></SIcon>兼容测试
+      <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
+        <SIcon size="large">
+          <IconSign />
+        </SIcon>图形验证
+        <SIcon>
+          <Edit />
+        </SIcon>兼容测试
       </button>
-      <ElButton type="primary"
-        ><ElIcon><Edit /></ElIcon>测试</ElButton
-      >
+      <ElButton type="primary">
+        <ElIcon>
+          <Edit />
+        </ElIcon>测试
+      </ElButton>
     </p>
     <button @click="menuHandle">点击菜单</button>
     <!-- <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha> -->
-    <SPopupMenu
-      :width="150"
-      :items="menuItems"
-      :permission="() => true"
-      v-model="showMenu"
-    ></SPopupMenu>
+    <SPopupMenu :width="150" :items="menuItems" :permission="() => true" v-model="showMenu"></SPopupMenu>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, useTemplateRef } from "vue";
 import { SIcon, SClickCopy } from "@snail-js/vue";
-import { IconMobile,IconSign } from "@snail-js/theme";
+import { IconMobile, IconSign, IconContract } from "@snail-js/theme";
 import { AliCaptcha, CaptchaObj } from "@snail-js/vue";
 import { ElButton, ElIcon } from "element-plus";
 import { Edit, EditPen } from "@element-plus/icons-vue";
@@ -92,11 +91,5 @@ const clickHanle = ref(() => {
 </script>
 
 <style lang="scss">
-// 发布包引用方式
-// @use "@snail-js/theme/iconfont";
-// 本地开发引用方式
-// @use "@snail-js/theme/src/iconFont/inconfont.css"
-
 @use "@snail-js/theme/index.scss";
-@use "@snail-js/theme/iconFont/iconfont.css";
 </style>

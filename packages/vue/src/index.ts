@@ -1,4 +1,4 @@
-// export * from "@snail-js/theme"
+import type { App } from "vue";
 export * from "./components";
 import * as components from "./components";
 
@@ -13,7 +13,7 @@ export * from "./popupMenu/type";
 // import "@snail-js/theme/index.scss";
 
 export default {
-  install(app: any) {
+  install(app: App) {
     Object.entries(components).forEach(([key, value]) => {
       app.component(key, value);
     });
