@@ -14,11 +14,11 @@
 
 ## 使用
 - 在`main.ts`中引入
-- `import "@snail-js/theme"`
+- `import "@snail-js/theme/index.scss"`
 
-#### 若使用图标组件，请在使用页面添加如下代码
+#### 或在App.vue中引入
 ```html
 <style lang="scss">
-@use "@snail-js/theme/iconfont"
+@use "@snail-js/theme/index.scss"
 </style>
 ```
