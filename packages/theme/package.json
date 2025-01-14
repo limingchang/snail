@@ -1,17 +1,17 @@
 {
   "name": "@snail-js/theme",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "main": "index.ts",
   "type": "module",
   "exports": {
-    ".":{
+    ".": {
       "import": "./dist/snail-theme.js",
       "require": "./dist/snail-theme.umd.cjs",
       "types": "./dist/index.d.ts"
     },
     "./index.css": "./dist/index.css",
-    "./icons":"./dist/svgIcons",
+    "./icons": "./dist/svgIcons",
     "./*": "./*"
   },
   "scripts": {
