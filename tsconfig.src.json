@@ -7,6 +7,13 @@
     // 组件库依赖浏览器的 DOM API
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "types": ["node"],
+
+    /*关闭ts的检测class初始化的配置 */
+    "strictPropertyInitialization": false,
+    // 路径别名设置
+    "paths": {
+      "@snail-js/*": ["packages/*/src"],
+    }
   },
   "include": ["typings/env.d.ts", "packages/**/src"]
 }

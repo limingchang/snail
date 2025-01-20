@@ -18,7 +18,7 @@
           <Edit />
         </SIcon>兼容测试
       </button>
-      <ElButton type="primary">
+      <ElButton type="primary" @click="testHandle">
         <ElIcon>
           <Edit />
         </ElIcon>测试
@@ -52,7 +52,7 @@ import { SIcon, SClickCopy } from "@snail-js/vue";
 import { IconMobile, IconSign, IconContract } from "@snail-js/theme";
 import * as SnailIcons from "@snail-js/theme";
 
-import {SWordCloud} from "@snail-js/vue"
+import { SWordCloud } from "@snail-js/vue"
 
 import { AliCaptcha, CaptchaObj } from "@snail-js/vue";
 import { ElButton, ElIcon } from "element-plus";
@@ -120,6 +120,13 @@ const hotWords = [
   "HTML",
   "CSS"
 ]
+
+import Test from './server/test'
+
+const testHandle = async () => {
+  const res = await Test.send()
+  console.log('Snail-Api:', res)
+}
 
 </script>
 
