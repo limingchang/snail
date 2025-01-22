@@ -13,13 +13,13 @@ export default class LocalStorageCache {
       try {
         const cacheItem = localStorage.getItem(key);
         if (!cacheItem) {
-          return reject({ error: `未找到${key}的缓存`, data: null });
+          return resolve({ error: `未找到${key}的缓存`, data: null });
         }
 
         const { data, exp } = JSON.parse(cacheItem) as CacheData<T>;
         if (exp < Math.ceil(new Date().getTime() / 1000)) {
           this.delete(key);
-          return reject({ error: `${key}的缓存已过期`, data: null });
+          return resolve({ error: `${key}的缓存已过期`, data: null });
         }
         resolve({ error: null, data });
       } catch (error) {

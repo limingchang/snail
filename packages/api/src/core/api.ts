@@ -1,125 +1,200 @@
-import { RequestBody, RequestMethod, ApiConfig } from "../typings";
-import { apiKey, deepCopy } from "../utils";
+import {
+  RequestBody,
+  RequestMethod,
+  ApiConfig,
+  SendOptions,
+  ApiResponse,
+  RequestPipe,
+  ResponseData,
+  ResponseSuccessData,
+  PipeResult,
+  PaginationData,
+} from "../typings";
+import { apiKey } from "../utils";
 import { applyVersioning } from "../versioning/versioning";
 
 import { Snail } from "./snail";
 
-export class Api<T = any> {
+/**
+ * 泛型 R response success 时 返回的data类型
+ * 泛型 E error 时 返回的error类型
+ * 泛型 D error 时 返回error携带的data类型
+ */
+export class Api<R = any, E = any, D = any> {
   public baseURL: string;
 
   public url: string;
 
   public data?: RequestBody;
 
+  public params?: Record<string, any>;
+
+  public headers?: Record<string, any>;
+
   private key: string;
 
-  public config: ApiConfig<T> | undefined;
+  // public config: ApiConfig<R> | undefined;
 
   public method: RequestMethod;
 
-  public hitCache: boolean;
+  private hitCache: boolean;
 
-  public context: Snail;
+  private context: Snail;
 
   public version?: string;
 
-  public name?: string;
+  private versioning?: { url?: string; headers?: Record<string, any> };
+
+  // private name?: string;
 
   private timeout: number;
+
+  private transform?: (data: R | PaginationData<R>) => R | PaginationData<R>;
+
+  private pipes: RequestPipe[] = [];
 
   constructor(
     method: RequestMethod,
     url: string,
     context?: any,
-    config?: ApiConfig<T>,
-    data?: RequestBody
+    config?: ApiConfig<R>
   ) {
     const instance = this;
-    instance.name = config?.name;
+    // instance.name = config?.name;
     instance.method = method;
     instance.url = url;
-    instance.data = data;
+    instance.params = config?.params;
+    instance.headers = config?.headers;
+    instance.transform = config?.transform;
     instance.context = context;
-    instance.config = config;
+    // instance.config = config;
     instance.version =
       config?.version || instance.context.versioning?.defaultVersion;
-    this.key = apiKey(instance);
+
     // 2. 合并配置
-    const { apiConfig, timeout } = this.mergeConfig();
-    this.timeout = timeout ? timeout : 5000;
-    // 3. 版本管理
-    const updatedConfig = this.handleVersioning(apiConfig);
-    this.config = updatedConfig;
+
+    this.timeout = config?.timeout || this.context.options.timeout || 5000;
+    // 3. 创建缓存key
+    this.key = apiKey(this);
+    // 4. 执行版本管理
+    this.handleVersioning();
   }
 
-  private async checkCache(): Promise<{
-    code: number;
-    message: string;
-    data: T | null;
-  } | null> {
-    if (!this.context.cacheStorage) return null;
+  private handleVersioning() {
+    // console.log("版本管理器上下文：", this.context);
+    if (!this.context) return;
+    const { versioning } = this.context;
+    // console.log("版本管理器:", versioning);
+    if (versioning) {
+      const { url, headers } = applyVersioning(
+        this.version as string,
+        versioning
+      );
+      console.log("执行版本管理:", url, headers);
+      // this.url = url;
+      this.versioning = {
+        url,
+        headers,
+      };
+    }
+    return;
+  }
 
-    try {
-      const { error, data } = await this.context.cacheStorage.get<T>(this.key);
+  /**
+   *
+   * @param options 发送配置：子项params,data
+   * 泛型<R = any, E = any>R返回数据类型, E返回错误类型(code!=0)
+   * @returns
+   */
+  send(options?: SendOptions): Promise<ApiResponse<R, E>> {
+    this.data = options?.data;
+    this.params = options?.params;
+    if (options?.params || options?.data) {
+      // 更新key
+      this.key = apiKey(this);
+    }
+
+    return new Promise(async (resolve, reject) => {
+      // 1. 查找缓存
+      const cachedResponse = await this.checkCache();
+      // console.log("检查缓存：", cachedResponse);
+      if (cachedResponse) {
+        return resolve({
+          error: null,
+          data: cachedResponse,
+          hitCache: this.hitCache,
+        });
+      }
+
+      // 4. 请求前处理
+      const { data, headers } = this.processRequestPipes();
+      // 处理后更新instance
+      this.data = data;
+      this.headers = headers;
+
+      try {
+        // 5. 发送请求
+        const response = await this.sendRequest();
+
+        // 6. 处理响应
+        const { code, data, message } = response.data as ResponseData<R, E>;
+        // const result = await this.handleResponse(response);
+        if (code !== 0) {
+          reject({
+            error: new Error(message, { cause: { code, data } }),
+            data: null,
+            hitCache: false,
+          });
+        }
+        // 数据转换
+        const transformedData = this.transform
+          ? this.transform(data as any)
+          : (data as R | PaginationData<R>);
+        // 缓存存储
+        this.context.cacheStorage?.set(this.key, transformedData);
+        resolve({
+          error: null,
+          data: transformedData as ResponseSuccessData<R>,
+          hitCache: false,
+        });
+      } catch (error: any) {
+        reject({ error, data: null, hitCache: false });
+      }
+    });
+  }
+
+  private async checkCache<
+    T extends ResponseSuccessData<R>
+  >(): Promise<T | null> {
+    if (!this.context.cacheStorage) return null;
+    return new Promise(async (resolve) => {
+      if (!this.context.cacheStorage) {
+        return resolve(null);
+      }
+      // console.log("cache-key:", this.key);
+      const { error, data } = await this.context.cacheStorage!.get<T>(this.key);
+      // console.log(error, data);
       if (error) {
-        console.warn(`[Cache] ${error.message}`);
-        return null;
+        // console.log("[Cache]", error);
+        return resolve(null);
       }
       this.hitCache = true;
-      return {
-        code: 0,
-        message: "success",
-        data,
-      };
-    } catch (error) {
-      console.warn(`[Cache] 缓存查询失败: ${error}`);
-      console.log(error)
-      return null;
-    }
+      return resolve(data);
+    });
   }
 
-  private mergeConfig() {
-    const apiConfig = deepCopy(this.config);
-    const timeout = apiConfig?.timeout || this.context.options.timeout;
-    return { apiConfig, timeout };
+  public use(pipe: RequestPipe) {
+    this.pipes.push(pipe);
   }
 
-  private handleVersioning(apiConfig: ApiConfig<T> | undefined) {
-    if (!apiConfig) return;
-    if (this.context.options.Versioning) {
-      const versioning = this.context.options.Versioning;
-      const version = apiConfig?.version || versioning.defaultVersion;
-      if (version) {
-        const result = applyVersioning(
-          this.url,
-          version,
-          versioning,
-          apiConfig
-        );
-        if (typeof result === "string") {
-          this.url = result;
-        } else {
-          this.url = result.url;
-          apiConfig = result.config;
-        }
-      }
-    }
-    return apiConfig;
-  }
-
-  private processRequestPipes(apiConfig: ApiConfig<T> | undefined) {
-    if (!apiConfig) return { requestData: this.data, requestHeaders: {} };
+  private processRequestPipes() {
     let requestData = this.data;
-    let requestHeaders = apiConfig?.headers || {};
+    let requestHeaders = this.headers || {};
 
-    if (apiConfig?.requestPipes) {
-      const pipeResult = apiConfig.requestPipes.reduce(
-        (result: any, pipe: Function) => {
-          const { data, headers } = pipe(result);
-          return {
-            data: data || result.data,
-            headers: headers || result.headers,
-          };
+    if (this.pipes.length > 0) {
+      const pipeResult = this.pipes.reduce(
+        (result: PipeResult, pipe: RequestPipe) => {
+          return pipe(result.data, result.headers);
         },
         { data: requestData, headers: requestHeaders }
       );
@@ -127,86 +202,23 @@ export class Api<T = any> {
       requestData = pipeResult.data;
       requestHeaders = pipeResult.headers;
     }
-    return { requestData, requestHeaders };
+    return { data: requestData, headers: requestHeaders };
   }
 
-  private async sendRequest(
-    requestData: any,
-    requestHeaders: any,
-    timeout: number | undefined
-  ) {
+  private async sendRequest() {
     // if (!timeout) throw new Error("Timeout is required");
+    const headers = {
+      ...this.headers,
+      ...this.versioning?.headers,
+    };
+    const versionUrl = this.versioning?.url ? this.versioning?.url : "";
     return await this.context.axiosInstance.request({
-      url: this.url,
+      url: `${versionUrl}/${this.url}`,
       method: this.method,
-      data: requestData,
-      headers: requestHeaders,
-      timeout,
-    });
-  }
-
-  private async handleResponse(
-    response: any,
-    apiConfig: ApiConfig<T> | undefined,
-    cacheStorage: any
-  ): Promise<{ data: any }> {
-    if (!apiConfig) throw new Error("ApiConfig is required");
-    const isJson =
-      response.headers["content-type"]?.includes("application/json");
-    if (!isJson) {
-      return { data: response.data };
-    }
-
-    const { code, message, data } = response.data;
-    if (code !== 0) {
-      throw { code, message, error: data };
-    }
-
-    const transformedData = apiConfig?.transform
-      ? apiConfig.transform(data)
-      : data;
-
-    if (this.context.options.CacheManage) {
-      await cacheStorage?.set(this.key, transformedData);
-    }
-
-    return { data: transformedData };
-  }
-
-  send(): Promise<{ error: null; data: any } | { error: any; data: null }> {
-    return new Promise(async (resolve, reject) => {
-      const cacheStorage = this.context.cacheStorage;
-
-      // 1. 检查缓存
-      const cachedResponse = await this.checkCache();
-      console.log("检查缓存：", cachedResponse);
-      if (cachedResponse) {
-        return resolve({ error: null, data: cachedResponse.data });
-      }
-
-      // 4. 请求前处理
-      const { requestData, requestHeaders } = this.processRequestPipes(
-        this.config
-      );
-
-      try {
-        // 5. 发送请求
-        const response = await this.sendRequest(
-          requestData,
-          requestHeaders,
-          this.timeout
-        );
-
-        // 6-9. 处理响应
-        const result = await this.handleResponse(
-          response,
-          this.config,
-          cacheStorage
-        );
-        resolve({ error: null, data: result.data });
-      } catch (error: any) {
-        reject({ error, data: null });
-      }
+      data: this.data,
+      headers,
+      params: this.params,
+      timeout: this.timeout,
     });
   }
 }

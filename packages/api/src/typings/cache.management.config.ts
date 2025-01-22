@@ -20,5 +20,5 @@ interface CacheCommonConfig {
   ttl?: number;
 }
 
-export type CacheManagementConfig = MemoryCacheConfig &
-  (CacheCommonConfig | IndexDBCacheConfig | LocalStorageCacheConfig);
+export type CacheManagementConfig = CacheCommonConfig &
+  (MemoryCacheConfig | IndexDBCacheConfig | LocalStorageCacheConfig);

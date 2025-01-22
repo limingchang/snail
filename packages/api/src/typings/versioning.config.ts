@@ -26,10 +26,13 @@ export interface VersioningQueryConfig extends VersioningCommonConfig {
 
 export interface VersioningCustomConfig extends VersioningCommonConfig {
   type: VersioningType.Custom;
-  extractor: (requestOptions: unknown) => string;
+  extractor: (requestOptions: unknown) => {
+    url: string;
+    headers: Record<string, any>;
+  };
 }
 
-export type VersioningConfig = 
+export type VersioningConfig =
   | VersioningUriConfig
   | VersioningHeaderConfig
   | VersioningQueryConfig

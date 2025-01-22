@@ -12,19 +12,22 @@ const config: SnailConfig = {
   requestInterceptors: {
     onFulfilled(config: AxiosRequestConfig) {
       console.log("requestInterceptors:", config.url);
+      return config
     },
   },
   responseInterceptors: {
-    onFulfilled(value) {
-      console.log(value);
+    onFulfilled(response) {
+      console.log(response);
+      return response
     },
     onRejected(error) {
       console.log(error);
+      return error
     },
   },
   CacheManage: {
-    type: CacheType.LocalStorage,
-    ttl: 600,
+    type: CacheType.Memory,
+    ttl: 60,
   },
 };
 

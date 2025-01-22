@@ -5,3 +5,4 @@ export * from "./api.config"
 export * from "./versioning.config";
 export * from "./cache.management.config";
 export * from "./cache.type"
+export * from "./response.data"

@@ -7,7 +7,6 @@ import {
   CacheType,
   ApiConfig,
   RequestMethod,
-  RequestBody,
   CacheStorage,
 } from "../typings";
 
@@ -16,8 +15,8 @@ const DEFAULT_CONFIG: SnailConfig = {
   // 默认开启内存缓存
   CacheManage: {
     type: CacheType.Memory,
-    // 默认缓存时间为5分钟
-    ttl: 300000,
+    // 默认缓存时间为5分钟(单位秒)
+    ttl: 300,
   },
 };
 
@@ -52,7 +51,8 @@ export class Snail {
     if (SnailOptions.requestInterceptors) {
       instance.axiosInstance.interceptors.request.use(
         (config) => {
-          const result = SnailOptions.requestInterceptors?.onFulfilled?.(config);
+          const result =
+            SnailOptions.requestInterceptors?.onFulfilled?.(config);
           return result ? result : config;
         },
         SnailOptions.requestInterceptors.onRejected,
@@ -62,7 +62,8 @@ export class Snail {
     if (SnailOptions.responseInterceptors) {
       instance.axiosInstance.interceptors.response.use(
         (response) => {
-          const result = SnailOptions.responseInterceptors?.onFulfilled?.(response);
+          const result =
+            SnailOptions.responseInterceptors?.onFulfilled?.(response);
           return result ? result : response;
         },
         (error) => {
@@ -75,36 +76,36 @@ export class Snail {
     // 3. 初始化缓存管理器
     if (instance.options.CacheManage) {
       const { type, ttl } = instance.options.CacheManage;
-      instance.cacheStorage = createCache(type, ttl || 300000);
+      instance.cacheStorage = createCache(type, ttl || 300);
     }
   }
 
-  Get(url: string, options?: ApiConfig) {
-    return new Api(RequestMethod.GET, url, this, options);
+  Get<T = any, E = any, D = any>(url: string, options?: ApiConfig) {
+    return new Api<T, E, D>(RequestMethod.GET, url, this, options);
   }
 
-  Post(url: string, data?: RequestBody, options?: ApiConfig) {
-    return new Api(RequestMethod.POST, url, this, options, data);
+  Post<T = any, E = any, D = any>(url: string, options?: ApiConfig) {
+    return new Api<T, E, D>(RequestMethod.POST, url, this, options);
   }
 
-  Put(url: string, data?: RequestBody, options?: ApiConfig) {
-    return new Api(RequestMethod.PUT, url, this, options, data);
+  Put<T = any, E = any, D = any>(url: string, options?: ApiConfig) {
+    return new Api<T, E, D>(RequestMethod.PUT, url, this, options);
   }
 
-  Delete(url: string, data?: RequestBody, options?: ApiConfig) {
-    return new Api(RequestMethod.DELETE, url, this, options, data);
+  Delete<T = any, E = any, D = any>(url: string, options?: ApiConfig) {
+    return new Api<T, E, D>(RequestMethod.DELETE, url, this, options);
   }
 
-  Patch(url: string, data?: RequestBody, options?: ApiConfig) {
-    return new Api(RequestMethod.PATCH, url, this, options, data);
+  Patch<T = any, E = any, D = any>(url: string, options?: ApiConfig) {
+    return new Api<T, E, D>(RequestMethod.PATCH, url, this, options);
   }
 
-  Head(url: string, data?: RequestBody, options?: ApiConfig) {
-    return new Api(RequestMethod.HEAD, url, this, options, data);
+  Head<T = any, E = any, D = any>(url: string, options?: ApiConfig) {
+    return new Api<T, E, D>(RequestMethod.HEAD, url, this, options);
   }
 
-  Options(url: string, data?: RequestBody, options?: ApiConfig) {
-    return new Api(RequestMethod.OPTIONS, url, this, options, data);
+  Options<T = any, E = any, D = any>(url: string, options?: ApiConfig) {
+    return new Api<T, E, D>(RequestMethod.OPTIONS, url, this, options);
   }
 }
 

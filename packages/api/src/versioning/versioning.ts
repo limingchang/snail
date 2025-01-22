@@ -1,56 +1,70 @@
-import { 
-  VersioningType, 
+import {
+  VersioningType,
   VersioningConfig,
   VersioningUriConfig,
   VersioningHeaderConfig,
   VersioningQueryConfig,
-  VersioningCustomConfig
+  VersioningCustomConfig,
 } from "../typings";
-import { ApiConfig } from "../typings/api.config";
 
 const versionHandlers = {
-  [VersioningType.Uri]: (url: string, version: string, versioning: VersioningUriConfig) => {
-    const prefix = versioning.prefix || 'v';
-    return `/${prefix}${version}/${url}`;
+  [VersioningType.Uri]: (
+    version: string,
+    versioning: VersioningUriConfig,
+  ) => {
+    const prefix = versioning.prefix || "v";
+    return {
+      url: `/${prefix}${version}`,
+    };
   },
-  [VersioningType.Header]: (url: string, version: string, versioning: VersioningHeaderConfig, apiConfig?: ApiConfig) => {
+  [VersioningType.Header]: (
+    version: string,
+    versioning: VersioningHeaderConfig,
+  ) => {
     const headers = {
-      ...apiConfig?.headers,
-      [versioning.header]: version
+      [versioning.header]: version,
     };
     return {
-      url,
-      config: {
-        ...apiConfig,
-        headers
-      }
+      headers,
     };
   },
-  [VersioningType.Query]: (url: string, version: string, versioning: VersioningQueryConfig) => {
-    const key = versioning.key || 'version';
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}${key}=${version}`;
+  [VersioningType.Query]: (
+    version: string,
+    versioning: VersioningQueryConfig,
+  ) => {
+    const key = versioning.key || "version";
+    // const separator = url.includes("?") ? "&" : "?";
+    const separator = '?'
+    return {
+      url: `${separator}${key}=${version}`,
+    };
   },
-  [VersioningType.Custom]: (url: string, version: string, versioning: VersioningCustomConfig, apiConfig?: ApiConfig) => {
+  [VersioningType.Custom]: (
+    version: string,
+    versioning: VersioningCustomConfig,
+  ) => {
     return versioning.extractor({
-      url,
       version,
-      config: apiConfig
     });
-  }
+  },
 };
 
+
+interface VersioningResult {
+  url?: string;
+  headers?: Record<string, any>;
+}
+
 export function applyVersioning(
-  url: string,
   version: string,
   versioning: VersioningConfig,
-  apiConfig?: ApiConfig
-) {
+): VersioningResult {
   const handler = versionHandlers[versioning.type];
   return handler(
-    url, 
-    version, 
-    versioning as VersioningUriConfig & VersioningHeaderConfig & VersioningQueryConfig & VersioningCustomConfig,
-    apiConfig
+    version,
+    versioning as VersioningUriConfig &
+      VersioningHeaderConfig &
+      VersioningQueryConfig &
+      VersioningCustomConfig,
   );
 }

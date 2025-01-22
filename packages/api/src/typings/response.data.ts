@@ -1,10 +1,10 @@
 export interface ResponseErrorData<E = any> {
   code: number;
   message: string;
-  error: E;
+  data: E;
 }
 
-interface PaginationData<T> {
+export interface PaginationData<T> {
   // 数据总数
   total: number;
   // 第几页

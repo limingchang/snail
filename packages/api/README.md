@@ -1,47 +1,105 @@
-### 项目结构
-- cache 缓存管理器
-- core 核心功能，提供Snail类和Api类
-- typings 类型定义
-- utils 公共方法
-- versing api版本管理器
+## 项目介绍
 
-### 项目功能
-- 项目基于axios二次开发
-- 创建Snail实例，传入基本配置
- - 配置项：
+- 基于 Axios 二次封装
+- 提供请求基本实例`Snail`，请求实例`Api`
+
+## 安装
+
+`npm install @snail-js/api`
+
+## 使用
+
+1. 创建`Snail`实例
+
+```typescript
+import { Snail, SnailConfig, VersioningType, CacheType } from "@snail-js/api";
+import { AxiosRequestConfig } from "axios";
+
+const options:SnailConfig = {
+  baseUrl:'api',
+  Versioning: {
+    type: VersioningType.Uri,
+    prefix: "v",
+    defaultVersion: "0.1.0",
+  },
+  timeout: 5000,
+  requestInterceptors: {
+    onFulfilled(config: AxiosRequestConfig) {
+      console.log("requestInterceptors:", config.url);
+      return config
+    },
+  },
+  responseInterceptors: {
+    onFulfilled(response) {
+      console.log(response);
+      return response
+    },
+    onRejected(error) {
+      console.log(error);
+    },
+  },
+  CacheManage: {
+    type: CacheType.LocalStorage,
+    ttl: 600,
+  },
+}
+export SnailInstance = new Snail(options)
 ```
-baseUrl：api地址,类型：string
-timeout：超时(ms)，类型：number
-requestIntercept?：Axios请求拦截器，类型和Axios拦截器一致
-responstIntercept?：Axios响应拦截器，类型和Axios拦截器一致
-Versioning?：版本管理器,类型：VersioningConfig(typings/versioning.config.ts)
-CacheManage?：缓存管理 ,类型：MemoryCacheConfig(typings/cache.management.config.ts)
+2. 创建请求方法实例
+```typescript
+import {  ApiConfig, RequestPipe } from "@snail-js/api";
+
+import { SnailInstance } from "./snail";
+const pipe: RequestPipe = (input) => {
+  const { data, headers } = input;
+  const newHeaders = {
+    ...headers,
+    pipe: "RequestPipe",
+  };
+  return {
+    data,
+    headers: newHeaders,
+  };
+};
+
+const transform = (data:any) => {
+  return {
+    ...data,
+    transform: "transform",
+  };
+};
+
+const options: ApiConfig = {
+  requestPipes: [pipe],
+  transform,
+};
+export const testApi = SnailInstance.Get('test',options)
+```
+3. 使用请求
+```typescript
+import { testApi } from './testApi'
+const res = await testApi.send()
+// success {error:null,data}
+// error {error,data}
+// 某些服务端标记的code !=0的请求，会被捕获为错误，而且携带数据
 ```
 
-- 创建请求Api实例，传入请求配置
-- 配置项：
-```
-url：请求地址
-timeout?:超时,覆盖Snail实例的timeout
-pipes?：请求前数据处理，在Axios请求拦截器前触发
-version?：请求版本，覆盖Snail实例的versing.defaultVersion项
-transformer?：响应数据翻译器，在Axios响应拦截器后触发
-```
+### Snail配置
+- `baseUrl`：同`Axios`
+- `Versioning`:版本管理器
+ - type:管理器类型，enum:Uri,Head,Query,Custom
+ - prifix:前缀
+ - defaultVersion:全局默认版本
+- timenout:全局超时时间，会被Api的timeout值覆盖
+- requestInterceptors：全局请求拦截器
+- responseInterceptors：全局响应拦截器
+- CacheManage：缓存管理器
+ - type:缓存管理器类型，CacheType,enum:localStorage,IndexDB,Memory
+ - ttl: 缓存过期时间
 
-### 生命周期
-1. 创建Snail实例
-2. 配置Axios实例
-3. 配置版本管理器
-4. 配置缓存管理器
-5. Snail实例暴露请求方法（Get、Put、Head、Catch、Delete、Options），返回Api类实例
-6. 合并Api配置，如:API单独设置的timeout
-7. 执行版本管理器
-8. 执行pipes,请求前处理（处理数据、head等）
-9. Axions请求拦截
-10. 执行Axions请求
-11. Axions响应拦截
-12. 判断返回类型是否是json
-13. 非json数据直接返回
-14. json数据{code:number,message:string,data:any}执行错误捕捉,code==0无错误，非0有错误
-15. 无错误，执行transformer，返回{error:null,data:transformer后的数据}
-16. 有错误，返回{error,data:null}
+## Api配置
+- name?: 请求名称
+- timeout?: 请求超时时间;
+- version?: 请求版本，会覆盖`SnailConfig.Versioning.defaultVersion`;
+- transform?: `(data: any) => T`;响应数据转换器，用于对返回数据进行转换操作
+- requestPipes?: RequestPipe[];请求前pipe,会依次处理请求的data和headers

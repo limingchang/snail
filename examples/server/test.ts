@@ -1,9 +1,8 @@
-import { Api, ApiConfig, RequestPipe } from "@snail-js/api";
+import { ApiConfig, RequestPipe } from "@snail-js/api";
 
 import Snail from "./snail";
 
-const pipe: RequestPipe = (input) => {
-  const { data, headers } = input;
+const pipe: RequestPipe = (data, headers) => {
   const newHeaders = {
     ...headers,
     pipe: "RequestPipe",
@@ -14,7 +13,7 @@ const pipe: RequestPipe = (input) => {
   };
 };
 
-const transform = (data:any) => {
+const transform = (data: any) => {
   return {
     ...data,
     transform: "transform",
@@ -22,8 +21,9 @@ const transform = (data:any) => {
 };
 
 const options: ApiConfig = {
-  requestPipes: [pipe],
   transform,
 };
 
-export default Snail.Get("test", options);
+const Api = Snail.Get("test", options);
+Api.use(pipe);
+export const TestApi = Api;

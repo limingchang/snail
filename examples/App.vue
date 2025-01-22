@@ -121,10 +121,10 @@ const hotWords = [
   "CSS"
 ]
 
-import Test from './server/test'
+import { TestApi } from './server/test'
 
 const testHandle = async () => {
-  const res = await Test.send()
+  const res = await TestApi.send()
   console.log('Snail-Api:', res)
 }
 
