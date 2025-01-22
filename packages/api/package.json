@@ -17,8 +17,12 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "peerDependencies": {
     "axios": "^1.7.9"
-  }
+  },
+  "files": [
+    "README.md",
+    "dist"
+  ]
 }
