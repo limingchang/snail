@@ -10,7 +10,7 @@ const config: SnailConfig = {
   },
   timeout: 5000,
   requestInterceptors: {
-    onFulfilled(config: AxiosRequestConfig) {
+    onFulfilled(config) {
       console.log("requestInterceptors:", config.url);
       return config
     },

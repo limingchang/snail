@@ -30,6 +30,8 @@ export class Snail {
 
   public cacheStorage?: CacheStorage = undefined;
 
+  public cacheSource:Api[]
+
   constructor(options: SnailConfig) {
     const instance = this;
     // 合并配置
@@ -58,6 +60,7 @@ export class Snail {
         SnailOptions.requestInterceptors.onRejected,
         SnailOptions.requestInterceptors.options
       );
+      // instance.axiosInstance.interceptors.request.use(SnailOptions.requestInterceptors)
     }
     if (SnailOptions.responseInterceptors) {
       instance.axiosInstance.interceptors.response.use(

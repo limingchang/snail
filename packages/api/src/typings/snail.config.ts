@@ -1,16 +1,30 @@
-import { AxiosInterceptorOptions } from "axios";
+import {
+  AxiosInterceptorOptions,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from "axios";
 import { CacheManagementConfig } from "./cache.management.config";
 
 import { VersioningConfig } from "./versioning.config";
 
 export type AxiosRequestInterceptor<T = any> = {
-  onFulfilled?: ((value: T) => T | Promise<T>) | null;
+  onFulfilled?:
+    | ((
+        value: InternalAxiosRequestConfig<T>
+      ) =>
+        | InternalAxiosRequestConfig<T>
+        | Promise<InternalAxiosRequestConfig<T>>)
+    | null;
   onRejected?: ((error: any) => any) | null;
   options?: AxiosInterceptorOptions;
 };
 
 export type AxiosResponseInterceptor<T = any> = {
-  onFulfilled?: ((value: T) => T | Promise<T>) | null;
+  onFulfilled?:
+    | ((
+        response: AxiosResponse<T>
+      ) => AxiosResponse<T> | Promise<AxiosResponse<T>>)
+    | null;
   onRejected?: ((error: any) => any) | null;
 };
 

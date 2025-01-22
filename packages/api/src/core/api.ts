@@ -39,13 +39,15 @@ export class Api<R = any, E = any, D = any> {
 
   private hitCache: boolean;
 
-  private context: Snail;
+  public context: Snail;
 
   public version?: string;
 
   private versioning?: { url?: string; headers?: Record<string, any> };
 
-  // private name?: string;
+  private name?: string;
+
+  private hitSource?: string | Api;
 
   private timeout: number;
 
@@ -60,7 +62,9 @@ export class Api<R = any, E = any, D = any> {
     config?: ApiConfig<R>
   ) {
     const instance = this;
-    // instance.name = config?.name;
+    instance.name = config?.name;
+    instance.name ?? this.context.cacheSource.push(this);
+    instance.hitSource = config?.hitSource;
     instance.method = method;
     instance.url = url;
     instance.params = config?.params;
@@ -74,23 +78,25 @@ export class Api<R = any, E = any, D = any> {
     // 2. 合并配置
 
     this.timeout = config?.timeout || this.context.options.timeout || 5000;
-    // 3. 创建缓存key
-    this.key = apiKey(this);
-    // 4. 执行版本管理
+
+    // 4. 执行一次版本管理器
     this.handleVersioning();
+
+    // 5. 创建缓存key
+    this.key = apiKey(this);
   }
 
-  private handleVersioning() {
+  private handleVersioning(version?: string) {
     // console.log("版本管理器上下文：", this.context);
     if (!this.context) return;
     const { versioning } = this.context;
     // console.log("版本管理器:", versioning);
     if (versioning) {
       const { url, headers } = applyVersioning(
-        this.version as string,
+        version || (this.version as string),
         versioning
       );
-      console.log("执行版本管理:", url, headers);
+      // console.log("执行版本管理:", url, headers);
       // this.url = url;
       this.versioning = {
         url,
@@ -109,28 +115,42 @@ export class Api<R = any, E = any, D = any> {
   send(options?: SendOptions): Promise<ApiResponse<R, E>> {
     this.data = options?.data;
     this.params = options?.params;
+
     if (options?.params || options?.data) {
       // 更新key
       this.key = apiKey(this);
     }
+    // 执行临时版本管理
+    const version = options?.version || this.version;
+    console.log("send version:", version);
+    this.handleVersioning(version);
 
     return new Promise(async (resolve, reject) => {
-      // 1. 查找缓存
-      const cachedResponse = await this.checkCache();
-      // console.log("检查缓存：", cachedResponse);
-      if (cachedResponse) {
-        return resolve({
-          error: null,
-          data: cachedResponse,
-          hitCache: this.hitCache,
-        });
-      }
-
-      // 4. 请求前处理
+      // 1. 请求前处理
       const { data, headers } = this.processRequestPipes();
       // 处理后更新instance
       this.data = data;
       this.headers = headers;
+      // 处理后应更新key
+      this.key = apiKey(this);
+
+      // 2. 查找缓存,按版本查找
+      const cachedResponse = await this.checkCache(version);
+      // console.log("检查缓存：", cachedResponse);
+      if (cachedResponse) {
+        const versionUrl = this.versioning?.url ? this.versioning?.url : "";
+        console.warn(
+          `请求[${this.context.baseURL}/${
+            versionUrl == "" ? "" : `${versionUrl}/`
+          }${this.url}]命中缓存`
+        );
+        return resolve({
+          error: null,
+          data: cachedResponse,
+          hitCache: this.hitCache,
+          Catch: (handler: () => void) => handler(),
+        });
+      }
 
       try {
         // 5. 发送请求
@@ -144,6 +164,7 @@ export class Api<R = any, E = any, D = any> {
             error: new Error(message, { cause: { code, data } }),
             data: null,
             hitCache: false,
+            Catch: (handler: () => void) => handler(),
           });
         }
         // 数据转换
@@ -156,31 +177,59 @@ export class Api<R = any, E = any, D = any> {
           error: null,
           data: transformedData as ResponseSuccessData<R>,
           hitCache: false,
+          Catch: (handler: () => void) => handler(),
         });
+        // 处理hitSource失效缓存
+        this.lapsed(version);
       } catch (error: any) {
-        reject({ error, data: null, hitCache: false });
+        resolve({
+          error,
+          data: null,
+          hitCache: false,
+          Catch: (handler: (error: any) => void) => handler(error),
+        });
       }
     });
   }
 
-  private async checkCache<
-    T extends ResponseSuccessData<R>
-  >(): Promise<T | null> {
+  private async checkCache<T extends ResponseSuccessData<R>>(
+    version?: string
+  ): Promise<T | null> {
     if (!this.context.cacheStorage) return null;
     return new Promise(async (resolve) => {
       if (!this.context.cacheStorage) {
         return resolve(null);
       }
       // console.log("cache-key:", this.key);
-      const { error, data } = await this.context.cacheStorage!.get<T>(this.key);
+      let tempKey;
+      if (version) {
+        tempKey = apiKey({
+          ...this,
+          version,
+        });
+      }
+      const { error, data } = await this.context.cacheStorage!.get<T>(
+        tempKey ? tempKey : this.key
+      );
       // console.log(error, data);
       if (error) {
-        // console.log("[Cache]", error);
+        console.warn(error);
         return resolve(null);
       }
       this.hitCache = true;
       return resolve(data);
     });
+  }
+
+  public async delCache(version?: string) {
+    let tempKey;
+    if (version) {
+      tempKey = apiKey({
+        ...this,
+        version,
+      });
+    }
+    await this.context.cacheStorage!.delete(tempKey ? tempKey : this.key);
   }
 
   public use(pipe: RequestPipe) {
@@ -220,5 +269,16 @@ export class Api<R = any, E = any, D = any> {
       params: this.params,
       timeout: this.timeout,
     });
+  }
+
+  private async lapsed(version?: string) {
+    if (!this.hitSource) return;
+    if (typeof this.hitSource === "string") {
+      const { cacheSource } = this.context;
+      const source = cacheSource.find((api) => api.name == this.hitSource);
+      source ?? source!.delCache(version);
+    } else {
+      this.hitSource.delCache(version);
+    }
   }
 }

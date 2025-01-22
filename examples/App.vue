@@ -124,8 +124,14 @@ const hotWords = [
 import { TestApi } from './server/test'
 
 const testHandle = async () => {
-  const res = await TestApi.send()
-  console.log('Snail-Api:', res)
+  const res = await TestApi.send({ version: '0.1.0' })
+  const { Catch, error, data } = res
+  if(error == null){
+    console.log('Snail-Api:', data)
+  }
+  Catch((error)=>{
+    console.log(error)
+  })
 }
 
 </script>

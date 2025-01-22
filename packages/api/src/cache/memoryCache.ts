@@ -10,17 +10,18 @@ export default class MemoryCache {
   public async get<T = any>(
     key: string
   ): Promise<{ error: null; data: T } | { error: any; data: null }> {
+    const cacheRecord = this.cache
     return new Promise((resolve, reject) => {
       try {
-        const cacheItem = this.cache[key];
+        const cacheItem = cacheRecord[key];
         if (!cacheItem) {
-          return resolve({ error: new Error("缓存不存在"), data: null });
+          return resolve({ error: "[MemoryCache]未找到缓存，将执行请求", data: null });
         }
 
         const { data, exp } = cacheItem;
         if (exp < Math.ceil(new Date().getTime() / 1000)) {
           this.delete(key);
-          return resolve({ error: new Error("缓存已过期"), data: null });
+          return resolve({ error: "[MemoryCache]缓存已过期，将执行请求", data: null });
         }
         resolve({ error: null, data });
       } catch (error) {

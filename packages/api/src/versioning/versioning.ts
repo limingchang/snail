@@ -14,7 +14,7 @@ const versionHandlers = {
   ) => {
     const prefix = versioning.prefix || "v";
     return {
-      url: `/${prefix}${version}`,
+      url: `${prefix}${version}`,
     };
   },
   [VersioningType.Header]: (

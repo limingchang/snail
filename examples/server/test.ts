@@ -6,6 +6,7 @@ const pipe: RequestPipe = (data, headers) => {
   const newHeaders = {
     ...headers,
     pipe: "RequestPipe",
+    aaa: "lmc",
   };
   return {
     data,
@@ -22,6 +23,7 @@ const transform = (data: any) => {
 
 const options: ApiConfig = {
   transform,
+  version: "0.1.0",
 };
 
 const Api = Snail.Get("test", options);

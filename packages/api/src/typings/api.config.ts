@@ -1,5 +1,10 @@
 import { RequestBody } from "./request.body";
-import { ResponseErrorData, ResponseSuccessData,PaginationData } from "./response.data";
+import { Api } from "../core/api";
+import {
+  ResponseErrorData,
+  ResponseSuccessData,
+  PaginationData,
+} from "./response.data";
 export interface PipeResult {
   data: RequestBody | undefined;
   headers: Record<string, string>;
@@ -17,25 +22,28 @@ export interface ApiConfig<R = any> {
   transform?: (data: R | PaginationData<R>) => R | PaginationData<R>;
   headers?: Record<string, string>;
   params?: Record<string, string>;
+  hitSource?: string | Api;
 }
 
 export interface SendOptions {
   params?: Record<string, string>;
   data?: RequestBody;
+  version?: string;
 }
 
-interface ApiSuccessResponse<T> {
-  error: null;
-  data: ResponseSuccessData<T>;
-  hitCache:boolean
+// interface ApiSuccessResponse<T> {
+//   error: null;
+//   data: ResponseSuccessData<T>;
+//   hitCache: boolean;
+// }
+
+export interface ApiResponse<T, E> {
+  error: ResponseErrorData<E> | null;
+  data: ResponseSuccessData<T> | null;
+  hitCache: boolean;
+  Catch: (error: any) => any;
 }
 
-interface ApiErrorResponse<T> {
-  error: ResponseErrorData<T>;
-  data: null;
-  hitCache:boolean
-}
-
-export type ApiResponse<T = any, E = any> =
-  | ApiSuccessResponse<T>
-  | ApiErrorResponse<E>;
+// export type ApiResponse<T = any, E = any> =
+//   | ApiSuccessResponse<T>
+//   | ApiErrorResponse<E>;
