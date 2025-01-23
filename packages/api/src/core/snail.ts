@@ -30,7 +30,7 @@ export class Snail {
 
   public cacheStorage?: CacheStorage = undefined;
 
-  public cacheSource:Api[]
+  public cacheSource:Api[]=[]
 
   constructor(options: SnailConfig) {
     const instance = this;

@@ -1,6 +1,7 @@
 <template>
   <i class="s-icon" :style="iconStyle" @click="clickhandle">
-    <slot></slot>
+    <component v-if="icon" :is="icon"></component>
+    <slot v-if="!icon"></slot>
   </i>
 </template>
 
@@ -9,12 +10,15 @@ import { computed } from "vue";
 
 const props = defineProps<{
   color?: string;
+  icon?: string
 }>();
 const emits = defineEmits(["click"]);
 
 const iconStyle = computed(() => {
   return {
     color: props.color || "inherit",
+    height: '1em',
+    width: '1em'
   };
 });
 
@@ -26,25 +30,4 @@ defineOptions({
   name: "s-icon",
 });
 </script>
-<style scoped lang="scss">
-// .snail-icon {
-//   font-size: 18px;
-//   margin-left: 5px;
-//   margin-right: 5px;
-//   text-align: center;
-//   vertical-align: middle;
-// }
-
-// .snail-svg-icon {
-//   width: 1em;
-//   height: 1em;
-//   font-size: 1em;
-//   position: relative;
-//   vertical-align: -2px;
-//   margin: auto;
-//   fill: currentColor;
-// }
-// .pointer-icon {
-//   cursor: pointer;
-// }
-</style>
+<style scoped lang="scss"></style>

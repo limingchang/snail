@@ -63,7 +63,7 @@ export class Api<R = any, E = any, D = any> {
   ) {
     const instance = this;
     instance.name = config?.name;
-    instance.name ?? this.context.cacheSource.push(this);
+    instance.name && this.context.cacheSource.push(this);
     instance.hitSource = config?.hitSource;
     instance.method = method;
     instance.url = url;

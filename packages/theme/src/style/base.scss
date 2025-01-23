@@ -27,27 +27,27 @@ button {
     cursor: pointer;
     padding: 8px;
     color: #444040;
+    position: relative;
     .item-label {
       margin-left: 10px;
     }
   }
+  .s-pop-up-menu-item:not(:last-child) {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  }
   .item-disabled {
     cursor: not-allowed;
     color: #999;
-    text-shadow: -1px 0 #fff, 0 1px #fff, 1px 0 #fff, 0 -1px #fff;
+    text-shadow:
+      -1px 0 #fff,
+      0 1px #fff,
+      1px 0 #fff,
+      0 -1px #fff;
   }
   .item-enabled:hover {
     background-color: var(--hover-color);
     border-color: var(--hover-color);
     color: #fff;
-  }
-  .s-pop-up-menu-item-divider {
-    width: 90%;
-    border-bottom: #999 solid 1px;
-    margin: 5px auto;
-  }
-  .s-pop-up-menu-item:not(:last-child) {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -55,17 +55,18 @@ button {
   --color: inherit;
   align-items: center;
   display: inline-flex;
-  height: 1em;
+  margin: 0 5px;
+  // display: flex;
+  align-items: center;
   justify-content: center;
   line-height: 1em;
   position: relative;
-  width: 1em;
   fill: currentColor;
   color: var(--color);
   font-size: inherit;
 }
 
-.s-click-copy-icon-parent{
+.s-click-copy-icon-parent {
   position: relative;
 }
 .s-click-copy-icon-parent:hover {
@@ -80,6 +81,6 @@ button {
   right: 5px;
   bottom: 5px;
   font-size: 12px;
-  color: #409EFF;
+  color: #409eff;
   cursor: pointer;
 }

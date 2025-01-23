@@ -26,8 +26,8 @@
     </p>
     <div class="icon-box">
       <span class="icon" v-for="(icon, index) in SnailIcons" :key="`${icon.name}`">
-        <SIcon>
-          <component :is="icon.name"></component>
+        <SIcon :icon="icon.name">
+          <!-- <component :is="icon.name"></component> -->
         </SIcon>
         <span class="icon-name" style="display: inline-block;">{{ toPascalCase(icon.name!.replace('icon-', ''))
           }}</span>
@@ -64,10 +64,14 @@ import { SPopupMenu, SPopupMenuItem, SPopUpMenuItemOptions } from "@snail-js/vue
 // const captchaId = ref('xxxxxx');
 
 const showMenu = ref(false);
-const checkPermission = async () => {
-  setTimeout(() => {
-    return false;
-  }, 1000);
+const checkPermission= async () => {
+  return new Promise<boolean>((resolve, reject) => {
+    setTimeout(() => {
+      return resolve(true);
+    }, 1000);
+    // reject(false)
+  })
+
 };
 
 const menuItems = ref<Array<SPopUpMenuItemOptions>>([
@@ -77,7 +81,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
     click: () => {
       console.log("菜单1");
     },
-    disabled: true,
+    disabled: checkPermission,
   },
   {
     label: "菜单2",
@@ -86,6 +90,15 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
       console.log("菜单2");
     },
     disabled: false,
+  },
+  {
+    label: "菜单3",
+    icon: "icon-mobile",
+    click: () => {
+      console.log("菜单3");
+    },
+    disabled: false,
+
   },
 ]);
 
@@ -126,10 +139,10 @@ import { TestApi } from './server/test'
 const testHandle = async () => {
   const res = await TestApi.send({ version: '0.1.0' })
   const { Catch, error, data } = res
-  if(error == null){
+  if (error == null) {
     console.log('Snail-Api:', data)
   }
-  Catch((error)=>{
+  Catch((error) => {
     console.log(error)
   })
 }
@@ -163,6 +176,7 @@ const testHandle = async () => {
 
   i {
     font-size: 2em;
+    margin: 0 auto;
     margin-bottom: 10px;
   }
 }

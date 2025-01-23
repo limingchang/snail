@@ -14,6 +14,7 @@ import { TextAlign } from './type'
 import { useMouse } from "@vueuse/core";
 
 
+
 const props = defineProps({
   width: {
     type: Number,
@@ -24,6 +25,7 @@ const props = defineProps({
     default: () => 'left'
   },
 })
+
 
 const model = defineModel<boolean>({ required: true, default: () => false })
 const sPopUpMenuRef = useTemplateRef('sPopUpMenuRef')
@@ -78,7 +80,6 @@ const menuStyle = computed(() => {
     display: "block",
   }
 })
-
 
 defineOptions({
   name: 's-popup-menu'

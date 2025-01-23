@@ -1,17 +1,16 @@
 <template>
-  <div v-if="options.display === undefined ? true : options.display" class="s-pop-up-menu-item" :class="setClass"
+  <div v-if="display" class="s-pop-up-menu-item" :class="setClass"
     :style="setStyle" @click="clickHanle">
     <SIcon v-if="options.icon">
       <component :is="options.icon"></component>
     </SIcon>
     <span class="item-label">{{ options.label }}</span>
-    <ElDivider v-if="options.divider" class="s-pop-up-menu-item-divider"></ElDivider>
   </div>
 </template>
 
 <script setup lang="ts">
-import { PropType, inject, computed } from "vue";
-import { ElDivider } from "element-plus";
+import { PropType, inject, computed, ref, onMounted } from "vue";
+// import { ElDivider } from "element-plus";
 import { SIcon } from "../icon";
 import { SPopUpMenuItemOptions } from "./type";
 
@@ -26,14 +25,41 @@ const props = defineProps({
   },
 });
 
+const disabled = ref(false)
+const display = ref(true)
 
 const setClass = computed(() => {
   const itemClass = {
-    'item-disabled': props.options.disabled,
-    'item-enabled': !props.options.disabled,
+    'item-disabled': disabled.value,
+    'item-enabled': !disabled.value,
   }
   return itemClass
 })
+
+onMounted(async () => {
+  await setDisabled()
+  await setDisPlay()
+})
+
+const setDisabled = async () => {
+  if (!props.options.disabled) return
+  if (typeof props.options.disabled === 'boolean') {
+    disabled.value = props.options.disabled
+  } else {
+    const fn = props.options.disabled
+    disabled.value = await fn(props.options.context)
+  }
+}
+const setDisPlay = async () => {
+  if (!props.options.display) return
+  if (typeof props.options.display === 'boolean') {
+    display.value = props.options.display
+  } else {
+    const fn = props.options.display
+    display.value = await fn(props.options.context)
+  }
+}
+
 const setStyle = computed(() => {
   return {
     '--hover-color': props.options.hoverColor ? props.options.hoverColor : '#66b1ff',
