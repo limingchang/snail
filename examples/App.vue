@@ -67,7 +67,7 @@ const showMenu = ref(false);
 const checkPermission= async () => {
   return new Promise<boolean>((resolve, reject) => {
     setTimeout(() => {
-      return resolve(true);
+      return resolve(false);
     }, 1000);
     // reject(false)
   })
@@ -81,7 +81,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
     click: () => {
       console.log("菜单1");
     },
-    disabled: checkPermission,
+    enabled: checkPermission,
   },
   {
     label: "菜单2",
@@ -89,7 +89,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
     click: () => {
       console.log("菜单2");
     },
-    disabled: false,
+    enabled: true,
   },
   {
     label: "菜单3",
@@ -97,7 +97,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
     click: () => {
       console.log("菜单3");
     },
-    disabled: false,
+    enabled: true,
 
   },
 ]);

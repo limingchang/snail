@@ -1,13 +1,13 @@
 <template>
   <Teleport to="body">
     <div ref="sPopUpMenuRef" v-show="model" class="s-pop-up-menu" :style="menuStyle">
-      <slot></slot>
+      <slot @hide="handleHide"></slot>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { PropType, computed, watch, ref, provide, useTemplateRef } from 'vue'
+import { PropType, computed, watch, ref, useTemplateRef } from 'vue'
 // import MenuItem from './PopupMenuItem.vue'
 import { TextAlign } from './type'
 
@@ -34,7 +34,7 @@ const handleHide = () => {
   model.value = false
 }
 
-provide('s-popup-menu-handleHide', handleHide)
+// provide('s-popup-menu-handleHide', handleHide)
 
 const posX = ref(0)
 const posY = ref(0)

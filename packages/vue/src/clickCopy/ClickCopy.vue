@@ -1,5 +1,5 @@
 <template>
-  <div ref="clickCopyRef" class="s-click-copy-icon" @click="handleCopy">
+  <div ref="clickCopyRef" class="s-click-copy" @click="handleCopy">
     <SIcon><IconCopy /></SIcon>
     <span>{{ label }}</span>
   </div>
@@ -27,17 +27,13 @@ const props = defineProps({
     type: String,
     default: () => '复制成功'
   },
-  display: {
-    type: Boolean,
-    default: () => true
-  }
 })
 
 onMounted(() => {
     // const parent = (iconRef.value! as ComponentInstance<typeof SIcon>).$el.parentElement!
     const parent = (clickCopyRef.value! as HTMLElement).parentElement!
     // console.log(parent);
-    parent.classList.add('s-click-copy-icon-parent')
+    parent.classList.add('s-click-copy-parent')
 })
 
 const handleCopy = async () => {

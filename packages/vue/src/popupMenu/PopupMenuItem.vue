@@ -1,6 +1,5 @@
 <template>
-  <div v-if="display" class="s-pop-up-menu-item" :class="setClass"
-    :style="setStyle" @click="clickHanle">
+  <div v-if="display" class="s-pop-up-menu-item" :class="setClass" :style="setStyle" @click="clickHanle">
     <SIcon v-if="options.icon">
       <component :is="options.icon"></component>
     </SIcon>
@@ -10,7 +9,6 @@
 
 <script setup lang="ts">
 import { PropType, inject, computed, ref, onMounted } from "vue";
-// import { ElDivider } from "element-plus";
 import { SIcon } from "../icon";
 import { SPopUpMenuItemOptions } from "./type";
 
@@ -23,15 +21,18 @@ const props = defineProps({
       return {};
     },
   },
+  context: {
+    type: Object
+  }
 });
 
-const disabled = ref(false)
+const enabled = ref(true)
 const display = ref(true)
 
 const setClass = computed(() => {
   const itemClass = {
-    'item-disabled': disabled.value,
-    'item-enabled': !disabled.value,
+    'item-disabled': !enabled.value,
+    'item-enabled': enabled.value,
   }
   return itemClass
 })
@@ -42,12 +43,12 @@ onMounted(async () => {
 })
 
 const setDisabled = async () => {
-  if (!props.options.disabled) return
-  if (typeof props.options.disabled === 'boolean') {
-    disabled.value = props.options.disabled
+  if (!props.options.enabled) return
+  if (typeof props.options.enabled === 'boolean') {
+    enabled.value = props.options.enabled
   } else {
-    const fn = props.options.disabled
-    disabled.value = await fn(props.options.context)
+    const fn = props.options.enabled
+    enabled.value = await fn(props.context)
   }
 }
 const setDisPlay = async () => {
@@ -56,7 +57,7 @@ const setDisPlay = async () => {
     display.value = props.options.display
   } else {
     const fn = props.options.display
-    display.value = await fn(props.options.context)
+    display.value = await fn(props.context)
   }
 }
 
@@ -66,12 +67,13 @@ const setStyle = computed(() => {
   }
 })
 
-const handleHide = inject("s-popup-menu-handleHide") as () => void;
+// const handleHide = inject("s-popup-menu-handleHide") as () => void;
 
-const clickHanle = () => {
-  if (props.options.disabled) return;
-  props.options.click(props.options.context);
-  handleHide();
+const clickHanle = async () => {
+  if (!enabled.value) return;
+  await props.options.click(props.context);
+  emits('hide')
+  // handleHide();
 };
 
 

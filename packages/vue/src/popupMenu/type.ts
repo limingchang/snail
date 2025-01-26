@@ -1,4 +1,6 @@
-type HandlerClick<T> = (context?: T) => void;
+type HandlerClick<T> =
+  | ((context?: T) => void)
+  | ((context?: T) => Promise<unknown>);
 export type TextAlign = "left" | "center" | "right" | "justify";
 
 export interface SPopUpMenuItemOptions<T = any> {
@@ -9,15 +11,14 @@ export interface SPopUpMenuItemOptions<T = any> {
     | boolean
     | ((context?: T) => Promise<boolean>)
     | ((context?: T) => boolean);
-  disabled?:
+  enabled?:
     | boolean
     | ((context?: T) => Promise<boolean>)
     | ((context?: T) => boolean);
-  context?: T;
   click: HandlerClick<T>;
 }
 // export interface SPopUpMenuOptions {
 //   width?: number;
 //   align?: TextAlign;
-  // items: SnailPopUpMenuItem<T>[];
+// items: SnailPopUpMenuItem<T>[];
 // }
