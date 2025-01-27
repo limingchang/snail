@@ -17,7 +17,9 @@
   "main": "index.ts",
   "scripts": {
     "clean:dist": "rimraf ./dist",
-    "build": "pnpm run clean:dist && vite build",
+    "build": "pnpm run clean:dist && vite build && pnpm run build:type && pnpm run build:css",
+    "build:type":"vue-tsc -p tsconfig.build.json --composite false --declaration --emitDeclarationOnly",
+    "build:css":"sass ./src/theme/index.scss ./dist/index.css --no-source-map",
     "publish": "npm publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

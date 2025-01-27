@@ -10,7 +10,9 @@
     "clean:type": "rimraf ./dist",
     "mv-type": "tsx ./scripts/dts-mv.ts",
     "type:src": "pnpm run clean:type && vue-tsc -p tsconfig.src.json --composite false --declaration --emitDeclarationOnly",
-    "build": "pnpm run type:src && pnpm --filter ./packages/** run build && pnpm run mv-type",
+    "build:vue": "pnpm --filter @snail-js/vue run build",
+    "build:api": "pnpm --filter @snail-js/api run build",
+    "build": "pnpm run build:vue && pnpm run build:api",
     "preview": "vite preview",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
@@ -26,7 +28,6 @@
   "dependencies": {
     "@snail-js/api": "workspace:^",
     "@snail-js/shared": "workspace:^",
-    "@snail-js/theme": "workspace:^",
     "@snail-js/vue": "workspace:^",
     "element-plus": "^2.9.2",
     "@element-plus/icons-vue": "^2.3.1",

@@ -25,39 +25,36 @@
       </ElButton>
     </p>
     <div class="icon-box">
-      <span class="icon" v-for="(icon, index) in SnailIcons" :key="`${icon.name}`">
+      <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
         <SIcon :icon="icon.name">
           <!-- <component :is="icon.name"></component> -->
         </SIcon>
-        <span class="icon-name" style="display: inline-block;">{{ toPascalCase(icon.name!.replace('icon-', ''))
-          }}</span>
+        <span class="icon-name" style="display: inline-block;">{{ toPascalCase(icon.name!)}}</span>
       </span>
     </div>
     <p>
       <button @click="menuHandle">点击菜单</button>
       <!-- <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha> -->
-      <SPopupMenu :width="150" v-model="showMenu">
-        <SPopupMenuItem v-for="(menuItem, index) in menuItems" :options="menuItem"></SPopupMenuItem>
-      </SPopupMenu>
+      <SPopupMenu :width="150" v-model="showMenu" :items="menuItems"></SPopupMenu>
     </p>
-    <div>
+    <!-- <div>
       <SWordCloud :hotWords="hotWords" :radius="100" :speed="10"></SWordCloud>
-    </div>
+    </div> -->
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, useTemplateRef } from "vue";
 import { SIcon, SClickCopy } from "@snail-js/vue";
-import { IconMobile, IconSign, IconContract } from "@snail-js/theme";
-import * as SnailIcons from "@snail-js/theme";
+import { IconMobile, IconSign, IconContract,SIconSvgs } from "@snail-js/vue";
+// import * as SnailIcons from "@snail-js/theme";
 
 import { SWordCloud } from "@snail-js/vue"
 
 import { AliCaptcha, CaptchaObj } from "@snail-js/vue";
 import { ElButton, ElIcon } from "element-plus";
 import { Edit, EditPen } from "@element-plus/icons-vue";
-import { SPopupMenu, SPopupMenuItem, SPopUpMenuItemOptions } from "@snail-js/vue";
+import { SPopupMenu, SPopUpMenuItemOptions } from "@snail-js/vue";
 
 // import { SIcon,CaptchaObj,SClickCopy,AliCaptcha } from '../packages/vue'
 // const captchaId = ref(import.meta.env.VITE_APP_CAPTCHA_ID);
@@ -78,7 +75,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
   {
     label: "菜单1",
     icon: "icon-snail-fill",
-    click: () => {
+    command: () => {
       console.log("菜单1");
     },
     enabled: checkPermission,
@@ -86,7 +83,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
   {
     label: "菜单2",
     icon: "icon-mobile",
-    click: () => {
+    command: () => {
       console.log("菜单2");
     },
     enabled: true,
@@ -94,7 +91,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
   {
     label: "菜单3",
     icon: "icon-mobile",
-    click: () => {
+    command: () => {
       console.log("菜单3");
     },
     enabled: true,
@@ -150,7 +147,7 @@ const testHandle = async () => {
 </script>
 
 <style lang="scss">
-@use "@snail-js/theme/index.scss";
+// @use "@snail-js/vue/dist/index.css";
 
 .icon-box {
   display: flex;

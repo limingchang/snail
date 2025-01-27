@@ -32,17 +32,16 @@ button {
       margin-left: 10px;
     }
   }
+  .snail-pop-up-menu-item:hover {
+    background-color: var(--hover-color);
+  }
   .s-pop-up-menu-item:not(:last-child) {
     border-bottom: 1px solid rgba(0, 0, 0, 0.2);
   }
   .item-disabled {
     cursor: not-allowed;
     color: #999;
-    text-shadow:
-      -1px 0 #fff,
-      0 1px #fff,
-      1px 0 #fff,
-      0 -1px #fff;
+    text-shadow: -1px 0 #fff, 0 1px #fff, 1px 0 #fff, 0 -1px #fff;
   }
   .item-enabled:hover {
     background-color: var(--hover-color);
@@ -68,18 +67,31 @@ button {
 
 .s-click-copy-parent {
   position: relative;
+  
 }
-.s-click-copy-parent:hover {
-  .click-copy-icon {
-    display: inline-block;
-  }
-}
-
 .s-click-copy {
   position: absolute;
+  // display: none;
   right: 5px;
   bottom: 5px;
   font-size: 12px;
   color: #409eff;
+  cursor: pointer;
+}
+.s-click-copy-parent .s-click-copy {
+  display: none;
+}
+.s-click-copy-parent:hover .s-click-copy {
+  display: inline-block;
+}
+
+.s-word-cloud {
+  position: relative;
+  font-size: 1em;
+  background-color: transparent;
+}
+
+.s-word-cloud-tag {
+  position: absolute;
   cursor: pointer;
 }

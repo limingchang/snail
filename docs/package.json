@@ -7,8 +7,7 @@
     "docs:preview": "vitepress preview"
   },
   "dependencies": {
-    "@snail-js/vue":"workspace:*",
-    "@snail-js/theme": "workspace:*"
+    "@snail-js/vue":"workspace:*"
   },
   "devDependencies": {
   }

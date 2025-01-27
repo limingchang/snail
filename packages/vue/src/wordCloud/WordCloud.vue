@@ -1,5 +1,5 @@
 <template>
-  <div class="word-cloud" :style="style">
+  <div class="s-word-cloud" :style="style">
     <WordTag v-for="(word, index) in hotWords" :key="index" :RADIUS="radius" :label="word" :color="randomColor()"
       :count="hotWords.length" :coefficient="computedCoefficient(index)" :SPEED="speed"></WordTag>
   </div>
@@ -57,9 +57,5 @@ defineOptions({
 </script>
 
 <style scoped>
-.word-cloud {
-  position: relative;
-  font-size: 1em;
-  background-color: transparent;
-}
+
 </style>

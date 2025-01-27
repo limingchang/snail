@@ -7,3 +7,6 @@ Icon.install = (app:App) => {
 
 export const SIcon = Icon;
 
+export * as SIconSvgs from "./icons"
+
+export * from "./icons"

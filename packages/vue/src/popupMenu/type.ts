@@ -1,21 +1,19 @@
-type HandlerClick<T> =
+export type HandlerCommandFunc<T = any> =
   | ((context?: T) => void)
   | ((context?: T) => Promise<unknown>);
 export type TextAlign = "left" | "center" | "right" | "justify";
+
+export type TComputedStatus<T=any> =
+  | ((context?: T) => Promise<boolean>)
+  | ((context?: T) => boolean);
 
 export interface SPopUpMenuItemOptions<T = any> {
   label: string;
   icon?: string;
   hoverColor?: string;
-  display?:
-    | boolean
-    | ((context?: T) => Promise<boolean>)
-    | ((context?: T) => boolean);
-  enabled?:
-    | boolean
-    | ((context?: T) => Promise<boolean>)
-    | ((context?: T) => boolean);
-  click: HandlerClick<T>;
+  display?: TComputedStatus | boolean;
+  enabled?: TComputedStatus | boolean;
+  command: HandlerCommandFunc<T>;
 }
 // export interface SPopUpMenuOptions {
 //   width?: number;

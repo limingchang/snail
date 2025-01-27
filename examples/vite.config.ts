@@ -36,6 +36,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^@snail-js\/vue\/index.css/,
+        // replacement: join(__dirname, "..", "$1", "src"),
+        replacement: join(__dirname, "../", "packages/vue/src/theme/index.scss"),
+      },
+      {
         find: /^@snail-js\/(\w+)\/(.*)/,
         // replacement: join(__dirname, "..", "$1", "src"),
         replacement: join(__dirname, "../", "packages", "$1", "src", "$2"),

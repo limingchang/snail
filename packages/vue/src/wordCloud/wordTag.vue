@@ -1,5 +1,5 @@
 <template>
-  <span class="word-tag" :style="style" ref="tagRef" @mouseenter="stop" @mouseleave="animate">{{ label }}</span>
+  <span class="s-word-cloud-tag" :style="style" ref="tagRef" @mouseenter="stop" @mouseleave="animate">{{ label }}</span>
 </template>
 
 <script setup lang="ts">
@@ -92,8 +92,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.word-tag {
-  position: absolute;
-  cursor: pointer;
-}
+
 </style>
