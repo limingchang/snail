@@ -1,11 +1,5 @@
 <template>
-  <div
-    v-if="display"
-    class="s-pop-up-menu-item"
-    :class="setClass"
-    :style="setStyle"
-    @click="clickHanle"
-  >
+  <div v-if="display" class="s-pop-up-menu-item" :class="setClass" :style="setStyle" @click="clickHanle">
     <SIcon v-if="options.icon">
       <component :is="options.icon"></component>
     </SIcon>
@@ -19,13 +13,14 @@ import { SIcon } from "../icon";
 import {
   SPopUpMenuItemOptions,
   HandlerCommandFunc,
-  TComputedStatus,
+  TComputedEnabled,
+  TComputedDisplay
 } from "./type";
 
-// const emits = defineEmits(["hide"]);
 const emits = defineEmits<{
   (e: "exce", command: HandlerCommandFunc): void;
-  (e: "status", func: TComputedStatus): boolean | Promise<boolean>;
+  (e: "enabled", func: TComputedEnabled): boolean | Promise<boolean>;
+  (e: "display", func: TComputedDisplay): boolean | Promise<boolean>;
 }>();
 
 const props = defineProps({
@@ -59,8 +54,7 @@ const setDisabled = async () => {
     enabled.value = props.options.enabled;
   } else {
     const fn = props.options.enabled;
-    // enabled.value = await fn(props.context);
-    enabled.value = await emits("status", fn);
+    enabled.value = await emits("enabled", fn);
   }
 };
 const setDisPlay = async () => {
@@ -69,8 +63,7 @@ const setDisPlay = async () => {
     display.value = props.options.display;
   } else {
     const fn = props.options.display;
-    // display.value = await fn(props.context);
-    display.value = await emits("status", fn);
+    display.value = await emits("display", fn);
   }
 };
 
@@ -82,13 +75,9 @@ const setStyle = computed(() => {
   };
 });
 
-// const handleHide = inject("s-popup-menu-handleHide") as () => void;
-
 const clickHanle = async () => {
   if (!enabled.value) return;
-  // await props.options.click(props.context);
   emits("exce", props.options.command);
-  // handleHide();
 };
 
 defineOptions({
@@ -96,6 +85,4 @@ defineOptions({
 });
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

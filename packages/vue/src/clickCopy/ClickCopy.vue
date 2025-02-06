@@ -1,18 +1,20 @@
 <template>
   <div ref="clickCopyRef" class="s-click-copy" @click="handleCopy">
-    <SIcon><IconCopy /></SIcon>
+    <SIcon>
+      <IconCopy />
+    </SIcon>
     <span>{{ label }}</span>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, useTemplateRef } from "vue";
+import { onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { SIcon } from "../icon";
-// import { IconCopy } from '@snail-js/theme'
 import { IconCopy } from "../icon/icons";
 
-const clickCopyRef = useTemplateRef("clickCopyRef");
+// const clickCopyRef = useTemplateRef("clickCopyRef");
+const clickCopyRef = ref(null)
 
 const props = defineProps({
   label: {
@@ -30,7 +32,6 @@ const props = defineProps({
 });
 
 onMounted(() => {
-  // const parent = (iconRef.value! as ComponentInstance<typeof SIcon>).$el.parentElement!
   const parent = (clickCopyRef.value! as HTMLElement).parentElement!;
   // console.log(parent);
   parent.classList.add("s-click-copy-parent");

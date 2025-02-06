@@ -1,29 +1,19 @@
 <template>
   <Teleport to="body">
-    <div
-      ref="sPopUpMenuRef"
-      v-show="model"
-      class="s-pop-up-menu"
-      :style="menuStyle"
-    >
-      <!-- <slot @hide="handleHide"></slot> -->
-      <MenuItem
-        v-for="(item, index) in items"
-        :key="`s-pop-up-menu-${index}`"
-        :options="item"
-        @exce="handleExce"
-        @status="handleStatus"
-      ></MenuItem>
+    <div ref="sPopUpMenuRef" v-show="model" class="s-pop-up-menu" :style="menuStyle">
+      <MenuItem v-for="(item, index) in props.items" :key="`s-pop-up-menu-${index}`" :options="item" @exce="handleExce"
+        @enabled="handleEnabled" @display="handleDisplay">
+      </MenuItem>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { PropType, computed, watch, ref, useTemplateRef } from "vue";
+import { PropType, computed, watch, ref } from "vue";
 import MenuItem from "./PopupMenuItem.vue";
-import { TextAlign, SPopUpMenuItemOptions, TComputedStatus } from "./type";
+import { TextAlign, SPopUpMenuItemOptions, TComputedEnabled, TComputedDisplay } from "./type";
 
-import { useMouse } from "@vueuse/core";
+import { useMouse, onClickOutside } from "@vueuse/core";
 
 const props = defineProps({
   width: {
@@ -36,7 +26,7 @@ const props = defineProps({
   },
   context: {
     type: Object,
-    default: () => {},
+    default: () => { },
   },
   items: {
     type: Array as PropType<SPopUpMenuItemOptions[]>,
@@ -44,14 +34,17 @@ const props = defineProps({
   },
 });
 
-const model = defineModel<boolean>({ required: true, default: () => false });
-const sPopUpMenuRef = useTemplateRef("sPopUpMenuRef");
+const emits = defineEmits<{
+  (e: 'close'): void
+}>()
+
+const model = defineModel({ type: Boolean, required: true, default: false });
+const sPopUpMenuRef = ref(null);
+
 
 const handleHide = () => {
-  model.value = false;
+  onClickOutside(sPopUpMenuRef, () => model.value = false)
 };
-
-// provide('s-popup-menu-handleHide', handleHide)
 
 const posX = ref(0);
 const posY = ref(0);
@@ -103,12 +96,17 @@ const menuStyle = computed(() => {
 
 const handleExce = (command: Function) => {
   command(props.context);
-  model.value = false;
+  model.value = false
+  emits('close')
 };
 
-const handleStatus = async (computedFn: TComputedStatus) => {
+const handleEnabled = async (computedFn: TComputedEnabled) => {
   return await computedFn(props.context);
 };
+
+const handleDisplay = async (computedFn: TComputedDisplay) => {
+  return await computedFn();
+}
 
 defineOptions({
   name: "s-popup-menu",

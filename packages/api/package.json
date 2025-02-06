@@ -5,7 +5,7 @@
   "main": "index.ts",
   "exports": {
     ".": {
-      "import": "./dist/snail-api.js",
+      "import": "./dist/snail-api.mjs",
       "require": "./dist/snail-api.umd.cjs",
       "types": "./dist/index.d.ts"
     }

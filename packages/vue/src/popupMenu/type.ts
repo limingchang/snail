@@ -3,20 +3,17 @@ export type HandlerCommandFunc<T = any> =
   | ((context?: T) => Promise<unknown>);
 export type TextAlign = "left" | "center" | "right" | "justify";
 
-export type TComputedStatus<T=any> =
+export type TComputedEnabled<T = any> =
   | ((context?: T) => Promise<boolean>)
   | ((context?: T) => boolean);
+
+export type TComputedDisplay = (() => Promise<boolean>) | (() => boolean);
 
 export interface SPopUpMenuItemOptions<T = any> {
   label: string;
   icon?: string;
   hoverColor?: string;
-  display?: TComputedStatus | boolean;
-  enabled?: TComputedStatus | boolean;
+  display?: TComputedDisplay | boolean;
+  enabled?: TComputedEnabled | boolean;
   command: HandlerCommandFunc<T>;
 }
-// export interface SPopUpMenuOptions {
-//   width?: number;
-//   align?: TextAlign;
-// items: SnailPopUpMenuItem<T>[];
-// }

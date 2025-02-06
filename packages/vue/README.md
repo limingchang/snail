@@ -6,7 +6,6 @@
   <img src="https://img.shields.io/badge/TypeScript-1e80ff"></img>
   <img src="https://img.shields.io/npm/v/vue?label=vue&labelColor=1e80ff&color=67C23A"></img>
   <img src="https://img.shields.io/npm/v/element-plus?label=element-plus&labelColor=1e80ff&color=67C23A"></img>
-  <img src="https://img.shields.io/npm/v/%40snail-js%2Ftheme?label=%40snail-js%2Ftheme&labelColor=1e80ff&color=67C23A"></img>
 </p>
 
 ### Why it's snail?
@@ -24,33 +23,21 @@
 - pnpm 安装
 `pnpm install @snail-js/vue`
 
-### 安装主题文件
-- `npm install @snail-js/theme`
-- `pnpm install @snail-js/theme`
 
 ### 使用
 - main.ts
 ```ts
 // 在main.ts中添加样式库
-import "@snail-js/theme/index.scss";
-// 若使用图标组件，请添加如下代码
-import * as SIcons from "@snail-js/theme"
+import "@snail-js/vue/index.css"
 
-const app = createApp(App);
-
-for (const [key, component] of Object.entries(SIcons)) {
-  app.component(key, component)
-}
-app.mount("#app");
 ```
 
-> 请先安装主题样式库`@snail-js/theme`
 
 #### 或在页面中添加样式库
 ```html
 <!-- App.vue -->
 <style lang="scss">
-@use "@snail-js/theme/index.scss";
+@use "@snail-js/vue/index.css";
 </style>
 ```
 

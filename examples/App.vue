@@ -29,7 +29,7 @@
         <SIcon :icon="icon.name">
           <!-- <component :is="icon.name"></component> -->
         </SIcon>
-        <span class="icon-name" style="display: inline-block;">{{ toPascalCase(icon.name!)}}</span>
+        <span class="icon-name" style="display: inline-block;">{{ toPascalCase(icon.name!) }}</span>
       </span>
     </div>
     <p>
@@ -44,9 +44,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, useTemplateRef } from "vue";
+import { ref, onMounted, useTemplateRef, watch } from "vue";
 import { SIcon, SClickCopy } from "@snail-js/vue";
-import { IconMobile, IconSign, IconContract,SIconSvgs } from "@snail-js/vue";
+import { IconMobile, IconSign, IconContract, SIconSvgs } from "@snail-js/vue";
 // import * as SnailIcons from "@snail-js/theme";
 
 import { SWordCloud } from "@snail-js/vue"
@@ -61,7 +61,7 @@ import { SPopupMenu, SPopUpMenuItemOptions } from "@snail-js/vue";
 // const captchaId = ref('xxxxxx');
 
 const showMenu = ref(false);
-const checkPermission= async () => {
+const checkPermission = async () => {
   return new Promise<boolean>((resolve, reject) => {
     setTimeout(() => {
       return resolve(false);
@@ -106,7 +106,12 @@ onMounted(() => {
 const menuHandle = () => {
   console.log("menu");
   showMenu.value = true;
+
 };
+
+watch(() => showMenu.value, () => {
+  console.log("showMenu:", showMenu.value)
+})
 
 const clickHanle = ref(() => {
   console.log("click");
