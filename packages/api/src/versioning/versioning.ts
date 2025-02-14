@@ -1,17 +1,14 @@
 import {
   VersioningType,
-  VersioningConfig,
-  VersioningUriConfig,
-  VersioningHeaderConfig,
-  VersioningQueryConfig,
-  VersioningCustomConfig,
+  VersioningOption,
+  VersioningUriOption,
+  VersioningHeaderOption,
+  VersioningQueryOption,
+  VersioningCustomOption,
 } from "../typings";
 
 const versionHandlers = {
-  [VersioningType.Uri]: (
-    version: string,
-    versioning: VersioningUriConfig,
-  ) => {
+  [VersioningType.Uri]: (version: string, versioning: VersioningUriOption) => {
     const prefix = versioning.prefix || "v";
     return {
       url: `${prefix}${version}`,
@@ -19,10 +16,10 @@ const versionHandlers = {
   },
   [VersioningType.Header]: (
     version: string,
-    versioning: VersioningHeaderConfig,
+    versioning: VersioningHeaderOption
   ) => {
     const headers = {
-      [versioning.header]: version,
+      [versioning.header || "version"]: version,
     };
     return {
       headers,
@@ -30,18 +27,19 @@ const versionHandlers = {
   },
   [VersioningType.Query]: (
     version: string,
-    versioning: VersioningQueryConfig,
+    versioning: VersioningQueryOption
   ) => {
     const key = versioning.key || "version";
     // const separator = url.includes("?") ? "&" : "?";
-    const separator = '?'
     return {
-      url: `${separator}${key}=${version}`,
+      params: {
+        [key]: version,
+      },
     };
   },
   [VersioningType.Custom]: (
     version: string,
-    versioning: VersioningCustomConfig,
+    versioning: VersioningCustomOption
   ) => {
     return versioning.extractor({
       version,
@@ -49,22 +47,22 @@ const versionHandlers = {
   },
 };
 
-
 interface VersioningResult {
   url?: string;
   headers?: Record<string, any>;
+  params?: Record<string, any>;
 }
 
 export function applyVersioning(
   version: string,
-  versioning: VersioningConfig,
+  versioning: VersioningOption
 ): VersioningResult {
   const handler = versionHandlers[versioning.type];
   return handler(
     version,
-    versioning as VersioningUriConfig &
-      VersioningHeaderConfig &
-      VersioningQueryConfig &
-      VersioningCustomConfig,
+    versioning as VersioningUriOption &
+      VersioningHeaderOption &
+      VersioningQueryOption &
+      VersioningCustomOption
   );
 }

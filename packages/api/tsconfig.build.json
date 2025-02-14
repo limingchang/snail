@@ -2,10 +2,12 @@
   
   "compilerOptions": {
     "composite": true,
-    "moduleResolution": "bundler",
+    //
+    "module": "ESNext",
+    // "moduleResolution": "bundler",
     // 组件库依赖浏览器的 DOM API
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": ["node"],
+    "lib": ["ESNext", "DOM"],
+    "types": ["reflect-metadata"],
     // 项目的根目录
     "rootDir": "./src",
     // 项目基础目录
@@ -13,9 +15,7 @@
     // tsc 编译产物输出目录
     "outDir": "./dist",
     // 编译目标 js 的版本
-    "target": "es2022",
-    //
-    "module": "esnext",
+    "target": "ESNext",
     // 模块解析策略
     "moduleResolution": "node",
     // 是否生成辅助 debug 的 .map.js 文件。
@@ -32,6 +32,10 @@
     // 与 esModuleInterop: true 配合允许从 commonjs 的依赖中直接按 import XX from 'xxx' 的方式导出 default 模块。
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+
+    // 装饰器
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
 
     // 在使用 const enum 或隐式类型导入时受到 TypeScript 的警告
     "isolatedModules": true,

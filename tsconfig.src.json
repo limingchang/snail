@@ -6,7 +6,7 @@
     "moduleResolution": "bundler",
     // 组件库依赖浏览器的 DOM API
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": ["node"],
+    // "types": ["node"],
 
     /*关闭ts的检测class初始化的配置 */
     "strictPropertyInitialization": false,

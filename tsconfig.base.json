@@ -7,9 +7,9 @@
     // tsc 编译产物输出目录
     "outDir": "dist",
     // 编译目标 js 的版本
-    "target": "es2022",
+    "target": "ESNext",
     //
-    "module": "esnext",
+    "module": "ESNext",
     // 模块解析策略
     "moduleResolution": "node",
     // 是否生成辅助 debug 的 .map.js 文件。
@@ -32,7 +32,7 @@
     // 检查类型时是否跳过类型声明文件，一般在上游依赖存在类型问题时置为 true。
     "skipLibCheck": true,
     // 引入 ES 的功能库
-    "lib": [],
+    "lib": ["ESNext"],
     // 默认引入的模块类型声明
     "types": [],
     // 路径别名设置

@@ -136,17 +136,17 @@ const hotWords = [
   "CSS"
 ]
 
-import { TestApi } from './server/test'
+import { TestApi, ShanHeApiRandom } from './server/shanhe'
 
 const testHandle = async () => {
-  const res = await TestApi.send({ version: '0.1.0' })
-  const { Catch, error, data } = res
-  if (error == null) {
-    console.log('Snail-Api:', data)
+  const res = await TestApi.shanheRandom<ShanHeApiRandom>()
+  const { data, error } = res
+  if(error){
+    return
   }
-  Catch((error) => {
-    console.log(error)
-  })
+  console.log("data:",data.data)
+  console.log('code:',data.code)
+  console.log('message:',data.text)
 }
 
 </script>

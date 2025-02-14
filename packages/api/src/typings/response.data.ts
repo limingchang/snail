@@ -1,4 +1,4 @@
-export interface ResponseErrorData<E = any> {
+export interface ResponseErrorData<E> {
   code: number;
   message: string;
   data: E;
@@ -15,10 +15,12 @@ export interface PaginationData<T> {
   record: T[];
 }
 
-export interface ResponseSuccessData<T = any> {
+export interface ResponseSuccessData<T> {
   code: 0;
   message: string;
   data: T | PaginationData<T>;
 }
 
-export type ResponseData<T, E> = ResponseSuccessData<T> | ResponseErrorData<E>;
+export type ResponseData<T = any, E = any> =
+  | ResponseSuccessData<T>
+  | ResponseErrorData<E>;

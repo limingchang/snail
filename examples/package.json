@@ -6,15 +6,16 @@
   "main": "main.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "check:path":"tsx ./scripts/checkPath.ts"
+    "check:path": "tsx ./scripts/checkPath.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "element-plus": "^2.9.2",
     "@element-plus/icons-vue": "^2.3.1",
     "@snail-js/vue": "workspace:*",
+    "element-plus": "^2.9.2",
+    "reflect-metadata": "^0.2.2",
     "vue": "^3.5.13"
   },
   "devDependencies": {

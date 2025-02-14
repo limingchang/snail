@@ -33,22 +33,3 @@ export function recordToString(record: Record<string, any>) {
     .join("&");
 }
 
-export function getResponseDataFromCache(cacheKey: string) {
-  return cacheKey;
-}
-
-export function deepCopy<T>(obj: T): T {
-  if (typeof obj !== "object" || obj === null) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map((item) => deepCopy(item)) as T;
-  }
-  const copy: any = {};
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      copy[key] = deepCopy(obj[key]);
-    }
-  }
-  return copy as T;
-}

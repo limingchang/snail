@@ -1,19 +1,51 @@
+// {
+//   // 集成基础配置
+//   // "extends": "../tsconfig.base.json",
+//   "compilerOptions": {
+//     "baseUrl": ".",
+//     "target": "ESNext",
+//     // Web 应用需要 DOM 环境
+//     "lib": ["ESNext", "DOM"],
+//     "module": "ESNext",
+//     // 模块解析策略
+//     "moduleResolution": "node",
+//     // Web 应用不需要 node 相关方法
+//     "types": ["reflect-metadata"],
+//     /* Decorator */
+//     "experimentalDecorators": true,
+//     "emitDecoratorMetadata": true,
+//     // 跳过第三方库类型检查
+//     "skipLibCheck": true,
+//     // baseUrl 改变了，基础配置中的 paths 也需要一并重写
+//     "paths": {
+//       "@snail-js/*": ["../packages/*/src"]
+//     },
+//   },
+//   "include": [
+//     // demo 应用会引用其他子模块的源码，因此都要包含到 include 中
+//     "../packages/*/src"
+//   ],
+//   "exclude": ["node_modules"]
+// }
 {
-  // 集成基础配置
-  "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    "module": "ESNext",
+    // 模块解析策略
+    "moduleResolution": "node",
     "baseUrl": ".",
-    // Web 应用需要 DOM 环境
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    // Web 应用不需要 node 相关方法
-    "types": [],
-    // baseUrl 改变了，基础配置中的 paths 也需要一并重写
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "types": ["reflect-metadata"],
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    
+
+    "skipLibCheck": true,
+    "strictNullChecks": false,
     "paths": {
       "@snail-js/*": ["../packages/*/src"]
-    }
+    },
+    
   },
-  "include": [
-    // demo 应用会引用其他子模块的源码，因此都要包含到 include 中 
-    "../packages/*/src",
-  ]
+  "exclude": ["node_modules"]
 }

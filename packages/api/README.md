@@ -5,7 +5,8 @@
 ## 项目介绍
 
 - 基于 Axios 二次封装
-- 提供请求基本实例`Snail`，请求实例`Api`
+- 使用`reflect-metadata`创建和处理元数据
+- 提供装饰器方式定义请求，基本实例`Snail`，请求实例`Api`
 
 ## 安装
 
@@ -13,134 +14,298 @@
 
 ## 使用
 
-1. 创建`Snail`实例
+1. 请开启`TypeScript`相关装饰器配置
+
+```json
+// tsconfig.json
+{
+  "module": "ESNext",
+  // 模块解析策略
+  "moduleResolution": "node",
+  "baseUrl": ".",
+  // target 必须大于ES6
+  "target": "ESNext",
+  // lib 需要包含大于ES6的ES版本
+  "lib": ["ESNext", "DOM"],
+  // 包含reflect-metadata类型
+  "types": ["reflect-metadata"],
+  "emitDecoratorMetadata": true,
+  "experimentalDecorators": true,
+
+  "skipLibCheck": true,
+  "strictNullChecks": false
+}
+```
+
+2. 创建`Snail`后端基本配置实例
 
 ```typescript
-import { Snail, SnailConfig, VersioningType, CacheType } from "@snail-js/api";
-import { AxiosRequestConfig } from "axios";
+// service.ts
+import { Snail, Server } from "@snail-js/api";
 
-const options:SnailConfig = {
-  baseUrl:'api',
-  Versioning: {
-    type: VersioningType.Uri,
-    prefix: "v",
-    defaultVersion: "0.1.0",
-  },
+@Server({
+  baseURL: "/api",
   timeout: 5000,
-  requestInterceptors: {
-    onFulfilled(config: AxiosRequestConfig) {
-      console.log("requestInterceptors:", config.url);
-      return config
-    },
-  },
-  responseInterceptors: {
-    onFulfilled(response) {
-      console.log(response);
-      return response
-    },
-    onRejected(error) {
-      console.log(error);
-    },
-  },
-  CacheManage: {
-    type: CacheType.LocalStorage,
-    ttl: 60, //缓存过期时间
-  },
-}
-export SnailInstance = new Snail(options)
+})
+class BackEnd extends Snail {}
+export const Service = new BackEnd();
 ```
 
-2. 创建请求方法实例
+3. 创建请求实例
 
 ```typescript
-import { ApiConfig, RequestPipe } from "@snail-js/api";
+// user.ts
+import { Api, Get, Post, Params, Data } from "@snail-js/api";
 
-import { SnailInstance } from "./snail";
-const pipe: RequestPipe = (input) => {
-  const { data, headers } = input;
-  const newHeaders = {
-    ...headers,
-    pipe: "RequestPipe",
-  };
-  return {
-    data,
-    headers: newHeaders,
-  };
-};
+import { Service } from "./service";
 
-const transform = (data: any) => {
-  return {
-    ...data,
-    transform: "transform",
-  };
-};
+@Api("user")
+class UserApi {
+  @Get()
+  get(@Params("id") id: string) {}
 
-const options: ApiConfig = {
-  transform,
-  version: "0.3.0", //会覆盖defaultVersion
-};
-const Api = Snail.Get("test", options);
-Api.use(pipe);
-export const testApi = Api;
-
-// 配置了hitSource，Api2请求成功时会使Api的缓存失效
-// 当你更新了数据时，get请求的缓存失效，会发起请求，这很有用
-const Api2 = Snail.Post("test",{hitSource:Api})
-export const testApi2 = Api2
+  @Post()
+  create(@Data() user: User) {}
+}
+// 创建并导出api
+export const userApi = Service.createApi(UserApi);
 ```
 
-3. 使用请求
+3. 发送请求
 
 ```typescript
-import { testApi } from "./testApi";
-// 发送时也可临时更改version，便于测试
-const res = await TestApi.send({ version: "0.1.0" });
-const { Catch, error, data } = res;
-if (error == null) {
-  console.log("Snail-Api:", data);
+import { userApi } from "./user";
+
+const res = await userApi.get("1");
+const { error, data } = res;
+if (error !== null) {
+  console.log(data);
 }
-Catch((error) => {
-  console.log(error);
-});
-// success {error:null,data}
-// error {error,data:null} 附带的相关错误数据会保存在error.cause中
-// 某些服务端标记的code !=0的请求，会被捕获为错误，而且携带数据
 ```
 
-### Snail 配置
+### Server 配置
 
-- `baseUrl`：同`Axios`
+- `baseUrl`：同`Axios`，使用`vite.proxy`时，请使用`\`开头，直接跨域请求请填写完整地址
 - `Versioning`:版本管理器
-- type:管理器类型，enum:Uri,Head,Query,Custom
-- prifix:前缀
-- defaultVersion:全局默认版本
+  - type:管理器类型，enum:Uri,Head,Query,Custom
+  - prifix:前缀
+  - defaultVersion:全局默认版本
 - timenout:全局超时时间，会被 Api 的 timeout 值覆盖
-- requestInterceptors：全局请求拦截器
-- responseInterceptors：全局响应拦截器
 - CacheManage：缓存管理器
-- type:缓存管理器类型，CacheType,enum:localStorage,IndexDB,Memory
-- ttl: 缓存过期时间
+  - type:缓存管理器类型，CacheType,enum:localStorage,IndexDB,Memory
+  - ttl: 缓存过期时间
 
 ## Api 配置
 
-- name?: 请求名称，用于hitSource来使缓存失效
-- timeout?: 请求超时时间;会覆盖`SnailConfig.timeout`
-- version?: 请求版本，会覆盖`SnailConfig.Versioning.defaultVersion`;
-- transform?: `(data: any) => T`;响应数据转换器，用于对返回数据进行转换操作
-- headers?: Record<string, string>;
-- params?: Record<string, string>;
-- hitSource?: string | Api;失效源
+- url?: api 请求端点，与 Server 中的`baseUrl`拼接请求地址，，不要使用`/`开头
+- timeout?: 请求超时时间;会覆盖`Server.timeout`
+- version?: 请求版本，会覆盖`Server.Versioning.defaultVersion`;
 
-## send参数配置
+## 请求方法装饰器
 
-- params?: Record<string, string>; 请求Query参数
-- data?: RequestBody; 请求体数据
-- version?: string; 请求版本，如设置，会临时使用此版本运行版本管理器
+- 提供 axios 的全部请求方法`Get,Post,Head,Put,Delete,Patch,Options`
+- path?: string; 请求端点路径，与`baseUrl,api.url`共同拼接组成最终请求路径，不要使用`/`开头
+
+## 参数装饰器
+
+### 查询参数 `@Params`
+
+- `@Params(key?:string)`
+
+- 单个参数使用
+
+```typescript
+@Api("user")
+class UserApi {
+  @Get()
+  get(@Params("id") id: string, @Params("sign") sign: string) {}
+}
+```
+
+> 传入 key，标记单个查询参数，拼接到请求`?k1=v1&k2=v2`
+
+- 对象参数使用
+
+```typescript
+class QueryParams {
+  id: string;
+  sign: string;
+}
+
+@Api("user")
+class UserApi {
+  @Get()
+  get(@Params() params: QueryParams) {}
+}
+```
+
+> 不传入 key，会被标记为对象类型查询参数；也能自动拼接到请求
+
+- 混合使用
+
+```typescript
+class QueryParams {
+  id: string;
+  sign: string;
+}
+
+@Api("user")
+class UserApi {
+  @Get()
+  get(@Params() params: QueryParams, @Params("a") a: number) {}
+}
+```
+
+### 请求数据
+
+- `@Data(key?:string)`
+- 使用方式和`@Params`相同，也支持混合使用
+
+## 策略装饰器`@UseStrategy`
+
+- `@UseStrategy(Strategy[])`
+
+### 请求策略
+
+- 在请求发送前执行，后面的策略返回结果会覆盖前面的策略
+- 必须将处理后的 request 返回
+
+```typescript
+class CustomStrategy extends Strategy {
+  applyRequest(request: AxiosRequestConfig) {
+    request.headers["Access-Token"] = "abcde";
+    return request;
+  }
+}
+
+// 用在Snail，全局的请求策略
+
+@Server({
+  baseURL: "/api",
+  timeout: 5000,
+})
+@UseStrategy(new CustomStrategy())
+class BackEnd extends Snail<ShanheResponse> {}
+export const Service = new BackEnd();
+
+// 用在Api, 当Api下的方法请求时生效
+@Api("test")
+@UseStrategy(new CustomStrategy())
+class Test {}
+
+// 用在方法，此方法请求时生效
+@Api("test")
+@UseStrategy(new CustomStrategy())
+class Test {
+  @Get()
+  @UseStrategy(new CustomStrategy())
+  get() {}
+}
+```
+
+### 响应策略
+
+- 在收到服务器响应后执行
+- 必须将处理后的 response 返回
+
+```typescript
+// 如何定义
+class CustomStrategy extends Strategy {
+  applyResponse(response: AxiosResponse) {
+    const { status } = response;
+    if (status == 200) {
+      // do something
+    }
+    return response;
+  }
+}
+```
+
+## 版本管理装饰器`@Versioning`和`@Version`
+
+### 版本管理器`@Versioning(VersioningOption)`
+
+- 全局管理版本
+
+```typescript
+@Server({
+  baseURL: "/api",
+  timeout: 5000,
+})
+@Versioning({
+  type: VersioningType.Header,
+  defaultVersion: "0.1.0",
+})
+class BackEnd extends Snail<ShanheResponse> {}
+
+export const Service = new BackEnd();
+```
+
+#### `VersioningOption`类型
+
+```typescript
+export enum VersioningType {
+  Uri,
+  Header,
+  Query,
+  Custom,
+}
+
+interface VersioningCommonOption {
+  defaultVersion: string;
+}
+
+export interface VersioningUriOption extends VersioningCommonOption {
+  type: VersioningType.Uri;
+  prefix?: string;
+}
+
+export interface VersioningHeaderOption extends VersioningCommonOption {
+  type: VersioningType.Header;
+  header?: string;
+}
+
+export interface VersioningQueryOption extends VersioningCommonOption {
+  type: VersioningType.Query;
+  key?: string;
+}
+
+export interface VersioningCustomOption extends VersioningCommonOption {
+  type: VersioningType.Custom;
+  extractor: (requestOptions: unknown) => {
+    url: string;
+    headers: Record<string, any>;
+  };
+}
+
+export type VersioningOption =
+  | VersioningUriOption
+  | VersioningHeaderOption
+  | VersioningQueryOption
+  | VersioningCustomOption;
+```
+
+### 临时版本修改器`@Version`
+
+```typescript
+@Api("test")
+class Test {
+  @Get("HelloWorld")
+  @Version("0.2.0")
+  test() {}
+}
+```
+
+> 临时改变 api 版本，便于测试
+
+### 缓存装饰器`@Cache`
+- 待测试，测试后发布文档
 
 ### 代码仓库
+
 - ![Static Badge](https://img.shields.io/badge/snail-js?style=flat&label=gitee&labelColor=F56C6C&link=https%3A%2F%2Fgitee.com%2Flimich%2Fsnail)
 - ![Static Badge](https://img.shields.io/badge/snail-js?style=flat&label=github&labelColor=F56C6C&link=https%3A%2F%2Fgihub.com%2Flimingchang%2Fsnail)
 
-
 ### 作者
+
 - mc.lee
