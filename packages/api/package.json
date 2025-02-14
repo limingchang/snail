@@ -1,8 +1,9 @@
 {
   "name": "@snail-js/api",
-  "version": "0.1.1",
-  "description": "",
-  "main": "index.ts",
+  "version": "0.1.2",
+  "description": "Http Request with Decorators Api, build on axios",
+  "type": "module",
+  "main": "./src/index.ts",
   "exports": {
     ".": {
       "import": "./dist/snail-api.mjs",
@@ -16,7 +17,12 @@
     "build:type": "vue-tsc -p tsconfig.build.json --composite false --declaration --emitDeclarationOnly",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "Decorators",
+    "api",
+    "Request",
+    "axios"
+  ],
   "author": "",
   "license": "MIT",
   "peerDependencies": {
