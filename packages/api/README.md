@@ -2,14 +2,13 @@
   <img src="https://img.shields.io/badge/TypeScript-1e80ff"></img>
   <img src="https://img.shields.io/npm/v/axios?label=axios&labelColor=1e80ff&color=67C23A"></img>
 </p>
-## 项目介绍
 
+## 项目介绍
 - 基于 Axios 二次封装
 - 使用`reflect-metadata`创建和处理元数据
 - 提供装饰器方式定义请求，基本实例`Snail`，请求实例`Api`
 
 ## 安装
-
 `npm install @snail-js/api`
 
 ## 使用
@@ -48,6 +47,7 @@ import { Snail, Server } from "@snail-js/api";
   timeout: 5000,
 })
 class BackEnd extends Snail {}
+
 export const Service = new BackEnd();
 ```
 
@@ -61,6 +61,7 @@ import { Service } from "./service";
 
 @Api("user")
 class UserApi {
+
   @Get()
   get(@Params("id") id: string) {}
 
@@ -88,7 +89,7 @@ if (error !== null) {
 - `baseUrl`：同`Axios`，使用`vite.proxy`时，请使用`\`开头，直接跨域请求请填写完整地址
 - `Versioning`:版本管理器
   - type:管理器类型，enum:Uri,Head,Query,Custom
-  - prifix:前缀
+  - prifix:前缀,字符串；添加在版本号前面的字符，默认为`v`
   - defaultVersion:全局默认版本
 - timenout:全局超时时间，会被 Api 的 timeout 值覆盖
 - CacheManage：缓存管理器
@@ -117,6 +118,7 @@ if (error !== null) {
 ```typescript
 @Api("user")
 class UserApi {
+
   @Get()
   get(@Params("id") id: string, @Params("sign") sign: string) {}
 }
@@ -134,6 +136,7 @@ class QueryParams {
 
 @Api("user")
 class UserApi {
+
   @Get()
   get(@Params() params: QueryParams) {}
 }
@@ -151,6 +154,7 @@ class QueryParams {
 
 @Api("user")
 class UserApi {
+
   @Get()
   get(@Params() params: QueryParams, @Params("a") a: number) {}
 }
@@ -286,10 +290,11 @@ export type VersioningOption =
 ```
 
 ### 临时版本修改器`@Version`
-
+- 临时改变方法请求的版本
 ```typescript
 @Api("test")
 class Test {
+
   @Get("HelloWorld")
   @Version("0.2.0")
   test() {}
