@@ -5,6 +5,7 @@ import axios, {
   AxiosInstance,
   AxiosRequestConfig,
   AxiosResponse,
+  CreateAxiosDefaults,
 } from "axios";
 import { createCache } from "../cache";
 import {
@@ -29,7 +30,7 @@ import { STRATEGY_KEY } from "../decorators/strategy";
 import { REQUEST_ARGS_KEY } from "../decorators/param";
 
 import { VERSIONING_KEY, VERSION_KEY } from "../decorators/versioning";
-import { CACHE_KEY } from "../decorators/cache";
+import { CACHE_OPTIONS_KEY } from "../decorators/cache";
 
 export class Snail<R extends { data: any } = ResponseData> {
   private axiosInstance: AxiosInstance;
@@ -37,6 +38,7 @@ export class Snail<R extends { data: any } = ResponseData> {
   private strategies: Strategy[] = [];
   private cacheStorage?: CacheStorage;
   private version?: string;
+  private sourceMap: Map<string, string[]> = new Map();
 
   registerStrategy(strategy: Strategy) {
     this.strategies.push(strategy);
@@ -44,39 +46,23 @@ export class Snail<R extends { data: any } = ResponseData> {
 
   createApi<T extends object>(constructor: new () => T): ApiProxy<T, R> {
     const instance = new constructor();
-    const serverConfig = Reflect.getMetadata(
-      SERVER_CONFIG_KEY,
-      this.constructor
-    ) as SnailOption;
-    console.log("serverConfig:", serverConfig);
-    // 如果未创建axiosInstance，创建axiosInstance
-    if (!this.axiosInstance) {
-      this.axiosInstance = axios.create({
-        baseURL: serverConfig.baseURL,
-        timeout: serverConfig.timeout,
-      });
-    }
-    const cacheManage = Reflect.getMetadata(
-      CACHE_KEY,
-      this
-    ) as CacheManagementOption;
-    // 如果未创建缓存管理
-    if (!this.cacheStorage && cacheManage !== undefined) {
-      this.cacheStorage = createCache(cacheManage.type, cacheManage.ttl || 300);
-    }
-    const apiConfig = Reflect.getMetadata(
-      API_CONFIG_KEY,
-      constructor
-    ) as ApiConfig & { url: string };
-    console.log("ApiConfig:", apiConfig);
-    //  配置类版本
+    const serverConfig = this.getServerConfig();
+    const { baseURL, timeout, CacheManage, enableLog } = serverConfig;
+    enableLog && console.log("serverConfig:", serverConfig);
+    // 初始化axios
+    this.initAxios({ baseURL, timeout });
+    enableLog && console.log("CacheManage:", CacheManage);
+    // 初始化缓存管理
+    this.initCacheManage(CacheManage);
+    const apiConfig = this.getApiConfig(constructor);
+    enableLog && console.log("ApiConfig:", apiConfig);
+    //  配置类版本号
     this.version = apiConfig.version;
 
     return new Proxy(instance, {
       get: (target: Object, propertyKey: string | symbol) => {
-        console.log("proxy:", target, "|", propertyKey);
+        enableLog && console.log("proxy:", target, "|", propertyKey);
         if (typeof propertyKey !== "string") return;
-
         const methodConfig = Reflect.getMetadata(
           METHOD_KEY,
           target,
@@ -89,7 +75,7 @@ export class Snail<R extends { data: any } = ResponseData> {
             methodConfig.path == ""
               ? apiConfig.url
               : apiConfig.url + `/${methodConfig.path}`;
-          console.log("url:", url);
+          enableLog && console.log("url:", url);
           let request: AxiosRequestConfig = {
             // baseURL: serverConfig.baseURL,
             url,
@@ -103,83 +89,49 @@ export class Snail<R extends { data: any } = ResponseData> {
             ...request,
             ...this.applyVersion(request, target, propertyKey),
           };
-          console.log("版本管理参数:", request);
+          enableLog && console.log("版本管理参数:", request);
           // 获取策略
           const strategies = this.getStrategies(target, propertyKey);
 
-          // 处理缓存
-          // 获取缓存
-          const methodCache =
-            (this.getCacheConfig(target, propertyKey) as null) || undefined;
-          if (methodCache == undefined) {
-            const cached = await this.applyCache(request, cacheManage);
-            if (cached && cached.error === null) {
-              // 这里应该还要应用响应策略
-              // 应用响应策略
-              let cacheResponse: AxiosResponse = {
-                data: cached.data,
-                status: 304,
-                headers: {
-                  hitCache: true,
-                },
-                statusText: "get response data from cache",
-                config: { headers: new AxiosHeaders() },
-              };
-              // for (const strategy of strategies) {
-              //   if (strategy.applyResponse) {
-              //     await strategy.applyResponse(cacheResponse);
-              //   }
-              // }
-              const responseStrategies = strategies.filter(
-                (strategy) => strategy.applyResponse
-              );
-              // const strategyResponse = await responseStrategies.reduce(
-              //   async (result: Promise<AxiosResponse>, strategy: Strategy) => {
-              //     if (strategy.applyResponse) {
-              //       return await strategy.applyResponse(await result);
-              //     }
-              //     return result;
-              //   },
-              //   Promise.resolve(cacheResponse)
-              // );
-              const strategyResponse = await this.applyStrategies(
-                cacheResponse,
-                responseStrategies,
-                "response"
-              );
-              return strategyResponse;
-            }
-          }
           // 构建请求参数
           const params = this.buildRequestArgs(target, propertyKey, args);
           request = { ...request, ...params };
-          console.log("构建请求参数：", request);
+          enableLog && console.log("构建请求参数：", request);
           // 应用请求策略
           const requestStrategies = strategies.filter(
             (strategy) => strategy.applyRequest
           );
-          // request = await requestStrategies.reduce(
-          //   async (result: Promise<AxiosRequestConfig>, strategy: Strategy) => {
-          //     return await strategy.applyRequest!(await result);
-          //   },
-          //   Promise.resolve(request)
-          // );
           request = await this.applyStrategies(
             request,
             requestStrategies,
             "request"
           );
-          // for (const strategy of strategies) {
-          //   if (strategy.applyRequest) {
-          //     request = await strategy.applyRequest(request);
-          //   }
-          // }
 
+          // 处理失效源
+          const hitSource = this.getHitSource(target, propertyKey);
+          enableLog && console.log("hitSource:", hitSource);
+          // 设置了当前方法的失效源
+          if (typeof hitSource == "string") {
+            this.setHitSource(request, hitSource);
+          }
+          // 未定义失效源，未设置null失效缓存
+          // 处理缓存
+          if (hitSource !== null) {
+            // 获取缓存
+            const cachedResponse = await this.getCache(request, strategies);
+            if (cachedResponse) {
+              enableLog && console.warn("数据从缓存获取");
+              return this.handleResponse(cachedResponse, true);
+            }
+          }
           // 发送请求
           try {
-            console.log("send request:", request);
+            enableLog && console.log("send request:", request);
             const response = await this.axiosInstance(request);
-            return this.handleResponse(response);
+            hitSource !== null && this.setCache(request, response);
+            // 请求成功后，处理应失效的缓存
+            this.expireCache(propertyKey);
+            return this.handleResponse(response, false);
           } catch (error) {
             return this.handleError(error);
           }
@@ -192,8 +144,6 @@ export class Snail<R extends { data: any } = ResponseData> {
     const requestArgs: any = { params: {}, data: {} };
     const paramConfigs =
       Reflect.getMetadata(REQUEST_ARGS_KEY, target, propertyKey) || [];
-
-    console.log("请求参数:", paramConfigs);
 
     paramConfigs.forEach(({ index, type, key }: any) => {
       const value = args[index];
@@ -217,16 +167,16 @@ export class Snail<R extends { data: any } = ResponseData> {
   private getStrategies(target: any, propertyKey: string) {
     const serverStrategies =
       Reflect.getMetadata(STRATEGY_KEY, this.constructor) || [];
-    console.log("serverStrategies:", serverStrategies);
+    // console.log("serverStrategies:", serverStrategies);
     const classStrategies =
       Reflect.getMetadata(STRATEGY_KEY, target.constructor) || [];
-    console.log("classStrategies:", classStrategies);
+    // console.log("classStrategies:", classStrategies);
     const methodStrategies =
       Reflect.getMetadata(
         `${STRATEGY_KEY.toString()}_${propertyKey}`,
         target
       ) || [];
-    console.log("methodStrategies:", methodStrategies);
+    // console.log("methodStrategies:", methodStrategies);
     const allStrategies: Strategy[] = [
       ...this.strategies,
       ...serverStrategies,
@@ -265,7 +215,6 @@ export class Snail<R extends { data: any } = ResponseData> {
       VERSIONING_KEY,
       this.constructor
     ) as VersioningOption;
-    console.log("版本管理器：", versioning);
 
     if (!versioning) return request;
     // 获得版本
@@ -281,28 +230,115 @@ export class Snail<R extends { data: any } = ResponseData> {
     return { ...request, url: versionUrl, headers, params };
   }
 
-  private async applyCache(request: any, options: CacheManagementOption) {
-    // const cacheKey = this.generateCacheKey(request);
+  private async getCache(request: any, strategies: Strategy[]) {
+    if (!this.cacheStorage) return undefined;
     const cacheKey = apiKey(request);
-    if (this.cacheStorage) {
-      return await this.cacheStorage?.get(cacheKey);
+    const cached = await this.cacheStorage?.get(cacheKey);
+    if (cached && cached.error === null) {
+      let cacheResponse: AxiosResponse = {
+        data: cached.data,
+        status: 304,
+        headers: {},
+        statusText: "get response data from cache",
+        config: { headers: new AxiosHeaders() },
+      };
+      // 应用响应策略
+      const responseStrategies = strategies.filter(
+        (strategy) => strategy.applyResponse
+      );
+      const strategyResponse = await this.applyStrategies(
+        cacheResponse,
+        responseStrategies,
+        "response"
+      );
+      return strategyResponse;
     }
-    return undefined;
   }
 
-  private getCacheConfig(target: any, propertyKey: string) {
-    return (
-      Reflect.getMetadata(`${CACHE_KEY.toString()}_${propertyKey}`, target) || // 方法级
-      Reflect.getMetadata(CACHE_KEY, target.constructor) // 类级
+  private initCacheManage(options?: CacheManagementOption) {
+    // 如果未创建缓存管理
+    if (!this.cacheStorage && options !== undefined) {
+      this.cacheStorage = createCache(options.type, options.ttl || 300);
+    }
+  }
+
+  private getHitSource(
+    target: any,
+    propertyKey: string
+  ): string | null | undefined {
+    // 当前方法的hitSource
+    const methodHitSource = Reflect.getMetadata(
+      `${CACHE_OPTIONS_KEY.toString()}_${propertyKey}`,
+      target
     );
+    if (methodHitSource !== undefined) return methodHitSource;
+    // 当前api类的hitSource
+    const apiHitSource = Reflect.getMetadata(
+      CACHE_OPTIONS_KEY,
+      target.constructor
+    );
+    return apiHitSource;
   }
 
-  private handleResponse(response: any) {
-    console.log("Response:", response);
+  private setHitSource(request: any, hitSource: string) {
+    const cacheKeys = this.sourceMap.get(hitSource);
+    const currentCacheKey = apiKey(request as any);
+    if (cacheKeys) {
+      cacheKeys.push(currentCacheKey);
+      this.sourceMap.set(hitSource, cacheKeys);
+    } else {
+      this.sourceMap.set(hitSource, [currentCacheKey]);
+    }
+  }
+
+  private async setCache(request: any, response: AxiosResponse) {
+    const cacheKey = apiKey(request);
+    // console.log("set cache key:", cacheKey);
+    await this.cacheStorage?.set(cacheKey, response.data);
+    // console.log("set cache:", this.cacheStorage);
+  }
+
+  private async expireCache(hitSource: string) {
+    // console.log("sourceMap:", this.sourceMap);
+    const keys = this.sourceMap.get(hitSource);
+    if (keys) {
+      Promise.all(
+        keys.map(async (key) => {
+          await this.cacheStorage?.delete(key);
+        })
+      );
+    }
+  }
+
+  private getServerConfig() {
+    return Reflect.getMetadata(
+      SERVER_CONFIG_KEY,
+      this.constructor
+    ) as SnailOption;
+  }
+
+  private getApiConfig<T extends object>(constructor: new () => T) {
+    return Reflect.getMetadata(API_CONFIG_KEY, constructor) as ApiConfig & {
+      url: string;
+    };
+  }
+
+  private initAxios(config: CreateAxiosDefaults) {
+    // 如果未创建axiosInstance，创建axiosInstance
+    if (!this.axiosInstance) {
+      this.axiosInstance = axios.create({
+        baseURL: config.baseURL,
+        timeout: config.timeout,
+      });
+    }
+  }
+
+  private handleResponse(response: any, hitCache: boolean) {
+    // console.log("Response:", response);
     return {
       data: response.data,
       error: null,
-      hitCache: false,
+      hitCache,
     };
   }
 

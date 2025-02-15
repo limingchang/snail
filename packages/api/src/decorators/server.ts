@@ -3,7 +3,7 @@ import "reflect-metadata";
 import { SnailOption } from "../typings";
 
 // 元数据键常量
-export const SERVER_CONFIG_KEY = 'SANIL_SERVER_CONFIG_KEY';
+export const SERVER_CONFIG_KEY = Symbol('SANIL_SERVER_CONFIG_KEY');
 
 // const PARAM_KEY = Symbol("param");
 // const STRATEGY_KEY = Symbol("strategy");

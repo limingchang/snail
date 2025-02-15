@@ -1,7 +1,4 @@
 import "reflect-metadata";
-
-// export const REQUEST_PARAMS_KEY = "SNAIL_REQUEST_PARAMS_KEY";
-// export const REQUEST_DATA_KEY = "SNAIL_REQUEST_DATA_KEY";
 export const REQUEST_ARGS_KEY = Symbol("SNAIL_REQUEST_ARGS_KEY");
 
 // 参数装饰器

@@ -93,8 +93,9 @@ if (error !== null) {
   - defaultVersion:全局默认版本
 - timenout:全局超时时间，会被 Api 的 timeout 值覆盖
 - CacheManage：缓存管理器
-  - type:缓存管理器类型，CacheType,enum:localStorage,IndexDB,Memory
+  - type:缓存管理器类型，CacheType,`enum:localStorage,IndexDB,Memory`
   - ttl: 缓存过期时间
+- enableLog:  是否打印日志
 
 ## Api 配置
 
@@ -304,7 +305,35 @@ class Test {
 > 临时改变 api 版本，便于测试
 
 ### 缓存装饰器`@Cache`
-- 待测试，测试后发布文档
+- `@Cache(string | null)`
+ - 当设置为null时，此方法不应用缓存
+ - 当设置为string时，应为此Api类下的方法名称，当设置的此名称方法被调用且正常响应时，被装饰的方法缓存失效
+
+```typescript
+
+@Api("test")
+class Test {
+
+  @Get("HelloWorld")
+  @Cache("test2")
+  test1() {}
+
+  @Post()
+  test2() {}
+
+  @Get()
+  @Cache(null)
+  test3() {}
+}
+```
+
+> 当请求`[Post]test`成功时，`[Get]test/HelloWorld`的缓存失效
+> 注意：`test2`方法请求成功的前提是需要设置`@Cache(null)`,否则仅第一次请求会发送，后续请求需等待缓存管理设置的ttl时间到期才会发送请求
+> 因此，若未设置`test2`方法的`@Cache(null)`，仅第一次请求会使`[Get]test/HelloWorld`的缓存失效，后续需等待ttl时间到期，才会继续失效
+
+> `test3`方法请求成功时，不缓存
+
+> 注意：要使用缓存，请配置`@Server({CacheManage})`缓存管理器
 
 ### 代码仓库
 

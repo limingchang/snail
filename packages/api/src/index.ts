@@ -1,9 +1,18 @@
 export * from "./core";
-export * from "./decorators/server"
-export * from "./decorators/api"
-export * from "./decorators/cache"
-export * from "./decorators/param"
-export * from "./decorators/strategy"
-export * from "./decorators/versioning"
+export { Server } from "./decorators/server";
+export {
+  Api,
+  Get,
+  Put,
+  Post,
+  Patch,
+  Options,
+  Head,
+  Delete,
+} from "./decorators/api";
+export { Cache } from "./decorators/cache";
+export { Params, Data } from "./decorators/param";
+export { UseStrategy } from "./decorators/strategy";
+export { Versioning, Version } from "./decorators/versioning";
 export * from "./typings";
 export * from "./utils";

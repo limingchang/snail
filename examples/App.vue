@@ -21,10 +21,17 @@
       <ElButton type="primary" @click="testHandle">
         <ElIcon>
           <Edit />
-        </ElIcon>测试
+        </ElIcon>山河随机
       </ElButton>
     </p>
-    <div class="icon-box">
+    <p>
+      <ElButton type="primary" @click="handleNongli">
+        <ElIcon>
+          <Edit />
+        </ElIcon>山河农历
+      </ElButton>
+    </p>
+    <div class="icon-box" v-show="false">
       <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
         <SIcon :icon="icon.name">
           <!-- <component :is="icon.name"></component> -->
@@ -141,12 +148,17 @@ import { TestApi, ShanHeApiRandom } from './server/shanhe'
 const testHandle = async () => {
   const res = await TestApi.shanheRandom<ShanHeApiRandom>()
   const { data, error } = res
-  if(error){
+  if (error) {
     return
   }
-  console.log("data:",data.data)
-  console.log('code:',data.code)
-  console.log('message:',data.text)
+  console.log("data:", data.data)
+  console.log('code:', data.code)
+  console.log('message:', data.text)
+}
+
+const handleNongli = async () => {
+  const res = await TestApi.shanheNongli<ShanHeApiRandom>()
+  console.log('山河农历api:', res)
 }
 
 </script>

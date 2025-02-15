@@ -6,6 +6,7 @@ import {
   VersioningType,
   Strategy,
   UseStrategy,
+  CacheType,
 } from "@snail-js/api";
 import "reflect-metadata";
 
@@ -16,7 +17,7 @@ export class CustomStrategy extends Strategy {
   }
 }
 
-export class ShanheResponse<T=any> {
+export class ShanheResponse<T = any> {
   code: number;
   text: string;
   data: T;
@@ -25,6 +26,11 @@ export class ShanheResponse<T=any> {
 @Server({
   baseURL: "/api",
   timeout: 5000,
+  CacheManage: {
+    type: CacheType.IndexDB,
+    ttl: 500,
+  },
+  // enableLog:true
 })
 @Versioning({
   type: VersioningType.Header,
