@@ -4,11 +4,13 @@
 </p>
 
 ## 项目介绍
+
 - 基于 Axios 二次封装
 - 使用`reflect-metadata`创建和处理元数据
 - 提供装饰器方式定义请求，基本实例`Snail`，请求实例`Api`
 
 ## 安装
+
 `npm install @snail-js/api`
 
 ## 使用
@@ -61,7 +63,6 @@ import { Service } from "./service";
 
 @Api("user")
 class UserApi {
-
   @Get()
   get(@Params("id") id: string) {}
 
@@ -95,7 +96,7 @@ if (error !== null) {
 - CacheManage：缓存管理器
   - type:缓存管理器类型，CacheType,`enum:localStorage,IndexDB,Memory`
   - ttl: 缓存过期时间
-- enableLog:  是否打印日志
+- enableLog: 是否打印日志
 
 ## Api 配置
 
@@ -119,7 +120,6 @@ if (error !== null) {
 ```typescript
 @Api("user")
 class UserApi {
-
   @Get()
   get(@Params("id") id: string, @Params("sign") sign: string) {}
 }
@@ -137,7 +137,6 @@ class QueryParams {
 
 @Api("user")
 class UserApi {
-
   @Get()
   get(@Params() params: QueryParams) {}
 }
@@ -155,7 +154,6 @@ class QueryParams {
 
 @Api("user")
 class UserApi {
-
   @Get()
   get(@Params() params: QueryParams, @Params("a") a: number) {}
 }
@@ -291,11 +289,12 @@ export type VersioningOption =
 ```
 
 ### 临时版本修改器`@Version`
+
 - 临时改变方法请求的版本
+
 ```typescript
 @Api("test")
 class Test {
-
   @Get("HelloWorld")
   @Version("0.2.0")
   test() {}
@@ -305,15 +304,14 @@ class Test {
 > 临时改变 api 版本，便于测试
 
 ### 缓存装饰器`@Cache`
+
 - `@Cache(string | null)`
- - 当设置为null时，此方法不应用缓存
- - 当设置为string时，应为此Api类下的方法名称，当设置的此名称方法被调用且正常响应时，被装饰的方法缓存失效
+- 当设置为 null 时，此方法不应用缓存
+- 当设置为 string 时，应为此 Api 类下的方法名称，当设置的此名称方法被调用且正常响应时，被装饰的方法缓存失效
 
 ```typescript
-
 @Api("test")
 class Test {
-
   @Get("HelloWorld")
   @Cache("test2")
   test1() {}
@@ -328,12 +326,71 @@ class Test {
 ```
 
 > 当请求`[Post]test`成功时，`[Get]test/HelloWorld`的缓存失效
-> 注意：`test2`方法请求成功的前提是需要设置`@Cache(null)`,否则仅第一次请求会发送，后续请求需等待缓存管理设置的ttl时间到期才会发送请求
-> 因此，若未设置`test2`方法的`@Cache(null)`，仅第一次请求会使`[Get]test/HelloWorld`的缓存失效，后续需等待ttl时间到期，才会继续失效
+> 注意：`test2`方法请求成功的前提是需要设置`@Cache(null)`,否则仅第一次请求会发送，后续请求需等待缓存管理设置的 ttl 时间到期才会发送请求
+> 因此，若未设置`test2`方法的`@Cache(null)`，仅第一次请求会使`[Get]test/HelloWorld`的缓存失效，后续需等待 ttl 时间到期，才会继续失效
 
 > `test3`方法请求成功时，不缓存
 
 > 注意：要使用缓存，请配置`@Server({CacheManage})`缓存管理器
+
+### 上传进度装饰器`@UploadProgress`
+
+- `@UploadProgress((progress: AxiosProgressEvent) => void)`
+
+## Server Send Event 服务端推送
+
+### 创建 sse 端点
+
+```typescript
+@Api("sse")
+class ServerSend {
+  @Sse()
+  create() {}
+
+  @OnSseOpen()
+  handleOpen(event: Event) {
+    console.log("sse-open:", event);
+  }
+
+  @OnSseError()
+  handleError(event: Event) {
+    console.log("sse-error:", event);
+  }
+
+  // 处理默认message事件
+  @SseEvent()
+  handleEvent(event: MessageEvent) {
+    console.log("sse-event[message]:", event.data);
+  }
+
+  // 处理自定义名称事件
+  @SseEvent("chunk")
+  handleEvent(event: Event) {
+    console.log("sse-event[chunk]:", event);
+  }
+}
+
+export const Sse = Service.createSse(ServerSend);
+```
+
+### 服务端推送装饰器`@Sse`
+- `@Sse(path:string,options:{withCredentials: boolean})`
+- 创建一个服务端推送连接，当被装饰的方法调用时打开连接
+- 被装饰的方法调用后会返回`{eventSource:EventSource,close:function}`
+ - eventSource: sse连接实例
+ - close: 关闭此sse连接的方法
+
+### 注册`onopen`装饰器`@OnSseOpen`
+- 当`@Sse`装饰的方法被调用时，将`@OnSseOpen`装饰的方法注册为`@Sse`装饰的方法返回的`EventSource`实例`onopen`处理函数
+
+### 注册`onerror`装饰器`@OnSseError`
+- 当`@Sse`装饰的方法被调用时，将`@OnSseError`装饰的方法注册为`@Sse`装饰的方法返回的`EventSource`实例`onerror`处理函数
+
+### 事件处理装饰器`@SseEvent`
+- `@SseEvent(eventName?:string)`
+- 未传入`eventName`，默认注册为`message`事件处理器
+- 传入`eventName`，注册为对应名称的事件处理器
+
 
 ### 代码仓库
 
