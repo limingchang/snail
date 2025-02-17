@@ -29,6 +29,7 @@ class Test {
   shanheNongli(){
     // 山河农历
   }
+
 }
 
 export const TestApi = Service.createApi(Test);

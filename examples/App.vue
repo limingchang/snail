@@ -18,18 +18,23 @@
           <Edit />
         </SIcon>兼容测试
       </button>
-      <ElButton type="primary" @click="testHandle">
+      <!-- <ElButton type="primary" @click="testHandle"> -->
+      <ElButton type="primary">
         <ElIcon>
           <Edit />
         </ElIcon>山河随机
       </ElButton>
     </p>
     <p>
-      <ElButton type="primary" @click="handleNongli">
+      <!-- <ElButton type="primary" @click="handleNongli"> -->
+      <ElButton type="primary">
         <ElIcon>
           <Edit />
         </ElIcon>山河农历
       </ElButton>
+    </p>
+    <p>
+      <ElButton type="success" @click="handleSse">SSE测试</ElButton>
     </p>
     <div class="icon-box" v-show="false">
       <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
@@ -143,22 +148,29 @@ const hotWords = [
   "CSS"
 ]
 
-import { TestApi, ShanHeApiRandom } from './server/shanhe'
+// import { TestApi, ShanHeApiRandom } from './server/shanhe'
 
-const testHandle = async () => {
-  const res = await TestApi.shanheRandom<ShanHeApiRandom>()
-  const { data, error } = res
-  if (error) {
-    return
-  }
-  console.log("data:", data.data)
-  console.log('code:', data.code)
-  console.log('message:', data.text)
-}
+// const testHandle = async () => {
+// const res = await TestApi.shanheRandom<ShanHeApiRandom>()
+// const { data, error } = res
+// if (error) {
+//   return
+// }
+// console.log("data:", data.data)
+// console.log('code:', data.code)
+// console.log('message:', data.text)
+// }
 
-const handleNongli = async () => {
-  const res = await TestApi.shanheNongli<ShanHeApiRandom>()
-  console.log('山河农历api:', res)
+// const handleNongli = async () => {
+// const res = await TestApi.shanheNongli<ShanHeApiRandom>()
+// console.log('山河农历api:', res)
+// }
+
+import { SystemApi } from "./server/local"
+
+const handleSse = async () => {
+  const sse = SystemApi.sse()
+  console.log("app:", sse)
 }
 
 </script>

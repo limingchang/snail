@@ -12,9 +12,15 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 6001,
+    // proxy: {
+    //   "/api": {
+    //     target: "http://shanhe.kim",
+    //     changeOrigin: true,
+    //   },
+    // },
     proxy: {
       "/api": {
-        target: "http://shanhe.kim",
+        target: "http://localhost:3000",
         changeOrigin: true,
       },
     },

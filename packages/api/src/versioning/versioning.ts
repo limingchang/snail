@@ -47,7 +47,7 @@ const versionHandlers = {
   },
 };
 
-interface VersioningResult {
+export interface VersioningResult {
   url?: string;
   headers?: Record<string, any>;
   params?: Record<string, any>;

@@ -17,12 +17,14 @@ import {
   CacheStorage,
   MethodOption,
   ApiProxy,
+  SseProxy,
   ResponseData,
+  RegisterSseEvent,
 } from "../typings";
 
 import { apiKey } from "../utils";
 
-import { applyVersioning } from "../versioning/versioning";
+import { applyVersioning, VersioningResult } from "../versioning/versioning";
 
 import { API_CONFIG_KEY, METHOD_KEY } from "../decorators/api";
 import { SERVER_CONFIG_KEY } from "../decorators/server";
@@ -32,6 +34,13 @@ import { REQUEST_ARGS_KEY } from "../decorators/param";
 import { VERSIONING_KEY, VERSION_KEY } from "../decorators/versioning";
 import { CACHE_OPTIONS_KEY } from "../decorators/cache";
 
+import {
+  EVENT_SOURCE_OPTION_KEY,
+  EVENT_SOURCE_OPEN_KEY,
+  EVENT_SOURCE_ERROR_KEY,
+  EVENT_SOURCE_EVENTS_KEY,
+} from "../decorators/sse";
+
 export class Snail<R extends { data: any } = ResponseData> {
   private axiosInstance: AxiosInstance;
   // private config: SnailConfig;
@@ -39,6 +48,8 @@ export class Snail<R extends { data: any } = ResponseData> {
   private cacheStorage?: CacheStorage;
   private version?: string;
   private sourceMap: Map<string, string[]> = new Map();
+
+  private eventSource: EventSource;
 
   registerStrategy(strategy: Strategy) {
     this.strategies.push(strategy);
@@ -63,6 +74,7 @@ export class Snail<R extends { data: any } = ResponseData> {
       get: (target: Object, propertyKey: string | symbol) => {
         enableLog && console.log("proxy:", target, "|", propertyKey);
         if (typeof propertyKey !== "string") return;
+        // 正常请求
         const methodConfig = Reflect.getMetadata(
           METHOD_KEY,
           target,
@@ -209,7 +221,11 @@ export class Snail<R extends { data: any } = ResponseData> {
     }, Promise.resolve(data));
   }
 
-  private applyVersion(request: any, target: any, propertyKey: string) {
+  private applyVersion(
+    request: any,
+    target: any,
+    propertyKey: string
+  ): VersioningResult {
     // 版本管理器
     const versioning = Reflect.getMetadata(
       VERSIONING_KEY,
@@ -333,6 +349,16 @@ export class Snail<R extends { data: any } = ResponseData> {
     }
   }
 
+  private generateSseUrl(baseURL?: string, url?: string): string {
+    if (!baseURL && !url) {
+      return "/";
+    }
+    if (!baseURL && url) {
+      return `/${url}`;
+    }
+    return `${baseURL}/${url}`;
+  }
+
   private handleResponse(response: any, hitCache: boolean) {
     // console.log("Response:", response);
     return {
@@ -347,5 +373,95 @@ export class Snail<R extends { data: any } = ResponseData> {
       data: null,
       error,
     };
+  }
+
+  createSse<T extends object>(constructor: new () => T): SseProxy<T> {
+    const instance = new constructor();
+    const serverConfig = this.getServerConfig();
+    const { baseURL, enableLog } = serverConfig;
+    const apiConfig = this.getApiConfig(constructor);
+    enableLog && console.log("ApiConfig:", apiConfig);
+    //  配置类版本号
+    this.version = apiConfig.version;
+
+    return new Proxy(instance, {
+      get: (target: object, propertyKey: string | symbol) => {
+        enableLog && console.log("proxy:", target, "|", propertyKey);
+        if (typeof propertyKey !== "string") return;
+        // 处理SSE连接
+        const sseOption = Reflect.getMetadata(
+          EVENT_SOURCE_OPTION_KEY,
+          target,
+          propertyKey
+        ) as { path: string; withCredentials: boolean };
+        // 如果被@sse装饰
+        if (sseOption) {
+          const url =
+            sseOption.path == ""
+              ? apiConfig.url
+              : apiConfig.url + `/${sseOption.path}`;
+          const { url: versionUrl } = this.applyVersion(
+            { url },
+            target,
+            propertyKey
+          );
+          const sseUrl = this.generateSseUrl(baseURL, versionUrl || url);
+          enableLog && console.log("sse-url:", sseUrl);
+          const { eventSource, close } = this.initSse(sseUrl, sseOption);
+          this.eventSource = eventSource;
+          // 处理其OnSseOpen,OnSseError函数
+          this.setSse(target);
+          // 注册事件处理
+          this.registerSseEvent(target);
+          return () => {
+            return { eventSource, close };
+          };
+        }
+      },
+    }) as SseProxy<T>;
+  }
+
+  private initSse(
+    url: string,
+    options: { path: string; withCredentials: boolean }
+  ) {
+    const eventSource = new EventSource(url, {
+      withCredentials: options.withCredentials
+        ? options.withCredentials
+        : false,
+    });
+    console.log("EventSource:", eventSource);
+    return {
+      eventSource,
+      close: eventSource.close,
+    };
+  }
+
+  private setSse(target: any) {
+    // 如果被@OnSseOpen装饰
+    const onOpenFunc = Reflect.getMetadata(EVENT_SOURCE_OPEN_KEY, target);
+    console.log("sse-proxy[open]:", onOpenFunc);
+    if (typeof onOpenFunc == "function") {
+      this.eventSource && (this.eventSource.onopen = onOpenFunc);
+    }
+    // 如果被@OnSseOpen装饰
+    const onErrorFunc = Reflect.getMetadata(EVENT_SOURCE_ERROR_KEY, target);
+    console.log("sse-proxy[error]:", onErrorFunc);
+    if (typeof onErrorFunc == "function") {
+      this.eventSource && (this.eventSource.onerror = onErrorFunc);
+    }
+  }
+
+  private registerSseEvent(target: any) {
+    const eventSource = this.eventSource;
+    if (!eventSource) return;
+    const events = Reflect.getMetadata(
+      EVENT_SOURCE_EVENTS_KEY,
+      target
+    ) as RegisterSseEvent[];
+    // console.log('registerSseEvent:',events)
+    events.map((event) => {
+      eventSource.addEventListener(event.eventName, event.emit, event.options);
+    });
   }
 }
