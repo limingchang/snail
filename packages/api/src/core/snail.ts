@@ -33,7 +33,10 @@ import { REQUEST_ARGS_KEY } from "../decorators/param";
 
 import { VERSIONING_KEY, VERSION_KEY } from "../decorators/versioning";
 import { CACHE_OPTIONS_KEY } from "../decorators/cache";
-import { UPLOAD_PROGRESS_KEY } from "../decorators/progress";
+import {
+  UPLOAD_PROGRESS_KEY,
+  DOWNLOAD_PROGRESS_KEY,
+} from "../decorators/progress";
 
 import {
   EVENT_SOURCE_OPTION_KEY,
@@ -142,12 +145,18 @@ export class Snail<R extends { data: any } = ResponseData> {
             target,
             propertyKey
           );
+          const onDownloadProgress = Reflect.getMetadata(
+            DOWNLOAD_PROGRESS_KEY,
+            target,
+            propertyKey
+          );
           // 发送请求
           try {
             enableLog && console.log("send request:", request);
             const response = await this.axiosInstance({
               ...request,
               onUploadProgress,
+              onDownloadProgress,
             });
             hitSource !== null && this.setCache(request, response);
             // 请求成功后，处理应失效的缓存

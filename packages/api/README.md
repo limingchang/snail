@@ -335,7 +335,11 @@ class Test {
 
 ### 上传进度装饰器`@UploadProgress`
 
-- `@UploadProgress((progress: AxiosProgressEvent) => void)`
+- `@UploadProgress((progressEvent: AxiosProgressEvent) => void)`
+
+### 下载进度装饰器`@DownloadProgress`
+
+- `@DownloadProgress((progressEvent: AxiosProgressEvent) => void)`
 
 ## Server Send Event 服务端推送
 
@@ -395,12 +399,12 @@ export const Sse = Service.createSse(ServerSend);
 ### 代码仓库
 
 <p>
-  <a src="https://gitee.com/limich/snail">
+  <a href="https://gitee.com/limich/snail">
     <img src="https://img.shields.io/badge/snail-js?style=flat&label=gitee&labelColor=F56C6C&link=https%3A%2F%2Fgitee.com%2Flimich%2Fsnail"></img>
   </a>
 </p>
 <p>
-  <a src="https://github.com/limingchang/snail">
+  <a href="https://github.com/limingchang/snail">
     <img src="https://img.shields.io/badge/snail-js?style=flat&label=github&labelColor=F56C6C&link=https%3A%2F%2Fgihub.com%2Flimingchang%2Fsnail"></img>
   </a>
 </p>
