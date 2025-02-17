@@ -99,7 +99,7 @@ if (error !== null) {
 
 ## Api 配置
 
-- url?: api 请求端点，与 Server 中的`baseUrl`拼接请求地址，，不要使用`/`开头
+- url?: api 请求端点，与 Server 中的`baseUrl`拼接请求地址，不要使用`/`开头
 - timeout?: 请求超时时间;会覆盖`Server.timeout`
 - version?: 请求版本，会覆盖`Server.Versioning.defaultVersion`;
 
@@ -337,8 +337,16 @@ class Test {
 
 ### 代码仓库
 
-- ![Static Badge](https://img.shields.io/badge/snail-js?style=flat&label=gitee&labelColor=F56C6C&link=https%3A%2F%2Fgitee.com%2Flimich%2Fsnail)
-- ![Static Badge](https://img.shields.io/badge/snail-js?style=flat&label=github&labelColor=F56C6C&link=https%3A%2F%2Fgihub.com%2Flimingchang%2Fsnail)
+<p>
+  <a src="https://gitee.com/limich/snail">
+    <img src="https://img.shields.io/badge/snail-js?style=flat&label=gitee&labelColor=F56C6C&link=https%3A%2F%2Fgitee.com%2Flimich%2Fsnail"></img>
+  </a>
+</p>
+<p>
+  <a src="https://github.com/limingchang/snail">
+    <img src="https://img.shields.io/badge/snail-js?style=flat&label=github&labelColor=F56C6C&link=https%3A%2F%2Fgihub.com%2Flimingchang%2Fsnail"></img>
+  </a>
+</p>
 
 ### 作者
 
