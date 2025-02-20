@@ -9,8 +9,7 @@ export interface PaginationData<T> {
   record: T[];
 }
 
-export interface ResponseData<T = any> {
+export interface ResponseData{
   code: 0;
   message: string;
-  data: T | PaginationData<T>;
 }

@@ -9,7 +9,7 @@ const INDEXDB_INDEX_NAME = "SNAIL_CACHE_INDEX";
 export default class IndexDBCache {
   public ttl: number;
 
-  private db: IDBDatabase | null = null;
+  private db?: IDBDatabase | null;
 
   constructor(ttl: number) {
     this.ttl = ttl;
@@ -25,10 +25,10 @@ export default class IndexDBCache {
         const db = (event.target as any).result as IDBDatabase;
         // 为数据库创建对象存储（objectStore）
         const objectStore = db.createObjectStore(INDEXDB_OBJECT_STORE_NAME, {
-          keyPath: 'key',
+          keyPath: "key",
         });
         // 创建索引
-        objectStore.createIndex(INDEXDB_INDEX_NAME, 'key', {
+        objectStore.createIndex(INDEXDB_INDEX_NAME, "key", {
           unique: false,
         });
       };
@@ -46,12 +46,12 @@ export default class IndexDBCache {
   public async get<T = any>(
     key: string
   ): Promise<{ error: null; data: T } | { error: any; data: null }> {
-    return new Promise((resolve, reject) => {
-      if (this.db === null) {
-        return reject({ error: new Error("数据库未初始化"), data: null });
+    return new Promise(async (resolve, reject) => {
+      if (this.db === null || this.db === undefined) {
+        // return reject({ error: new Error("数据库未初始化"), data: null });
+        await this.init();
       }
-
-      const select: IDBRequest<T> = this.db
+      const select: IDBRequest<T> = (this.db as IDBDatabase)
         .transaction(INDEXDB_OBJECT_STORE_NAME, "readonly")
         .objectStore(INDEXDB_OBJECT_STORE_NAME)
         .get(key);
@@ -78,21 +78,19 @@ export default class IndexDBCache {
     key: string,
     value: T
   ): Promise<{ error: null; data: true } | { error: any; data: null }> {
-    return new Promise((resolve, reject) => {
-      if (this.db === null) {
-        return reject({ error: new Error("数据库未初始化"), data: null });
+    return new Promise(async (resolve, reject) => {
+      if (this.db === null || this.db === undefined) {
+        await this.init();
       }
 
-      const select = this.db
+      const select = (this.db as IDBDatabase)
         .transaction(INDEXDB_OBJECT_STORE_NAME, "readwrite")
         .objectStore(INDEXDB_OBJECT_STORE_NAME)
-        .put(
-          {
-            data: value,
-            exp: Math.ceil(new Date().getTime() / 1000) + this.ttl,
-            key
-          }
-        );
+        .put({
+          data: value,
+          exp: Math.ceil(new Date().getTime() / 1000) + this.ttl,
+          key,
+        });
 
       select.onsuccess = () => {
         resolve({ error: null, data: true });
@@ -110,12 +108,12 @@ export default class IndexDBCache {
   public async delete(
     key: string
   ): Promise<{ error: null; data: true } | { error: any; data: null }> {
-    return new Promise((resolve, reject) => {
-      if (this.db === null) {
-        return reject({ error: new Error("数据库未初始化"), data: null });
+    return new Promise(async (resolve, reject) => {
+      if (this.db === null || this.db === undefined) {
+        await this.init();
       }
 
-      const select = this.db
+      const select = (this.db as IDBDatabase)
         .transaction(INDEXDB_OBJECT_STORE_NAME, "readwrite")
         .objectStore(INDEXDB_OBJECT_STORE_NAME)
         .delete(key);

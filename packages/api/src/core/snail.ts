@@ -427,7 +427,7 @@ export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
           );
           const sseUrl = this.generateSseUrl(baseURL, versionUrl || url);
           enableLog && console.log("sse-url:", sseUrl);
-          return this.initSse(sseUrl, sseOption, target);
+          return () => this.initSse(sseUrl, sseOption, target);
         }
       },
     }) as SseProxy<T>;
@@ -459,13 +459,13 @@ export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
   private setSse(target: any) {
     // 如果被@OnSseOpen装饰
     const onOpenFunc = Reflect.getMetadata(EVENT_SOURCE_OPEN_KEY, target);
-    console.log("sse-proxy[open]:", onOpenFunc);
+    // console.log("sse-proxy[open]:", onOpenFunc);
     if (typeof onOpenFunc == "function") {
       this.eventSource && (this.eventSource.onopen = onOpenFunc);
     }
     // 如果被@OnSseOpen装饰
     const onErrorFunc = Reflect.getMetadata(EVENT_SOURCE_ERROR_KEY, target);
-    console.log("sse-proxy[error]:", onErrorFunc);
+    // console.log("sse-proxy[error]:", onErrorFunc);
     if (typeof onErrorFunc == "function") {
       this.eventSource && (this.eventSource.onerror = onErrorFunc);
     }
