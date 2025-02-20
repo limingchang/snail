@@ -17,10 +17,9 @@ export class CustomStrategy extends Strategy {
   }
 }
 
-export class ShanheResponse<T = any> {
+export class ShanheResponse {
   code: number;
   text: string;
-  data: T;
 }
 
 @Server({

@@ -378,23 +378,116 @@ export const Sse = Service.createSse(ServerSend);
 ```
 
 ### 服务端推送装饰器`@Sse`
+
 - `@Sse(path:string,options:{withCredentials: boolean})`
 - 创建一个服务端推送连接，当被装饰的方法调用时打开连接
 - 被装饰的方法调用后会返回`{eventSource:EventSource,close:function}`
- - eventSource: sse连接实例
- - close: 关闭此sse连接的方法
+- eventSource: sse 连接实例
+- close: 关闭此 sse 连接的方法
 
 ### 注册`onopen`装饰器`@OnSseOpen`
+
 - 当`@Sse`装饰的方法被调用时，将`@OnSseOpen`装饰的方法注册为`@Sse`装饰的方法返回的`EventSource`实例`onopen`处理函数
 
 ### 注册`onerror`装饰器`@OnSseError`
+
 - 当`@Sse`装饰的方法被调用时，将`@OnSseError`装饰的方法注册为`@Sse`装饰的方法返回的`EventSource`实例`onerror`处理函数
 
 ### 事件处理装饰器`@SseEvent`
+
 - `@SseEvent(eventName?:string)`
 - 未传入`eventName`，默认注册为`message`事件处理器
 - 传入`eventName`，注册为对应名称的事件处理器
 
+---
+
+## TypeScript 支持
+
+### 默认返回类型
+
+```typescript
+export interface ResponseData<T = any> {
+  code: 0;
+  message: string;
+  data: T;
+}
+```
+
+### 定义返回类型
+
+1. 定义后端标准数据格式
+
+```typescript
+export class CustomResponse {
+  status_code: number;
+  msg: string;
+}
+```
+
+2. 创建时应用格式
+
+```typescript
+// service.ts
+import { Snail, Server } from "@snail-js/api";
+
+@Server({
+  baseURL: "/api",
+  timeout: 5000,
+})
+class BackEnd extends Snail<CustomResponse> {}
+
+export const Service = new BackEnd();
+```
+
+3. 调用 API 时携带数据格式
+
+```typescript
+import { userApi } from "./user";
+
+class User {
+  id: number;
+  name: string;
+  tel: string;
+  age: number;
+}
+
+const res = await userApi.get<User>("1");
+// 默认情况，以data为key存储数据
+// res.data => CustomResponse & { data : User}
+```
+
+> API 被调用的返回格式
+
+```typescript
+const res = await userApi.get<User>("1");
+
+// res type
+{
+  data: T;
+  error: null | Error
+  hitCache?: boolean
+}
+```
+
+> `data: T`,后端响应数据；默认为`ResponseData<T = any>`类型；可由用户自定义修改
+
+> `error: null | Error` ; 请求过程中的错误包含在此，可先判断 error 是否为 null 再进行数据处理
+
+> `hitCache?: boolean`; 标识请求是否击中缓存；若从缓存获得数据，则不会发送请求。
+
+4. 若后端返回数据不是以 data 为 key 包含数据
+
+```typescript
+@Server({
+  baseURL: "/api",
+  timeout: 5000,
+})
+class BackEnd extends Snail<CustomResponse, "record"> {}
+
+const res = await userApi.get<User>("1");
+// 自定义数据key
+// res.data => CustomResponse & { record : User}
+```
 
 ### 代码仓库
 

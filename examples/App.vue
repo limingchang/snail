@@ -148,23 +148,23 @@ const hotWords = [
   "CSS"
 ]
 
-// import { TestApi, ShanHeApiRandom } from './server/shanhe'
+import { TestApi, ShanHeApiRandom } from './server/shanhe'
 
-// const testHandle = async () => {
-// const res = await TestApi.shanheRandom<ShanHeApiRandom>()
-// const { data, error } = res
-// if (error) {
-//   return
-// }
-// console.log("data:", data.data)
-// console.log('code:', data.code)
-// console.log('message:', data.text)
-// }
+const testHandle = async () => {
+const res = await TestApi.shanheRandom<ShanHeApiRandom>()
+const { data, error } = res
+if (error) {
+  return
+}
+console.log("data:", data.data)
+console.log('code:', data.code)
+console.log('message:', data.text)
+}
 
-// const handleNongli = async () => {
-// const res = await TestApi.shanheNongli<ShanHeApiRandom>()
-// console.log('山河农历api:', res)
-// }
+const handleNongli = async () => {
+const res = await TestApi.shanheNongli<ShanHeApiRandom>()
+console.log('山河农历api:', res)
+}
 
 import { SystemApi } from "./server/local"
 

@@ -45,7 +45,7 @@ import {
   EVENT_SOURCE_EVENTS_KEY,
 } from "../decorators/sse";
 
-export class Snail<R extends { data: any } = ResponseData> {
+export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
   private axiosInstance: AxiosInstance;
   // private config: SnailConfig;
   private strategies: Strategy[] = [];
@@ -59,7 +59,7 @@ export class Snail<R extends { data: any } = ResponseData> {
     this.strategies.push(strategy);
   }
 
-  createApi<T extends object>(constructor: new () => T): ApiProxy<T, R> {
+  createApi<T extends object>(constructor: new () => T): ApiProxy<T, R, DK> {
     const instance = new constructor();
     const serverConfig = this.getServerConfig();
     const { baseURL, timeout, CacheManage, enableLog } = serverConfig;
@@ -158,16 +158,26 @@ export class Snail<R extends { data: any } = ResponseData> {
               onUploadProgress,
               onDownloadProgress,
             });
+            // 应用响应策略
+            const responseStrategies = strategies.filter(
+              (strategy) => strategy.applyResponse
+            );
+            const strategyResponse = await this.applyStrategies(
+              response,
+              responseStrategies,
+              "response"
+            );
+            // 设置缓存
             hitSource !== null && this.setCache(request, response);
             // 请求成功后，处理应失效的缓存
             this.expireCache(propertyKey);
-            return this.handleResponse(response, false);
+            return this.handleResponse(strategyResponse, false);
           } catch (error) {
             return this.handleError(error);
           }
         };
       },
-    }) as ApiProxy<T, R>;
+    }) as ApiProxy<T, R, DK>;
   }
 
   private buildRequestArgs(target: any, propertyKey: string, args: any[]) {
@@ -276,17 +286,9 @@ export class Snail<R extends { data: any } = ResponseData> {
         statusText: "get response data from cache",
         config: { headers: new AxiosHeaders() },
       };
-      // 应用响应策略
-      const responseStrategies = strategies.filter(
-        (strategy) => strategy.applyResponse
-      );
-      const strategyResponse = await this.applyStrategies(
-        cacheResponse,
-        responseStrategies,
-        "response"
-      );
-      return strategyResponse;
+      return cacheResponse;
     }
+    return undefined;
   }
 
   private initCacheManage(options?: CacheManagementOption) {

@@ -1,9 +1,3 @@
-export interface ResponseErrorData<E> {
-  code: number;
-  message: string;
-  data: E;
-}
-
 export interface PaginationData<T> {
   // 数据总数
   total: number;
@@ -15,12 +9,8 @@ export interface PaginationData<T> {
   record: T[];
 }
 
-export interface ResponseSuccessData<T> {
+export interface ResponseData<T = any> {
   code: 0;
   message: string;
   data: T | PaginationData<T>;
 }
-
-export type ResponseData<T = any, E = any> =
-  | ResponseSuccessData<T>
-  | ResponseErrorData<E>;
