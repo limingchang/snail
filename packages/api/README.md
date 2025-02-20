@@ -380,10 +380,10 @@ export const Sse = Service.createSse(ServerSend);
 ### 服务端推送装饰器`@Sse`
 
 - `@Sse(path:string,options:{withCredentials: boolean})`
-- 创建一个服务端推送连接，当被装饰的方法调用时打开连接
-- 被装饰的方法调用后会返回`{eventSource:EventSource,close:function}`
-- eventSource: sse 连接实例
-- close: 关闭此 sse 连接的方法
+- 创建一个服务端推送连接，返回一个函数，用于打开sse连接
+  - 返回的打开函数调用后会返回`{eventSource:EventSource,close:function}`
+    - eventSource: sse 连接实例
+    - close: 关闭此 sse 连接的方法
 
 ### 注册`onopen`装饰器`@OnSseOpen`
 

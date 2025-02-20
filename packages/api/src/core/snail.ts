@@ -427,15 +427,7 @@ export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
           );
           const sseUrl = this.generateSseUrl(baseURL, versionUrl || url);
           enableLog && console.log("sse-url:", sseUrl);
-          const { eventSource, close } = this.initSse(sseUrl, sseOption);
-          this.eventSource = eventSource;
-          // 处理其OnSseOpen,OnSseError函数
-          this.setSse(target);
-          // 注册事件处理
-          this.registerSseEvent(target);
-          return () => {
-            return { eventSource, close };
-          };
+          return this.initSse(sseUrl, sseOption, target);
         }
       },
     }) as SseProxy<T>;
@@ -443,17 +435,24 @@ export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
 
   private initSse(
     url: string,
-    options: { path: string; withCredentials: boolean }
+    options: { path: string; withCredentials: boolean },
+    target: any
   ) {
-    const eventSource = new EventSource(url, {
-      withCredentials: options.withCredentials
-        ? options.withCredentials
-        : false,
-    });
-    console.log("EventSource:", eventSource);
-    return {
-      eventSource,
-      close: eventSource.close,
+    return () => {
+      const eventSource = new EventSource(url, {
+        withCredentials: options.withCredentials
+          ? options.withCredentials
+          : false,
+      });
+      this.eventSource = eventSource;
+      // 处理其OnSseOpen,OnSseError函数
+      this.setSse(target);
+      // 注册事件处理
+      this.registerSseEvent(target);
+      return {
+        eventSource,
+        close: eventSource.close,
+      };
     };
   }
 

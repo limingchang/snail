@@ -1,8 +1,8 @@
-// SSE 
+// SSE
 
 export type SseProxy<T extends object> = {
   [K in keyof T]: T[K] extends (...args: infer A) => any
-    ? () => { eventSource: EventSource; close: Function }
+    ? () => () => void
     : T[K];
 };
 
