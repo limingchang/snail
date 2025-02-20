@@ -2,7 +2,7 @@
 
 export type SseProxy<T extends object> = {
   [K in keyof T]: T[K] extends (...args: infer A) => any
-    ? () => { sourceEvent: EventSource; close: Function }
+    ? () => { eventSource: EventSource; close: Function }
     : T[K];
 };
 
