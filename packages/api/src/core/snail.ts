@@ -128,7 +128,7 @@ export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
           enableLog && console.log("hitSource:", hitSource);
           // 设置了当前方法的失效源
           if (typeof hitSource == "string") {
-            this.setHitSource(request, hitSource);
+            await this.setHitSource(request, hitSource);
           }
           // 未定义失效源，未设置null失效缓存
           // 处理缓存
@@ -276,7 +276,7 @@ export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
 
   private async getCache(request: any, strategies: Strategy[]) {
     if (!this.cacheStorage) return undefined;
-    const cacheKey = apiKey(request);
+    const cacheKey = await apiKey(request);
     const cached = await this.cacheStorage?.get(cacheKey);
     if (cached && cached.error === null) {
       let cacheResponse: AxiosResponse = {
@@ -316,9 +316,9 @@ export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
     return apiHitSource;
   }
 
-  private setHitSource(request: any, hitSource: string) {
+  private async setHitSource(request: any, hitSource: string) {
     const cacheKeys = this.sourceMap.get(hitSource);
-    const currentCacheKey = apiKey(request as any);
+    const currentCacheKey = await apiKey(request as any);
     if (cacheKeys) {
       cacheKeys.push(currentCacheKey);
       this.sourceMap.set(hitSource, cacheKeys);
@@ -328,7 +328,7 @@ export class Snail<R extends {} = ResponseData, DK extends string = "data"> {
   }
 
   private async setCache(request: any, response: AxiosResponse) {
-    const cacheKey = apiKey(request);
+    const cacheKey = await apiKey(request);
     // console.log("set cache key:", cacheKey);
     await this.cacheStorage?.set(cacheKey, response.data);
     // console.log("set cache:", this.cacheStorage);

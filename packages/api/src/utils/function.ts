@@ -1,4 +1,4 @@
-export const apiKey = <
+export const apiKey = async <
   T extends {
     url: string;
     method: string;
@@ -7,14 +7,14 @@ export const apiKey = <
     params?: Record<string, any>;
     headers?: Record<string, any>;
   }
->(
+> (
   apiInstance: T
 ) => {
   const { version, method, url, params, headers } = apiInstance;
   const str = `${params ? `-${recordToString(params)}` : ""}${
     headers ? `-${recordToString(headers)}` : ""
   }`;
-  return `[${method}]${version ? `-v${version}` : ""}-${url}-${generateShortUniqueHash(str)}`;
+  return `[${method}]${version ? `-v${version}` : ""}-${url}-${await generateShortUniqueHash(str)}`;
 };
 
 export async function generateShortUniqueHash(str: string) {
