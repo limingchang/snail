@@ -47,7 +47,7 @@
     <p>
       <button @click="menuHandle">点击菜单</button>
       <!-- <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha> -->
-      <SPopupMenu :width="150" v-model="showMenu" :items="menuItems"></SPopupMenu>
+      <!-- <SPopupMenu :width="150" v-model="showMenu" :items="menuItems"></SPopupMenu> -->
     </p>
     <!-- <div>
       <SWordCloud :hotWords="hotWords" :radius="100" :speed="10"></SWordCloud>
@@ -66,7 +66,7 @@ import { SWordCloud } from "@snail-js/vue"
 import { AliCaptcha, CaptchaObj } from "@snail-js/vue";
 import { ElButton, ElIcon } from "element-plus";
 import { Edit, EditPen } from "@element-plus/icons-vue";
-import { SPopupMenu, SPopUpMenuItemOptions } from "@snail-js/vue";
+import { SPopUpMenu, SPopUpMenuItemOptions } from "@snail-js/vue";
 
 // import { SIcon,CaptchaObj,SClickCopy,AliCaptcha } from '../packages/vue'
 // const captchaId = ref(import.meta.env.VITE_APP_CAPTCHA_ID);
@@ -77,7 +77,7 @@ const checkPermission = async () => {
   return new Promise<boolean>((resolve, reject) => {
     setTimeout(() => {
       return resolve(false);
-    }, 1000);
+    }, 500);
     // reject(false)
   })
 
@@ -117,8 +117,12 @@ onMounted(() => {
 
 const menuHandle = () => {
   console.log("menu");
-  showMenu.value = true;
-
+  // showMenu.value = true;
+  SPopUpMenu({
+    context:{a:1}
+  },
+  menuItems.value
+  )
 };
 
 watch(() => showMenu.value, () => {

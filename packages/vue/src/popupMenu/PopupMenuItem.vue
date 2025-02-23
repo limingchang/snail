@@ -13,13 +13,13 @@ import { SIcon } from "../icon";
 import {
   SPopUpMenuItemOptions,
   HandlerCommandFunc,
-  TComputedEnabled,
+  TComputedBoolean,
   TComputedDisplay
 } from "./type";
 
 const emits = defineEmits<{
   (e: "exce", command: HandlerCommandFunc): void;
-  (e: "enabled", func: TComputedEnabled): boolean | Promise<boolean>;
+  (e: "enabled", func: TComputedBoolean): boolean | Promise<boolean>;
   (e: "display", func: TComputedDisplay): boolean | Promise<boolean>;
 }>();
 
