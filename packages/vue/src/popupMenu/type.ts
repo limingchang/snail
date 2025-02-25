@@ -7,13 +7,11 @@ export type TComputedBoolean<T = any> =
   | ((context?: T) => Promise<boolean>)
   | ((context?: T) => boolean);
 
-export type TComputedDisplay = (() => Promise<boolean>) | (() => boolean);
-
 export interface SPopUpMenuItemOptions<T = any> {
   label: string;
   icon?: string;
   hoverColor?: string;
-  display?: TComputedDisplay | boolean;
+  display?: TComputedBoolean | boolean;
   enabled?: TComputedBoolean | boolean;
   command: HandlerCommandFunc<T>;
 }

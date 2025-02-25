@@ -3,7 +3,7 @@ export * from "./components";
 import * as components from "./components";
 
 // 函数式组件
-// export * from "./popupMenu"
+export * from "./popupMenu";
 
 // 导出类型
 export * from "./aliCaptcha/type";

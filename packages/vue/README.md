@@ -45,8 +45,7 @@ import "@snail-js/vue/index.css"
 - AliCaptcha 阿里图形验证码
 - SIcon 图标组件,兼容Element Plus图标，可传入Element Plus图标/图标组件，也可使用主题库图标
 - SClickCopy 复制组件
-- SPopupMenu 弹出菜单组件
- - SPopupMenuItem 弹出菜单子项组件
+- SPopupMenu 弹出菜单组件(函数式)
 - SWordCloud 3D旋转立体词云组件
 
 
