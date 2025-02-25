@@ -14,6 +14,7 @@ export interface SPopUpMenuItemOptions<T = any> {
   display?: TComputedBoolean | boolean;
   enabled?: TComputedBoolean | boolean;
   command: HandlerCommandFunc<T>;
+  children?:Array<SPopUpMenuItemOptions>
 }
 
 export interface SPopUpMenuOptions{

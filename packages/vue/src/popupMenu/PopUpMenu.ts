@@ -1,4 +1,13 @@
-import { createApp, ref, App, h } from "vue";
+import {
+  createApp,
+  ref,
+  App,
+  h,
+  computed,
+  defineComponent,
+  Ref,
+  watch,
+} from "vue";
 
 import { useMouse, onClickOutside } from "@vueuse/core";
 
@@ -15,52 +24,61 @@ import {
 import PopUpMenuItem from "./PopupMenuItem.vue";
 
 const menus: Array<App> = [];
-const { x: mouseX, y: mouseY } = useMouse();
+const { x: mouseX, y: mouseY } = useMouse({ type: "client" });
 
 export const SPopUpMenu = (
   options: SPopUpMenuOptions,
   items: SPopUpMenuItemOptions[]
 ) => {
   unmountPrevious();
-  // const { x, y } = useMouse();
-  // console.log("useMouse:", mouseX.value, mouseY.value);
-  const { x, y } = setPositon();
-  const style = {
-    width: `${options.width || 90}px`,
-    textAlign: options.align || "left",
-    top: `${y - 2}px`,
-    left: `${x - 2}px`,
-    position: "fixed",
-    display: "block",
-    zIndex: 9999,
-  };
+  const sPopUpMenuRef = ref<null | HTMLElement>(null);
+  const menu = defineComponent({
+    setup() {
+      const top = ref(0);
+      const left = ref(0);
+      const style = computed(() => {
+        return {
+          width: options.width ? `${options.width}px` : "auto",
+          minWidth: "90px",
+          textAlign: options.align || "left",
+          top: `${top.value - 2}px`,
+          left: `${left.value - 2}px`,
+          position: "fixed",
+          display: "block",
+          zIndex: 9999,
+        };
+      });
 
-  // console.log("menu-style:", style);
-  const sPopUpMenuRef = ref(null);
-  const menu = {
+      onClickOutside(sPopUpMenuRef, () => {
+        unmountPrevious();
+      });
+      watch(
+        () => sPopUpMenuRef.value,
+        () => {
+          const { x, y } = setPositon(sPopUpMenuRef);
+          left.value = x;
+          top.value = y;
+        }
+      );
+      return {
+        style,
+      };
+    },
     render() {
       return h(
         "div",
-        { class: "s-pop-up-menu", style, ref: sPopUpMenuRef },
+        { class: "s-pop-up-menu", style: this.style, ref: sPopUpMenuRef },
         items.map((item) => renderItem(item))
       );
     },
-  };
-
+  });
   const app = createApp(menu);
-
   registerIcons();
   const div = document.createElement("div");
   div.id = "s-pop-up-menu";
   document.body.appendChild(div);
   app.mount(div);
   menus.push(app);
-
-  onClickOutside(sPopUpMenuRef, () => {
-    unmountPrevious();
-  });
-
-  // console.log("x:", x1.value, " y:", y1.value);
 
   function registerIcons() {
     // 注册SIcon组件
@@ -73,20 +91,18 @@ export const SPopUpMenu = (
     }
   }
 
-  function setPositon() {
+  function setPositon(eleRef: Ref) {
     const pos = { x: 0, y: 0 };
-    // console.log("mouse:", mouseX.value, ":", mouseY.value);
     const clientX = document.documentElement.clientWidth;
     const clientY = document.documentElement.clientHeight;
-    // console.log("clientX:", clientX, "clientY:", clientY);
-    // console.log("scrollTop",document.body.scrollTop,"scrollLeft",document.body.scrollLeft)
-    const menuWidth = options.width || 90;
+    const menuWidth =
+      options.width || (eleRef.value as HTMLElement).offsetWidth;
     if (mouseX.value + menuWidth > clientX) {
       pos.x = clientX - menuWidth;
     } else {
       pos.x = mouseX.value;
     }
-    const menuHeight = (items.length || 0) * 35;
+    const menuHeight = (eleRef.value as HTMLElement).offsetHeight;
     // console.log("menuHeight:",menuHeight)
     if (mouseY.value + menuHeight > clientY) {
       pos.y = clientY - menuHeight;
@@ -116,16 +132,39 @@ export const SPopUpMenu = (
   }
 
   function renderItem(item: SPopUpMenuItemOptions) {
+    return h(
+      PopUpMenuItem,
+      {
+        style: {
+          "--hover-color": item.hoverColor ? item.hoverColor : "#66b1ff",
+        },
+        options: {
+          display: checkBoolean(item.display),
+          enabled: checkBoolean(item.enabled),
+          label: item.label,
+          icon: item.icon,
+          handle: handleClick(item.command),
+          children: item.children ? true : false,
+        },
+      },
+      {
+        child: item.children ? () => item.children!.map(renderChild) : () => undefined,
+      }
+    );
+  }
+
+  function renderChild(child: Omit<SPopUpMenuItemOptions, "children">) {
     return h(PopUpMenuItem, {
       style: {
-        "--hover-color": item.hoverColor ? item.hoverColor : "#66b1ff",
+        "--hover-color": child.hoverColor ? child.hoverColor : "#66b1ff",
       },
       options: {
-        display: checkBoolean(item.display),
-        enabled: checkBoolean(item.enabled),
-        label: item.label,
-        icon: item.icon,
-        handle: handleClick(item.command),
+        display: checkBoolean(child.display),
+        enabled: checkBoolean(child.enabled),
+        label: child.label,
+        icon: child.icon,
+        handle: handleClick(child.command),
+        // children:false
       },
     });
   }

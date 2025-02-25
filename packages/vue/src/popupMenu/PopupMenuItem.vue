@@ -4,6 +4,10 @@
       <component :is="props.options.icon"></component>
     </SIcon>
     <span class="item-label">{{ props.options.label }}</span>
+    <SIcon v-if="props.options.children" icon="CaretRight"></SIcon>
+    <ul v-if="itemEnabled && props.options.children" class="child-item s-pop-up-menu">
+      <slot name="child"></slot>
+    </ul>
   </div>
 </template>
 
@@ -16,7 +20,8 @@ interface ItemOptions {
   label: string;
   display: () => Promise<boolean>;
   enabled: () => Promise<boolean>;
-  handle: () => any
+  handle: () => any;
+  children?: boolean
 }
 
 const props = defineProps<{
@@ -25,6 +30,7 @@ const props = defineProps<{
 
 const itemEnabled = ref(true);
 const itemDisplay = ref(true);
+const hasChild = ref(false)
 
 const setClass = computed(() => {
   const itemClass = {
@@ -41,10 +47,11 @@ onMounted(() => {
   props.options.enabled().then((data) => {
     itemEnabled.value = data
   });
+  hasChild.value = props.options.children ? true : false
 });
 
 const handleClick = () => {
-  if (itemEnabled.value) {
+  if (itemEnabled.value && !props.options.children) {
     props.options.handle()
   }
 }

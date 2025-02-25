@@ -14,7 +14,6 @@ button {
   z-index: 9999;
   width: 100px;
   background-color: #fff;
-  width: 100px;
   font-size: 0.8em;
   border-radius: 4px;
   -webkit-box-sizing: border-box;
@@ -31,17 +30,35 @@ button {
     .item-label {
       margin-left: 10px;
     }
+    .child-item {
+      display: none;
+      position: absolute;
+      left: 100%;
+      top: 0;
+      padding-left: 0;
+    }
   }
-  .snail-pop-up-menu-item:hover {
+
+  .s-pop-up-menu-item:hover {
     background-color: var(--hover-color);
+    .child-item {
+      display: block;
+    }
   }
   .s-pop-up-menu-item:not(:last-child) {
     border-bottom: 1px solid rgba(0, 0, 0, 0.2);
   }
   .item-disabled {
-    cursor: not-allowed;
     color: #999;
-    text-shadow: -1px 0 #fff, 0 1px #fff, 1px 0 #fff, 0 -1px #fff;
+    text-shadow:
+      -1px 0 #fff,
+      0 1px #fff,
+      1px 0 #fff,
+      0 -1px #fff;
+  }
+  .item-disabled:hover {
+    cursor: not-allowed;
+    background-color: #fff;
   }
   .item-enabled:hover {
     background-color: var(--hover-color);
@@ -67,7 +84,6 @@ button {
 
 .s-click-copy-parent {
   position: relative;
-  
 }
 .s-click-copy {
   position: absolute;

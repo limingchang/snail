@@ -36,7 +36,7 @@
     <p>
       <ElButton type="success" @click="handleSse">SSE测试</ElButton>
     </p>
-    <div class="icon-box" v-show="true">
+    <div class="icon-box" v-show="false">
       <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
         <SIcon :icon="icon.name">
           <!-- <component :is="icon.name"></component> -->
@@ -83,6 +83,25 @@ const checkPermission = async () => {
 
 };
 
+const subMenus = [
+  {
+    label: "子菜单1",
+    icon: "icon-snail-fill",
+    command: () => {
+      console.log("菜单1");
+    },
+    enabled: checkPermission,
+  },
+  {
+    label: "子菜单2",
+    icon: "icon-word",
+    command: () => {
+      console.log("子菜单2");
+    },
+    // enabled: checkPermission,
+  },
+]
+
 const menuItems = ref<Array<SPopUpMenuItemOptions>>([
   {
     label: "菜单1",
@@ -99,6 +118,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
       console.log("菜单2");
     },
     enabled: true,
+    children: subMenus
   },
   {
     label: "菜单3",
@@ -119,9 +139,9 @@ const menuHandle = () => {
   console.log("menu");
   // showMenu.value = true;
   SPopUpMenu({
-    context:{a:1}
+    context: { a: 1 }
   },
-  menuItems.value
+    menuItems.value
   )
 };
 
@@ -155,19 +175,19 @@ const hotWords = [
 import { TestApi, ShanHeApiRandom } from './server/shanhe'
 
 const testHandle = async () => {
-const res = await TestApi.shanheRandom<ShanHeApiRandom>()
-const { data, error } = res
-if (error) {
-  return
-}
-console.log("data:", data.data)
-console.log('code:', data.code)
-console.log('message:', data.text)
+  const res = await TestApi.shanheRandom<ShanHeApiRandom>()
+  const { data, error } = res
+  if (error) {
+    return
+  }
+  console.log("data:", data.data)
+  console.log('code:', data.code)
+  console.log('message:', data.text)
 }
 
 const handleNongli = async () => {
-const res = await TestApi.shanheNongli<ShanHeApiRandom>()
-console.log('山河农历api:', res)
+  const res = await TestApi.shanheNongli<ShanHeApiRandom>()
+  console.log('山河农历api:', res)
 }
 
 import { SystemApi } from "./server/local"
