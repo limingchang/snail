@@ -65,7 +65,6 @@ export const SPopUpMenu = (
   function registerIcons() {
     // 注册SIcon组件
     for (const [key, component] of Object.entries(SIconSvgs)) {
-      console.log(key, component);
       app.component(key, component);
     }
     // 注册ElementPlus图标组件
@@ -78,8 +77,9 @@ export const SPopUpMenu = (
     const pos = { x: 0, y: 0 };
     // console.log("mouse:", mouseX.value, ":", mouseY.value);
     const clientX = document.documentElement.clientWidth;
-    const clientY = document.documentElement.offsetHeight;
+    const clientY = document.documentElement.clientHeight;
     // console.log("clientX:", clientX, "clientY:", clientY);
+    // console.log("scrollTop",document.body.scrollTop,"scrollLeft",document.body.scrollLeft)
     const menuWidth = options.width || 90;
     if (mouseX.value + menuWidth > clientX) {
       pos.x = clientX - menuWidth;
