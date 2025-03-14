@@ -2,21 +2,42 @@ import "reflect-metadata";
 
 // import {CacheManagementOption} from '../typings'
 
-export const CACHE_OPTIONS_KEY = Symbol("SNALI_CACHE_OPTIONS_KEY");
+export const NO_CACHE_KEY = Symbol("SNALI_NO_CACHE_KEY");
 
-// 缓存设置装饰器
+export const CACHE_EXPIRE_SOURCE_KEY = Symbol("SNALI_CACHE_EXPIRE_SOURCE_KEY");
+
+
 /**
- * 为请求方法设置失效源，或设置不启用缓存
- * @param hitSource 失效源，字符型|null；
- * - 设置为null时，该请求方法不启用缓存；
- * - 设置为字符时，对应该Api下请求方法名称，当设置的名称方法请求成功时，被装饰的请求方法缓存失效
- * @returns 
+ * 为请求方法或API设置不启用缓存
+ * @returns
  */
-export const Cache = (hitSource: string | null) => {
+export const NoCache = () => {
   return (target: any, propertyKey?: string) => {
-    const key = propertyKey
-      ? `${CACHE_OPTIONS_KEY.toString()}_${propertyKey}`
-      : CACHE_OPTIONS_KEY;
-    Reflect.defineMetadata(key, hitSource, target);
+    if (propertyKey) {
+      Reflect.defineMetadata(NO_CACHE_KEY, true, target, propertyKey);
+      return;
+    }
+    Reflect.defineMetadata(NO_CACHE_KEY, true, target);
+  };
+};
+
+/**
+ * 为请求方法或API设置失效源,当此源请求成功时，清空被装饰的方法缓存
+ * 格式serverName.apiName.methodName
+ * @param sources 失效源，字符型数组；
+ * @returns
+ */
+export const HitSource = (...sources: string[]) => {
+  return (target: any, propertyKey?: string) => {
+    if (propertyKey) {
+      Reflect.defineMetadata(
+        CACHE_EXPIRE_SOURCE_KEY,
+        sources,
+        target,
+        propertyKey
+      );
+      return;
+    }
+    Reflect.defineMetadata(CACHE_EXPIRE_SOURCE_KEY, sources, target);
   };
 };

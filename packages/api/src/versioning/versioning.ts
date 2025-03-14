@@ -7,11 +7,16 @@ import {
   VersioningCustomOption,
 } from "../typings";
 
+import { VERSIONING_KEY } from "../decorators/versioning";
+
+import { SnailServer } from "../core/snailServer";
+
 const versionHandlers = {
   [VersioningType.Uri]: (version: string, versioning: VersioningUriOption) => {
     const prefix = versioning.prefix || "v";
     return {
-      url: `${prefix}${version}`,
+      type: VersioningType.Uri,
+      result: `${prefix}${version}`,
     };
   },
   [VersioningType.Header]: (
@@ -22,17 +27,19 @@ const versionHandlers = {
       [versioning.header || "version"]: version,
     };
     return {
-      headers,
+      type: VersioningType.Header,
+      result: headers,
     };
   },
   [VersioningType.Query]: (
     version: string,
     versioning: VersioningQueryOption
   ) => {
-    const key = versioning.key || "version";
+    const key = versioning.key || "v";
     // const separator = url.includes("?") ? "&" : "?";
     return {
-      params: {
+      type: VersioningType.Query,
+      result: {
         [key]: version,
       },
     };
@@ -48,15 +55,21 @@ const versionHandlers = {
 };
 
 export interface VersioningResult {
-  url?: string;
-  headers?: Record<string, any>;
-  params?: Record<string, any>;
+  type: VersioningType;
+  result: string|Record<string, any>;
 }
 
+/**
+ *
+ * @param version 版本号
+ * @param serverInstance 当前Server的实例
+ * @returns serverInstance上未配置版本管理器返回undefined, 否则返回版本管理器的结果
+ */
 export function applyVersioning(
   version: string,
   versioning: VersioningOption
-): VersioningResult {
+): VersioningResult | undefined {
+  if (!versioning) return undefined;
   const handler = versionHandlers[versioning.type];
   return handler(
     version,

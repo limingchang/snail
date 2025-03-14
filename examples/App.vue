@@ -18,23 +18,29 @@
           <Edit />
         </SIcon>兼容测试
       </button>
-      <!-- <ElButton type="primary" @click="testHandle"> -->
-      <ElButton type="primary">
+      <ElButton type="primary" @click="testHandle">
+        <!-- <ElButton type="primary"> -->
         <ElIcon>
           <Edit />
         </ElIcon>山河随机
       </ElButton>
     </p>
     <p>
-      <!-- <ElButton type="primary" @click="handleNongli"> -->
-      <ElButton type="primary">
+      <ElButton type="primary" @click="handleNongli">
+        <!-- <ElButton type="primary"> -->
         <ElIcon>
           <Edit />
         </ElIcon>山河农历
       </ElButton>
+      <ElButton type="primary" @click="handleApiTest">
+        <!-- <ElButton type="primary"> -->
+        <ElIcon>
+          <Edit />
+        </ElIcon>Api调试
+      </ElButton>
     </p>
     <p>
-      <ElButton type="success" @click="handleSse">SSE测试</ElButton>
+      <!-- <ElButton type="success" @click="handleSse">SSE测试</ElButton> -->
     </p>
     <div class="icon-box" v-show="false">
       <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
@@ -175,27 +181,33 @@ const hotWords = [
 import { TestApi, ShanHeApiRandom } from './server/shanhe'
 
 const testHandle = async () => {
-  const res = await TestApi.shanheRandom<ShanHeApiRandom>()
-  const { data, error } = res
-  if (error) {
-    return
-  }
-  console.log("data:", data.data)
-  console.log('code:', data.code)
-  console.log('message:', data.text)
+  // const res = await TestApi.shanheRandom<ShanHeApiRandom>()
+  const method = TestApi.shanheRandom<ShanHeApiRandom>()
+  const { send, on } = method
+  // console.log('method:', send)
+  await send()
+  // console.log('method:', method.name)
 }
 
 const handleNongli = async () => {
-  const res = await TestApi.shanheNongli<ShanHeApiRandom>()
-  console.log('山河农历api:', res)
+  const { send, on } = TestApi.shanheNongli()
+  await send()
+  console.log('山河农历api:')
 }
 
-import { SystemApi } from "./server/local"
-
-const handleSse = async () => {
-  const sse = SystemApi.sse()
-  console.log("app:", sse)
+const handleApiTest = async () => {
+  const { send, on } = TestApi.test('a1', { b: 'cc',type:'admin' })
+  
+  const res = await send()
+  console.log('Api调试',res)
 }
+
+// import { SystemApi } from "./server/local"
+
+// const handleSse = async () => {
+//   const sse = SystemApi.sse()
+//   console.log("app:", sse)
+// }
 
 </script>
 

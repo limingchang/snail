@@ -27,8 +27,8 @@ export interface VersioningQueryOption extends VersioningCommonOption {
 export interface VersioningCustomOption extends VersioningCommonOption {
   type: VersioningType.Custom;
   extractor: (requestOptions: unknown) => {
-    url: string;
-    headers: Record<string, any>;
+    type: VersioningType;
+    result: string | Record<string, any>;
   };
 }
 

@@ -12,13 +12,18 @@ export const Api = (url = "", config?: ApiConfig): ClassDecorator => {
 };
 
 const createMethodDecorator = (method: RequestMethod) => {
-  return (path = "") => {
-    return (target: any,propertyKey: string | symbol) => {
-      if(target){
-        Reflect.defineMetadata(METHOD_KEY, { method, path }, target, propertyKey);
-        return
+  return (path = "", name?: string) => {
+    return (target: any, propertyKey: string | symbol) => {
+      if (target) {
+        Reflect.defineMetadata(
+          METHOD_KEY,
+          { method, path, name },
+          target,
+          propertyKey
+        );
+        return;
       }
-      Reflect.metadata(METHOD_KEY,{ method, path })
+      Reflect.metadata(METHOD_KEY, { method, path });
     };
   };
 };
