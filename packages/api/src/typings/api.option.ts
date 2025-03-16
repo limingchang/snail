@@ -1,6 +1,6 @@
 import { RequestMethod } from "./request.method";
 import { SnailServer } from "../core"; '../core/snailServer'
-export interface ApiConfig {
+export interface ApiOptions {
   name?: string;
   timeout?: number;
   version?: string;

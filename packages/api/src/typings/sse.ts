@@ -6,8 +6,13 @@ export type SseProxy<T extends object> = {
     : T[K];
 };
 
-export class RegisterSseEvent {
+export class SseEventListener {
   eventName: string;
   emit: (event: any) => any;
   options: boolean | AddEventListenerOptions;
+}
+
+export class SseOptions {
+  withCredentials?: boolean;
+  version?: string;
 }

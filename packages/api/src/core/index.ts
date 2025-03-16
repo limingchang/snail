@@ -2,3 +2,4 @@
 export * from './snailServer';
 export * from './snailMethod';
 export * from './snailApi';
+export * from './snailSse';

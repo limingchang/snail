@@ -14,9 +14,7 @@ import {
   ResponseData,
   StandardResponseData,
   ResponseJsonData,
-  RegisterSseEvent,
   CacheType,
-  RequestMethod,
   CacheForType,
 } from "../typings";
 
@@ -31,6 +29,7 @@ import { NO_CACHE_KEY, CACHE_EXPIRE_SOURCE_KEY } from "../decorators/cache";
 
 import { SnailApi } from "./snailApi";
 import { SnailMethod } from "./snailMethod";
+import { SnailSse } from "./snailSse";
 
 export const CacheStorageMap = new Map<string, CacheStorage>();
 export const CacheTtlMap = new Map<string, number>();
@@ -52,44 +51,25 @@ const defaultServerOptions: SnailOption = {
   enableLog: false,
 };
 
-import {
-  EVENT_SOURCE_OPTION_KEY,
-  EVENT_SOURCE_OPEN_KEY,
-  EVENT_SOURCE_ERROR_KEY,
-  EVENT_SOURCE_EVENTS_KEY,
-} from "../decorators/sse";
-
 export class SnailServer<
   RT extends ResponseData = StandardResponseData<ResponseJsonData>,
-  DK extends string = "data",
-  SK extends string = "code",
-  MK extends string = "message"
+  DK extends string = "data"
 > {
   private Name: string;
   private BaseURL: string;
   private Version: string;
   private EnableLog: boolean = false;
-  // private sourceMap: Map<string, string[]> = new Map();
-  private eventSource: EventSource;
 
   constructor() {
-    const serverOptions = Reflect.getMetadata(
-      SERVER_CONFIG_KEY,
-      this.constructor
-    ) as SnailOption;
-    if (!serverOptions) {
-      throw new Error(
-        "Create SnailServer must be used for @Server() decoration"
-      );
-    }
-    const options = Object.assign({}, defaultServerOptions, serverOptions);
+    const options = this.getServerOptions();
     // console.log("constructor", options);
     this.Name = options.name ?? this.constructor.name;
     // console.log("create server:", this.Name);
-    this.init(options);
+    this.init();
   }
 
-  private init(options: SnailOption) {
+  private init() {
+    const options = this.getServerOptions();
     const { baseURL, timeout, cacheManage, enableLog, cacheFor } = options;
     this.BaseURL = baseURL ?? resolveUrl("");
     this.initAxios({ baseURL, timeout });
@@ -141,7 +121,7 @@ export class SnailServer<
 
   createApi<T extends SnailApi>(
     constructor: new (options: ApiInstanceOptions) => T
-  ): ApiProxy<T, RT, DK, SK, MK> {
+  ): ApiProxy<T, RT, DK> {
     const serverVersioning = Reflect.getMetadata(
       VERSIONING_KEY,
       this.constructor
@@ -173,114 +153,15 @@ export class SnailServer<
         // 未被@Method装饰的方法直接返回
         if (!methodConfig) return (target as any)[propertyKey];
 
-        return <RD extends ResponseData = ResponseJsonData>(...args: []) => {
-          const method = new SnailMethod<RD>(
-            apiInstance,
-            target,
-            propertyKey,
-            [...args]
-          );
+        return (...args: []) => {
+          const method = new SnailMethod<RT>(apiInstance, target, propertyKey, [
+            ...args,
+          ]);
           this.initExpireSource(method, propertyKey);
           return method;
-          // const url =
-          //   methodConfig.path == ""
-          //     ? apiConfig.url
-          //     : apiConfig.url + `/${methodConfig.path}`;
-          // enableLog && console.log("url:", url);
-          // let request: AxiosRequestConfig = {
-          //   // baseURL: serverConfig.baseURL,
-          //   url,
-          //   method: methodConfig.method,
-          //   timeout: apiConfig.timeout
-          //     ? apiConfig.timeout
-          //     : serverConfig.timeout,
-          // };
-          // 版本管理
-          // request = {
-          //   ...request,
-          //   ...this.applyVersion(request, target, propertyKey),
-          // };
-          // enableLog && console.log("版本管理参数:", request);
-          // 获取策略
-          // const strategies = this.getStrategies(target, propertyKey);
-          // 构建请求参数
-          // const { params, data, querys } = this.buildRequestArgs(
-          //   target,
-          //   propertyKey,
-          //   args
-          // );
-          // request = {
-          //   ...request,
-          //   url: replacePlaceholders(url, params),
-          //   params: querys,
-          //   data,
-          // };
-          // enableLog && console.log("构建请求参数：", request);
-          // // 应用请求策略
-          // const requestStrategies = strategies.filter(
-          //   (strategy) => strategy.applyRequest
-          // );
-          // request = await this.applyStrategies(
-          //   request,
-          //   requestStrategies,
-          //   "request"
-          // );
-          // 处理失效源
-          // expireSource
-          // const hitSource = this.getExpireSource(target, propertyKey);
-          // enableLog && console.log("hitSource:", hitSource);
-          // 设置了当前方法的失效源
-          // if (typeof hitSource == "string") {
-          //   await this.setExpireSource(request, hitSource);
-          // }
-          // 未定义失效源，未设置null失效缓存
-          // 处理缓存
-          // if (hitSource !== null) {
-          //   // 获取缓存
-          //   const cachedResponse = await this.getCache(request, strategies);
-          //   if (cachedResponse) {
-          //     enableLog && console.warn("数据从缓存获取");
-          //     return this.handleResponse(cachedResponse, true);
-          //   }
-          // }
-          // const onUploadProgress = Reflect.getMetadata(
-          //   UPLOAD_PROGRESS_KEY,
-          //   target,
-          //   propertyKey
-          // );
-          // const onDownloadProgress = Reflect.getMetadata(
-          //   DOWNLOAD_PROGRESS_KEY,
-          //   target,
-          //   propertyKey
-          // );
-          // 发送请求
-          // try {
-          //   enableLog && console.log("send request:", request);
-          //   const response = await this.axiosInstance({
-          //     ...request,
-          //     onUploadProgress,
-          //     onDownloadProgress,
-          //   });
-          //   // 应用响应策略
-          //   const responseStrategies = strategies.filter(
-          //     (strategy) => strategy.applyResponse
-          //   );
-          //   const strategyResponse = await this.applyStrategies(
-          //     response,
-          //     responseStrategies,
-          //     "response"
-          //   );
-          //   // 设置缓存
-          //   hitSource !== null && this.setCache(request, response);
-          //   // 请求成功后，处理应失效的缓存
-          //   this.expireCache(propertyKey);
-          //   return this.handleResponse(strategyResponse, false);
-          // } catch (error) {
-          //   return this.handleError(error);
-          // }
         };
       },
-    }) as ApiProxy<T, RT, DK, SK, MK>; //as ApiProxy<T, R, DK>;
+    }) as ApiProxy<T, RT, DK>; //as ApiProxy<T, R, DK>;
   }
 
   private initCacheManage(
@@ -360,14 +241,18 @@ export class SnailServer<
     // }
   }
 
-  private generateSseUrl(baseURL?: string, url?: string): string {
-    if (!baseURL && !url) {
-      return "/";
+  private getServerOptions() {
+    const serverOptions = Reflect.getMetadata(
+      SERVER_CONFIG_KEY,
+      this.constructor
+    ) as SnailOption;
+    if (!serverOptions) {
+      throw new Error(
+        "Create SnailServer must be used for @Server() decoration"
+      );
     }
-    if (!baseURL && url) {
-      return `/${url}`;
-    }
-    return `${baseURL}/${url}`;
+    const options = Object.assign({}, defaultServerOptions, serverOptions);
+    return options;
   }
 
   private handleResponse(response: any, hitCache: boolean) {
@@ -384,6 +269,13 @@ export class SnailServer<
       data: null,
       error,
     };
+  }
+
+  createSse<T extends SnailSse>(
+    constructor: new (server: SnailServer) => T
+  ): SnailSse {
+    const sseInstance = new constructor(this);
+    return sseInstance;
   }
 
   // createSse<T extends object>(constructor: new () => T): SseProxy<T> {
@@ -424,57 +316,6 @@ export class SnailServer<
   //   }) as SseProxy<T>;
   // }
 
-  private initSse(
-    url: string,
-    options: { path: string; withCredentials: boolean },
-    target: any
-  ) {
-    return () => {
-      const eventSource = new EventSource(url, {
-        withCredentials: options.withCredentials
-          ? options.withCredentials
-          : false,
-      });
-      this.eventSource = eventSource;
-      // 处理其OnSseOpen,OnSseError函数
-      this.setSse(target);
-      // 注册事件处理
-      this.registerSseEvent(target);
-      return {
-        eventSource,
-        close: eventSource.close,
-      };
-    };
-  }
-
-  private setSse(target: any) {
-    // 如果被@OnSseOpen装饰
-    const onOpenFunc = Reflect.getMetadata(EVENT_SOURCE_OPEN_KEY, target);
-    // console.log("sse-proxy[open]:", onOpenFunc);
-    if (typeof onOpenFunc == "function") {
-      this.eventSource && (this.eventSource.onopen = onOpenFunc);
-    }
-    // 如果被@OnSseOpen装饰
-    const onErrorFunc = Reflect.getMetadata(EVENT_SOURCE_ERROR_KEY, target);
-    // console.log("sse-proxy[error]:", onErrorFunc);
-    if (typeof onErrorFunc == "function") {
-      this.eventSource && (this.eventSource.onerror = onErrorFunc);
-    }
-  }
-
-  private registerSseEvent(target: any) {
-    const eventSource = this.eventSource;
-    if (!eventSource) return;
-    const events = Reflect.getMetadata(
-      EVENT_SOURCE_EVENTS_KEY,
-      target
-    ) as RegisterSseEvent[];
-    // console.log('registerSseEvent:',events)
-    events.map((event) => {
-      eventSource.addEventListener(event.eventName, event.emit, event.options);
-    });
-  }
-
   get version() {
     return this.Version;
   }
@@ -487,7 +328,7 @@ export class SnailServer<
     return this.EnableLog;
   }
 
-  get baseURL() {
+  get baseUrl() {
     return this.BaseURL;
   }
 }

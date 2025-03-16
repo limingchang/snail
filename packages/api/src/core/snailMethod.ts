@@ -13,7 +13,7 @@ import {
   SpecialResponseData,
   StandardResponseData,
   ResponseJsonData,
-  SnailMethodEventType
+  SnailMethodEventType,
 } from "../typings";
 
 import {
@@ -65,6 +65,7 @@ export class SnailMethod<
   private Request: AxiosRequestConfig;
   private Response: AxiosResponse<RT>;
   private ResponseType: any;
+  private Error: any;
   private eventMap: Map<string, Set<EventHandler>>;
   private onceWrapperMap: Map<EventHandler, EventHandler>;
   private propertyKey: string;
@@ -180,6 +181,7 @@ export class SnailMethod<
       this.emit("error", error);
       this.emit("finish", error);
       console.error(error);
+      this.Error = error;
       return error;
     }
   };
@@ -266,6 +268,22 @@ export class SnailMethod<
     };
     this.Request = request;
     return request;
+  }
+
+  onSuccess(handler: EventHandler<RT>) {
+    this.on("success", handler);
+  }
+
+  onError(handler: EventHandler<RT>) {
+    this.on("error", handler);
+  }
+
+  onHitCache(handler: EventHandler<RT>) {
+    this.on("hitCache", handler);
+  }
+
+  onFinish(handler: EventHandler<RT>) {
+    this.on("finish", handler);
   }
 
   on(eventName: SnailMethodEventType, handler: EventHandler<RT>) {
@@ -381,6 +399,11 @@ export class SnailMethod<
     return `${this.apiInstance.name}.${this.Name}`;
   }
 
+  get error(){
+    if(this.Error) return this.Error;
+    return null;
+  }
+
   registerStrategys(...strategys: Array<new () => Strategy>) {
     this.strategies.push(...strategys);
   }
@@ -486,4 +509,6 @@ export class SnailMethod<
       onDownloadProgress,
     };
   }
+
+
 }

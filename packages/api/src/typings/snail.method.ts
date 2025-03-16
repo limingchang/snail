@@ -15,11 +15,8 @@ export enum EventType {
   Finish = "finish",
 }
 
-export type SnailMethodEventType = `${EventType}` | EventType & string
-
+export type SnailMethodEventType = `${EventType}` | EventType | string;
 
 export type SendRequest<
   RD extends ResponseData = StandardResponseData<ResponseJsonData>
-> = () =>
-  | Promise<RD extends SpecialResponseData ? AxiosResponse<RD> : RD>
-  | Promise<Error>;
+> = () => Promise<RD extends SpecialResponseData ? AxiosResponse<RD> : RD>;

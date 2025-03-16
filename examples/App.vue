@@ -1,53 +1,63 @@
 <template>
   <div>
     <p>monorepo 组件开发测试</p>
-    <div style="width: 200px;">
+    <div style="width: 200px">
       <button style="background-color: var(--snail-color-danger); color: #fff">
         <SIcon>
-          <IconContract />
-        </SIcon>按钮测试
+          <IconContract /> </SIcon
+        >按钮测试
       </button>
       <SClickCopy text="复制内容"></SClickCopy>
     </div>
     <p>
-      <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
+      <button
+        ref="btn"
+        style="background-color: var(--snail-color-danger); color: #fff"
+        @click="clickHanle"
+      >
         <SIcon size="large">
-          <IconSign />
-        </SIcon>图形验证
+          <IconSign /> </SIcon
+        >图形验证
         <SIcon>
-          <Edit />
-        </SIcon>兼容测试
+          <Edit /> </SIcon
+        >兼容测试
       </button>
       <ElButton type="primary" @click="testHandle">
         <!-- <ElButton type="primary"> -->
         <ElIcon>
-          <Edit />
-        </ElIcon>山河随机
+          <Edit /> </ElIcon
+        >山河随机
       </ElButton>
     </p>
     <p>
       <ElButton type="primary" @click="handleNongli">
         <!-- <ElButton type="primary"> -->
         <ElIcon>
-          <Edit />
-        </ElIcon>山河农历
+          <Edit /> </ElIcon
+        >山河农历
       </ElButton>
       <ElButton type="primary" @click="handleApiTest">
         <!-- <ElButton type="primary"> -->
         <ElIcon>
-          <Edit />
-        </ElIcon>Api调试
+          <Edit /> </ElIcon
+        >Api调试
       </ElButton>
     </p>
     <p>
       <!-- <ElButton type="success" @click="handleSse">SSE测试</ElButton> -->
     </p>
     <div class="icon-box" v-show="false">
-      <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
+      <span
+        class="icon"
+        v-for="(icon, index) in SIconSvgs"
+        :key="`${icon.name}`"
+      >
         <SIcon :icon="icon.name">
           <!-- <component :is="icon.name"></component> -->
         </SIcon>
-        <span class="icon-name" style="display: inline-block;">{{ toPascalCase(icon.name!) }}</span>
+        <span class="icon-name" style="display: inline-block">{{
+          toPascalCase(icon.name!)
+        }}</span>
       </span>
     </div>
     <p>
@@ -67,7 +77,7 @@ import { SIcon, SClickCopy } from "@snail-js/vue";
 import { IconMobile, IconSign, IconContract, SIconSvgs } from "@snail-js/vue";
 // import * as SnailIcons from "@snail-js/theme";
 
-import { SWordCloud } from "@snail-js/vue"
+import { SWordCloud } from "@snail-js/vue";
 
 import { AliCaptcha, CaptchaObj } from "@snail-js/vue";
 import { ElButton, ElIcon } from "element-plus";
@@ -85,8 +95,7 @@ const checkPermission = async () => {
       return resolve(false);
     }, 500);
     // reject(false)
-  })
-
+  });
 };
 
 const subMenus = [
@@ -106,7 +115,7 @@ const subMenus = [
     },
     // enabled: checkPermission,
   },
-]
+];
 
 const menuItems = ref<Array<SPopUpMenuItemOptions>>([
   {
@@ -124,7 +133,7 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
       console.log("菜单2");
     },
     enabled: true,
-    children: subMenus
+    children: subMenus,
   },
   {
     label: "菜单3",
@@ -133,7 +142,6 @@ const menuItems = ref<Array<SPopUpMenuItemOptions>>([
       console.log("菜单3");
     },
     enabled: true,
-
   },
 ]);
 
@@ -144,16 +152,20 @@ onMounted(() => {
 const menuHandle = () => {
   console.log("menu");
   // showMenu.value = true;
-  SPopUpMenu({
-    context: { a: 1 }
-  },
+  SPopUpMenu(
+    {
+      context: { a: 1 },
+    },
     menuItems.value
-  )
+  );
 };
 
-watch(() => showMenu.value, () => {
-  console.log("showMenu:", showMenu.value)
-})
+watch(
+  () => showMenu.value,
+  () => {
+    console.log("showMenu:", showMenu.value);
+  }
+);
 
 const clickHanle = ref(() => {
   console.log("click");
@@ -163,52 +175,48 @@ const clickHanle = ref(() => {
 
 const toPascalCase = (str: string) => {
   // 分割字符串为数组，每个元素是以短横线分隔的单词
-  const words = str.split('-');
+  const words = str.split("-");
   // 遍历数组，将每个单词的首字母大写，然后拼接成字符串
-  return words.map(word => {
-    return word.charAt(0).toUpperCase() + word.slice(1);
-  }).join('');
-}
+  return words
+    .map((word) => {
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join("");
+};
 
 // 词云组件数据
-const hotWords = [
-  "java",
-  "javaScript",
-  "HTML",
-  "CSS"
-]
+const hotWords = ["java", "javaScript", "HTML", "CSS"];
 
-import { TestApi, ShanHeApiRandom } from './server/shanhe'
+import { TestApi, ShanHeApiRandom } from "./server/shanhe";
 
 const testHandle = async () => {
   // const res = await TestApi.shanheRandom<ShanHeApiRandom>()
-  const method = TestApi.shanheRandom<ShanHeApiRandom>()
-  const { send, on } = method
+  const method = TestApi.shanheRandom<ShanHeApiRandom>();
+  const { send, on } = method;
   // console.log('method:', send)
-  const res = await send()
+  const res = await send();
   // console.log('method:', method.name)
-}
+};
 
 const handleNongli = async () => {
-  const { send, on } = TestApi.shanheNongli()
-  await send()
-  console.log('山河农历api:')
-}
+  const { send, on } = TestApi.shanheNongli();
+  await send();
+  console.log("山河农历api:");
+};
 
 const handleApiTest = async () => {
-  const { send, on } = TestApi.test('a1', { b: 'cc',type:'admin' })
-  
-  const res = await send()
-  console.log('Api调试',res)
-}
+  const { send, on } = TestApi.test<{}>("a1", { b: "cc", type: "admin" });
+  on("success", () => {});
+  const res = await send();
+  console.log("Api调试", res);
+};
 
-// import { SystemApi } from "./server/local"
-
+// import { SystemSse } from "./server/local";
+// const { open, close, eventSource } = SystemSse;
 // const handleSse = async () => {
-//   const sse = SystemApi.sse()
-//   console.log("app:", sse)
-// }
-
+//   open();
+//   console.log("app:", eventSource);
+// };
 </script>
 
 <style lang="scss">

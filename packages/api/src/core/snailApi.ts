@@ -1,16 +1,14 @@
-import { resolveUrl } from "../utils";
-
 import {
   Strategy,
-  ApiConfig,
+  ApiOptions,
   ApiInstanceOptions,
 } from "../typings";
 // import keys
 import { API_CONFIG_KEY } from "../decorators/api";
 import { STRATEGY_KEY } from "../decorators/strategy";
-import { CACHE_EXPIRE_SOURCE_KEY, NO_CACHE_KEY } from "../decorators/cache";
+import { NO_CACHE_KEY } from "../decorators/cache";
 
-import { SnailServer, StrategyMap, ExpireSourceMap } from "./snailServer";
+import { SnailServer, StrategyMap } from "./snailServer";
 
 export class SnailApi {
   private Name: string;
@@ -67,7 +65,7 @@ export class SnailApi {
     return Reflect.getMetadata(
       API_CONFIG_KEY,
       this.constructor
-    ) as ApiConfig & {
+    ) as ApiOptions & {
       url: string;
     };
   }

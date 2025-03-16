@@ -1,22 +1,22 @@
 import "reflect-metadata";
 export const EVENT_SOURCE_OPTION_KEY = Symbol("SNAIL_EVENT_SOURCE_OPTION_KEY");
 
+import { SseOptions } from "../typings";
 /**
  * 将装饰的方法创建为SSE连接
  * @param path 路径，要连接到服务端sse端点路径
  * @param options 配置选项
  * @returns 调用被装饰的方法可获得返回{close,eventSource}
  */
-export const Sse = (path?: string, options?: { withCredentials: boolean }) => {
-  return (target: any, propertyKey: string) => {
+export const Sse = (path?: string, options?: SseOptions) => {
+  return (target: object) => {
     Reflect.defineMetadata(
       EVENT_SOURCE_OPTION_KEY,
       {
         path,
-        withCredentials: options?.withCredentials,
+        ...options,
       },
       target,
-      propertyKey
     );
   };
 };

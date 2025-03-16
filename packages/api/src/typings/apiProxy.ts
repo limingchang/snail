@@ -32,20 +32,20 @@ export type ApiResponse<T> = Promise<{
 //T 代理的api cass,
 //RT response.data类型,
 //DK response.data.data key,
-//SK response.data.status key,
-//MK response.data.message key
 export type ApiProxy<
   T extends object,
   RT extends ResponseData = StandardResponseData<ResponseJsonData>,
-  DK extends string = "data",
-  SK extends string = "code",
-  MK extends string = "message"
+  DK extends string = "data"
 > = {
   [K in keyof T]: T[K] extends (...args: infer A) => any
     ? RT extends SpecialResponseData
-      ? <RD extends SpecialResponseData>(...args: A) => SnailMethod<RD>
-      : <RD extends ResponseJsonData>(
+      ? <RD>(
           ...args: A
-        ) => SnailMethod<StandardResponseData<RD, DK, SK, MK>>
+        ) => SnailMethod<RD extends SpecialResponseData ? RD : never>
+      : <RD>(
+          ...args: A
+        ) => RD extends SpecialResponseData
+          ? SnailMethod<RD>
+          : SnailMethod<RT & { [KK in DK]: RD }>
     : T[K];
 };
