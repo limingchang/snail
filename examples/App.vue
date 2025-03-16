@@ -185,7 +185,7 @@ const testHandle = async () => {
   const method = TestApi.shanheRandom<ShanHeApiRandom>()
   const { send, on } = method
   // console.log('method:', send)
-  await send()
+  const res = await send()
   // console.log('method:', method.name)
 }
 

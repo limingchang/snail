@@ -1,13 +1,19 @@
-import { AxiosResponse, AxiosRequestConfig } from "axios";
+import { AxiosResponse, AxiosRequestConfig, AxiosError } from "axios";
 
 import {
   EventHandler,
   Strategy,
   MethodOption,
+  RequestMethodEnum,
   RequestMethod,
   VersioningType,
   CacheSetData,
   ResponseData,
+  SendRequest,
+  SpecialResponseData,
+  StandardResponseData,
+  ResponseJsonData,
+  SnailMethodEventType
 } from "../typings";
 
 import {
@@ -16,10 +22,10 @@ import {
   generateCacheKey,
   buildRequestArgs,
   replacePlaceholders,
+  isSpecialResponse,
 } from "../utils";
 
 import {
-  SnailServer,
   CacheStorageMap,
   CacheForMap,
   ExpireSourceMap,
@@ -36,9 +42,20 @@ import { applyVersioning } from "../versioning";
 import { STRATEGY_KEY } from "../decorators/strategy";
 import { METHOD_KEY } from "../decorators/api";
 import { VERSION_KEY } from "../decorators/versioning";
-import { CACHE_EXPIRE_SOURCE_KEY, NO_CACHE_KEY } from "../decorators/cache";
+import { NO_CACHE_KEY } from "../decorators/cache";
+import {
+  UPLOAD_PROGRESS_KEY,
+  DOWNLOAD_PROGRESS_KEY,
+} from "../decorators/progress";
 
-export class SnailMethod<T = ResponseData, RD = any> {
+/**
+ * SnailMethod
+ * 泛型参数: RT => response.data类型,默认标准json返回
+ *  DK => response.data.data 类型
+ */
+export class SnailMethod<
+  RT extends ResponseData = StandardResponseData<ResponseJsonData>
+> {
   // 私有属性
   // private serverInstance: SnailServer;
   private Name: string;
@@ -46,7 +63,7 @@ export class SnailMethod<T = ResponseData, RD = any> {
   private target: Object;
   private strategies: Array<new () => Strategy> = [];
   private Request: AxiosRequestConfig;
-  private Response: AxiosResponse<T>;
+  private Response: AxiosResponse<RT>;
   private ResponseType: any;
   private eventMap: Map<string, Set<EventHandler>>;
   private onceWrapperMap: Map<EventHandler, EventHandler>;
@@ -54,7 +71,7 @@ export class SnailMethod<T = ResponseData, RD = any> {
 
   private Url: string = "";
   private Path: string = "";
-  private Method: RequestMethod = RequestMethod.GET;
+  private Method: RequestMethod = RequestMethodEnum.GET;
   private Version: string = "";
   private Args: any[] = [];
 
@@ -80,9 +97,9 @@ export class SnailMethod<T = ResponseData, RD = any> {
     this.eventMap.set("finish", new Set());
   }
 
-  public send = async () => {
+  public send: SendRequest<RT> = async () => {
     // 发送请求方法
-    // this.enableLog() && console.log("send:", this.name);
+    this.enableLog() && console.log("send:", this.name);
     const [serverName] = this.apiInstance.name.split(".");
     const axios = AxiosInstanceMap.get(serverName);
     if (!axios) throw new Error("AxiosInstance not created");
@@ -91,6 +108,8 @@ export class SnailMethod<T = ResponseData, RD = any> {
     // console.log("strategies:", strategies.length);
     // 应用请求策略
     this.Request = await applyStrategies(this.Request, strategies, "request");
+    // 添加进度条
+    this.Request = this.applyProgress(this.Request);
     // 构建请求参数
     // data 请求数据
     // params url参数
@@ -127,38 +146,41 @@ export class SnailMethod<T = ResponseData, RD = any> {
         this.emit("hitCache", data);
         this.emit("success", data);
         this.emit("finish", data);
-        return data;
+        return data as RT;
       }
     }
     // // 发送请求
     const requester = AxiosInstanceMap.get(serverName);
     if (!requester) throw new Error("AxiosInstance not created");
     try {
-      const response = await requester.request<T>(this.Request);
+      const rawResponse = await requester.request<RT>(this.Request);
+      const isSpecial = isSpecialResponse(rawResponse);
       // 应用响应策略
-      const responseData = (await applyStrategies(
-        response,
+      const response = (await applyStrategies(
+        rawResponse,
         strategies,
         "response"
-      )) as AxiosResponse<T>;
+      )) as AxiosResponse<RT>;
       // // 设置缓存
       if (!isNoCache) {
         // 启用缓存
-        await this.setCacheData(serverName, responseData);
+        !isSpecial && (await this.setCacheData(serverName, response));
       }
-      this.Response = responseData;
+      this.Response = response;
       // 触发hitSource
       this.applyHitSource(serverName);
       // console.log("当前方法请求成功要让下面的缓存失效");
       // console.log(this.getExpireSources());
       // 触发事件
-      this.emit("success", responseData.data);
-      this.emit("finish", responseData.data);
-      return responseData;
-    } catch (error) {
+      this.emit("success", response.data);
+      this.emit("finish", response.data);
+      if (isSpecial) return response as AxiosResponse<RT>;
+      return response.data as unknown as RT;
+    } catch (error: AxiosError | any) {
       this.emit("error", error);
       this.emit("finish", error);
-      throw error;
+      console.error(error);
+      return error;
     }
   };
 
@@ -246,7 +268,7 @@ export class SnailMethod<T = ResponseData, RD = any> {
     return request;
   }
 
-  on(eventName: string, handler: EventHandler<RD>) {
+  on(eventName: SnailMethodEventType, handler: EventHandler<RT>) {
     // 绑定事件
     if (typeof handler !== "function") {
       throw new TypeError("Handler must be a function");
@@ -256,9 +278,9 @@ export class SnailMethod<T = ResponseData, RD = any> {
     this.eventMap.set(eventName, handlers);
   }
 
-  once(eventName: string, handler: EventHandler<RD>) {
+  once(eventName: SnailMethodEventType, handler: EventHandler<RT>) {
     // 绑定一次性事件
-    const onceHandler = (data?: RD) => {
+    const onceHandler = (data?: RT) => {
       // 先执行再清理（避免中途报错导致未清理）
       try {
         handler.apply(this, [data]);
@@ -273,7 +295,7 @@ export class SnailMethod<T = ResponseData, RD = any> {
     this.on(eventName, onceHandler);
   }
 
-  private emit(eventName: string, ...args: any) {
+  private emit(eventName: SnailMethodEventType, ...args: any) {
     // 触发事件
     const handlers = this.eventMap.get(eventName);
     if (!handlers || handlers.size === 0) return false;
@@ -287,7 +309,7 @@ export class SnailMethod<T = ResponseData, RD = any> {
     return true;
   }
 
-  off(eventName: string, handler: EventHandler<RD>) {
+  off(eventName: SnailMethodEventType, handler: EventHandler<RT>) {
     // 移除事件
     const handlers = this.eventMap.get(eventName);
     if (!handlers) return;
@@ -312,7 +334,7 @@ export class SnailMethod<T = ResponseData, RD = any> {
     if (!cacheStorage) {
       throw new Error("CacheStorage not created");
     }
-    const cacheData = await cacheStorage.get<RD>(methodKey);
+    const cacheData = await cacheStorage.get<RT>(methodKey);
     const { error } = cacheData;
     if (!error) {
       // 缓存命中
@@ -323,7 +345,8 @@ export class SnailMethod<T = ResponseData, RD = any> {
 
   private async setCacheData(
     serverName: string,
-    responseData: AxiosResponse<T>
+    // Bug 修复：泛型类型“StandardResponseData”需要介于 0 和 4 类型参数之间，这里只传递 3 个参数
+    responseData: AxiosResponse<RT>
   ) {
     const methodKey = await generateCacheKey(
       this.name,
@@ -420,7 +443,7 @@ export class SnailMethod<T = ResponseData, RD = any> {
       ? true
       : false;
     // console.log("noCacheFlag:", noCacheFlag);
-    
+
     return flag ? noCacheFlag : true;
   }
 
@@ -436,10 +459,31 @@ export class SnailMethod<T = ResponseData, RD = any> {
       sources.map((source) => {
         cacheKeys.map((key) => {
           if (key.startsWith(source)) {
+            this.enableLog() &&
+              console.warn(`[${this.name}]请求成功，触发清除缓存：${source}`);
             cacheStorage.delete(key);
           }
         });
       });
     }
+  }
+
+  private applyProgress(request: AxiosRequestConfig): AxiosRequestConfig {
+    // 应用进度
+    const onUploadProgress = Reflect.getMetadata(
+      UPLOAD_PROGRESS_KEY,
+      this.target,
+      this.propertyKey
+    );
+    const onDownloadProgress = Reflect.getMetadata(
+      DOWNLOAD_PROGRESS_KEY,
+      this.target,
+      this.propertyKey
+    );
+    return {
+      ...request,
+      onUploadProgress,
+      onDownloadProgress,
+    };
   }
 }

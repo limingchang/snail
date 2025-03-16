@@ -1,46 +1,33 @@
 import "reflect-metadata";
 
-import axios, {
-  AxiosHeaders,
-  AxiosInstance,
-  AxiosRequestConfig,
-  AxiosResponse,
-  CreateAxiosDefaults,
-} from "axios";
+import axios, { AxiosInstance, CreateAxiosDefaults } from "axios";
 import { createCache } from "../cache";
 import {
   SnailOption,
   Strategy,
-  ApiConfig,
   ApiInstanceOptions,
   VersioningOption,
   CacheManagementOption,
   CacheStorage,
   MethodOption,
   ApiProxy,
-  SseProxy,
   ResponseData,
+  StandardResponseData,
+  ResponseJsonData,
   RegisterSseEvent,
   CacheType,
   RequestMethod,
   CacheForType,
 } from "../typings";
 
-import { replacePlaceholders, resolveUrl } from "../utils";
-
-import { applyVersioning, VersioningResult } from "../versioning/versioning";
-
-import { API_CONFIG_KEY, METHOD_KEY } from "../decorators/api";
+import { resolveUrl } from "../utils";
+// import keys
+import { METHOD_KEY } from "../decorators/api";
 import { SERVER_CONFIG_KEY } from "../decorators/server";
 import { STRATEGY_KEY } from "../decorators/strategy";
-import { REQUEST_ARGS_KEY } from "../decorators/args";
 
-import { VERSIONING_KEY, VERSION_KEY } from "../decorators/versioning";
+import { VERSIONING_KEY } from "../decorators/versioning";
 import { NO_CACHE_KEY, CACHE_EXPIRE_SOURCE_KEY } from "../decorators/cache";
-import {
-  UPLOAD_PROGRESS_KEY,
-  DOWNLOAD_PROGRESS_KEY,
-} from "../decorators/progress";
 
 import { SnailApi } from "./snailApi";
 import { SnailMethod } from "./snailMethod";
@@ -61,7 +48,7 @@ const defaultServerOptions: SnailOption = {
   baseURL: "",
   timeout: 5000,
   cacheManage: defaultCacheManageOptions,
-  cacheFor: RequestMethod.GET,
+  cacheFor: "get",
   enableLog: false,
 };
 
@@ -73,8 +60,10 @@ import {
 } from "../decorators/sse";
 
 export class SnailServer<
-  R extends {} = ResponseData,
-  DK extends string = "data"
+  RT extends ResponseData = StandardResponseData<ResponseJsonData>,
+  DK extends string = "data",
+  SK extends string = "code",
+  MK extends string = "message"
 > {
   private Name: string;
   private BaseURL: string;
@@ -152,7 +141,7 @@ export class SnailServer<
 
   createApi<T extends SnailApi>(
     constructor: new (options: ApiInstanceOptions) => T
-  ): ApiProxy<T, R> {
+  ): ApiProxy<T, RT, DK, SK, MK> {
     const serverVersioning = Reflect.getMetadata(
       VERSIONING_KEY,
       this.constructor
@@ -170,7 +159,7 @@ export class SnailServer<
     return new Proxy(apiInstance, {
       get: (target: object, propertyKey: string | symbol) => {
         // this.EnableLog &&
-          // console.log("ApiProxy:", target.constructor.name, "|", propertyKey);
+        // console.log("ApiProxy:", target.constructor.name, "|", propertyKey);
         // target.constructor.name;
         // 忽略symbol类型
         if (typeof propertyKey !== "string")
@@ -184,8 +173,8 @@ export class SnailServer<
         // 未被@Method装饰的方法直接返回
         if (!methodConfig) return (target as any)[propertyKey];
 
-        return (...args: []) => {
-          const method = new SnailMethod<T, R>(
+        return <RD extends ResponseData = ResponseJsonData>(...args: []) => {
+          const method = new SnailMethod<RD>(
             apiInstance,
             target,
             propertyKey,
@@ -291,7 +280,7 @@ export class SnailServer<
           // }
         };
       },
-    }) as ApiProxy<T, R>; //as ApiProxy<T, R, DK>;
+    }) as ApiProxy<T, RT, DK, SK, MK>; //as ApiProxy<T, R, DK>;
   }
 
   private initCacheManage(

@@ -3,12 +3,9 @@ import { resolveUrl } from "../utils";
 import {
   Strategy,
   ApiConfig,
-  // VersioningType,
   ApiInstanceOptions,
 } from "../typings";
 // import keys
-// import { STRATEGY_KEY } from "../decorators/strategy";
-// import { VERSION_KEY } from "../decorators/versioning";
 import { API_CONFIG_KEY } from "../decorators/api";
 import { STRATEGY_KEY } from "../decorators/strategy";
 import { CACHE_EXPIRE_SOURCE_KEY, NO_CACHE_KEY } from "../decorators/cache";
@@ -35,12 +32,10 @@ export class SnailApi {
   }
 
   private init() {
-    // console.log("serverInstance:", this.serverInstance.name);
     const apiConfig = this.getApiConfig();
     this.initName();
     // console.log("apiName:", this.Name);
     this.initStrategy();
-    // console.log('server-version:', this.serverInstance.version)
     // 同步或覆盖版本号
     this.Version = apiConfig.version ?? this.serverInstance.version;
     // console.log("api-version:", this.Version);

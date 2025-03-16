@@ -163,3 +163,15 @@ export const buildRequestArgs = (
 
   return requestArgs;
 };
+
+
+// 判断是否是特殊Response数据
+/**
+ * 判断响应的数据类型是否为 application/json
+ * @param {AxiosResponse} response - Axios 的响应对象
+ * @returns {boolean} - 如果响应的数据类型是 application/json 则返回 true，否则返回 false
+ */
+export function isSpecialResponse(response: AxiosResponse): boolean {
+  const contentType = response.headers['content-type'];
+  return contentType && contentType.includes('application/json');
+}
