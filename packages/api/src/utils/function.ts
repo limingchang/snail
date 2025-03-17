@@ -4,7 +4,7 @@ import { REQUEST_ARGS_KEY } from "../decorators/args";
 
 export async function generateCacheKey(
   methodName: string,
-  version: string,
+  version: string | undefined,
   request: AxiosRequestConfig
 ) {
   const { method, url, params, headers } = request;

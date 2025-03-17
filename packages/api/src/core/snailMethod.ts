@@ -10,7 +10,6 @@ import {
   CacheSetData,
   ResponseData,
   SendRequest,
-  SpecialResponseData,
   StandardResponseData,
   ResponseJsonData,
   SnailMethodEventType,
@@ -64,7 +63,6 @@ export class SnailMethod<
   private strategies: Array<new () => Strategy> = [];
   private Request: AxiosRequestConfig;
   private Response: AxiosResponse<RT>;
-  private ResponseType: any;
   private Error: any;
   private eventMap: Map<string, Set<EventHandler>>;
   private onceWrapperMap: Map<EventHandler, EventHandler>;
@@ -73,7 +71,7 @@ export class SnailMethod<
   private Url: string = "";
   private Path: string = "";
   private Method: RequestMethod = RequestMethodEnum.GET;
-  private Version: string = "";
+  private Version?: string;
   private Args: any[] = [];
 
   constructor(
@@ -141,7 +139,7 @@ export class SnailMethod<
     this.enableLog() && console.log("method is noCache:", isNoCache);
     if (!isNoCache) {
       // 启用缓存
-      const { data, error } = await this.getCacheData(serverName);
+      const { data } = await this.getCacheData(serverName);
       this.enableLog() && console.log("getCacheData:", data);
       if (data) {
         this.emit("hitCache", data);
@@ -313,7 +311,7 @@ export class SnailMethod<
     this.on(eventName, onceHandler);
   }
 
-  private emit(eventName: SnailMethodEventType, ...args: any) {
+  emit(eventName: SnailMethodEventType, ...args: any) {
     // 触发事件
     const handlers = this.eventMap.get(eventName);
     if (!handlers || handlers.size === 0) return false;
@@ -399,12 +397,12 @@ export class SnailMethod<
     return `${this.apiInstance.name}.${this.Name}`;
   }
 
-  get error(){
-    if(this.Error) return this.Error;
+  get error() {
+    if (this.Error) return this.Error;
     return null;
   }
 
-  registerStrategys(...strategys: Array<new () => Strategy>) {
+  registerStrategies(...strategys: Array<new () => Strategy>) {
     this.strategies.push(...strategys);
   }
 
@@ -509,6 +507,4 @@ export class SnailMethod<
       onDownloadProgress,
     };
   }
-
-
 }

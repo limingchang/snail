@@ -7,10 +7,6 @@ import {
   VersioningCustomOption,
 } from "../typings";
 
-import { VERSIONING_KEY } from "../decorators/versioning";
-
-import { SnailServer } from "../core/snailServer";
-
 const versionHandlers = {
   [VersioningType.Uri]: (version: string, versioning: VersioningUriOption) => {
     const prefix = versioning.prefix || "v";

@@ -1,5 +1,5 @@
 // export * from './api';
-export * from './snailServer';
-export * from './snailMethod';
-export * from './snailApi';
-export * from './snailSse';
+export { SnailServer } from "./snailServer";
+export { SnailMethod } from "./snailMethod";
+export { SnailApi } from "./snailApi";
+export { SnailSse } from "./snailSse";

@@ -48,7 +48,7 @@ export class SnailApi {
     StrategyMap.set(this.Name, serverStrategies);
   }
 
-  registerStrategys(...strategys:  Array<new () => Strategy>) {
+  registerStrategies(...strategys:  Array<new () => Strategy>) {
     const serverStrategies = StrategyMap.get(this.Name) ?? [];
     serverStrategies.push(...strategys);
     StrategyMap.set(this.Name, serverStrategies);

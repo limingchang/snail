@@ -1,13 +1,16 @@
 <p>
   <img src="https://img.shields.io/badge/TypeScript-1e80ff"></img>
   <img src="https://img.shields.io/npm/v/axios?label=axios&labelColor=1e80ff&color=67C23A"></img>
+  <img src="https://img.shields.io/npm/v/reflect-metadata?label=reflect-metadata&labelColor=1e80ff&color=67C23A"></img>
 </p>
+
+中文文档|<a href='./README_EN.md'>English Document</a>
 
 ## 项目介绍
 
 - 基于 Axios 二次封装
 - 使用`reflect-metadata`创建和处理元数据
-- 提供装饰器方式定义请求，基本实例`Snail`，请求实例`Api`
+- 提供装饰器定义请求请求的方式，支持所有请求方法和 SSE
 
 ## 安装
 
@@ -42,29 +45,29 @@
 
 ```typescript
 // service.ts
-import { Snail, Server } from "@snail-js/api";
+import { SnailServer, Server } from "@snail-js/api";
 
 @Server({
   baseURL: "/api",
   timeout: 5000,
 })
-class BackEnd extends Snail {}
+class BackEnd extends SnailServer {}
 
 export const Service = new BackEnd();
 ```
 
-3. 创建请求实例
+3. 创建 Api 实例
 
 ```typescript
 // user.ts
-import { Api, Get, Post, Params, Data } from "@snail-js/api";
+import { Api, Get, Post, Query, Data,SnailApi } from "@snail-js/api";
 
 import { Service } from "./service";
 
 @Api("user")
-class UserApi {
+class UserApi extends SnailApi {
   @Get()
-  get(@Params("id") id: string) {}
+  get(@Query("id") id: string) {}
 
   @Post()
   create(@Data() user: User) {}
@@ -78,47 +81,171 @@ export const userApi = Service.createApi(UserApi);
 ```typescript
 import { userApi } from "./user";
 
-const res = await userApi.get("1");
-const { error, data } = res;
-if (error !== null) {
-  console.log(data);
-}
+const getUser = await userApi.get("1");
+const { send, onSuccess, onError, onHitCache, on } = getUser;
+const data = await send();
 ```
+
+## `SnailMethod` 实例
+- 调用`Service.createApi(ApiInstance)`后会为`ApiInstance`内被`RequestMethod`(如：@Get、@Post...)装饰的方法创建一个代理，返回一个函数，此函数包含请求参数，调用此函数返回`SnailMethod` 实例
+
+### `SnailMethod` 实例方法
+
+- `send` 发送请求
+ _异步函数，发送当前请求_
+- `onSuccess` 请求成功回调
+ _注册请求成功事件_
+- `onError` 请求失败回调
+ _注册请求失败事件_
+- `onHitCache` 请求命中缓存回调
+ _注册请求命中缓存事件_
+- `onFinish` 请求完成回调
+ _注册请求完成事件_
+- `on` 监听事件
+ _注册自定义事件_
+- `emit` 触发事件
+ _触发自定义事件_
+- `off` 取消监听事件
+ _取消自定义事件监听_
+
+
+### `SnailMethod` 实例属性
+- response : AxiosResponse
+- request : AxiosRequestConfig ,最终请求的request,这个request是被Versioning和Strategy处理过的
+- version : string,最终请求的版本，如果没有开启Versioning则为undefine
+- name : string,完整的SnailMethod名称，格式为`ServerName.ApiName.MethodName`
+- error : Error | null,请求失败的错误信息,无错误为null
 
 ### Server 配置
 
-- `baseUrl`：同`Axios`，使用`vite.proxy`时，请使用`\`开头，直接跨域请求请填写完整地址
-- `Versioning`:版本管理器
-  - type:管理器类型，enum:Uri,Head,Query,Custom
-  - prifix:前缀,字符串；添加在版本号前面的字符，默认为`v`
-  - defaultVersion:全局默认版本
-- timenout:全局超时时间，会被 Api 的 timeout 值覆盖
-- CacheManage：缓存管理器
-  - type:缓存管理器类型，CacheType,`enum:localStorage,IndexDB,Memory`
-  - ttl: 缓存过期时间
-- enableLog: 是否打印日志
+<table>
+  <tr>
+    <th>配置项</th>
+    <th>类型</th>
+    <th>是否必须</th>
+    <th>默认值</th>
+    <th>说明</th>
+  </tr>
+  <tr>
+    <td>name</td>
+    <td>string</td>
+    <td>否</td>
+    <td>默认使用继承`SnailServer`的类名作为name</td>
+    <td>server实例唯一标识，请勿与其他server重复</td>
+  </tr>
+  <tr>
+    <td>baseUrl</td>
+    <td>string</td>
+    <td>否</td>
+    <td>'\'</td>
+    <td>请求后端的api地址前缀，同`axios`的baseUrl</td>
+  </tr>
+  <tr>
+    <td>Versioning</td>
+    <td><a href="#versioningoption">VersioningOption</a></td>
+    <td>否</td>
+    <td>undefine</td>
+    <td>版本管理器配置，默认不开启</td>
+  </tr>
+  <tr>
+    <td>timeout</td>
+    <td>number</td>
+    <td>否</td>
+    <td>5000</td>
+    <td>单位:毫秒；全局超时时间，会被 Api 的 timeout 值覆盖</td>
+  </tr>
+  <tr>
+    <td>cacheManage</td>
+    <td>{type:CacheType,ttl:number}</td>
+    <td>否</td>
+    <td>{
+      type: CacheType.Memory,
+      ttl: 500
+    }</td>
+    <td>缓存管理器,ttl单位为秒</td>
+  </tr>
+  <tr>
+    <td>cacheFor</td>
+    <td>RequestMethod | RequestMethod[] | 'All' | 'all' </td>
+    <td>否</td>
+    <td>Get</td>
+    <td>要启用缓存的方法，默认仅开启Get缓存</td>
+  </tr>
+  <tr>
+    <td>enableLog</td>
+    <td>boolean</td>
+    <td>否</td>
+    <td>false</td>
+    <td>是否开启日志，用于调试</td>
+  </tr>
+</table>
 
-## Api 配置
+### Api 配置
+- 请使用`@Api()`装饰自定义Api类并继承`SnailApi`
 
-- url?: api 请求端点，与 Server 中的`baseUrl`拼接请求地址，不要使用`/`开头
-- timeout?: 请求超时时间;会覆盖`Server.timeout`
-- version?: 请求版本，会覆盖`Server.Versioning.defaultVersion`;
+<table>
+  <tr>
+    <th>配置项</th>
+    <th>类型</th>
+    <th>是否必须</th>
+    <th>默认值</th>
+    <th>说明</th>
+  </tr>
+  <tr>
+    <td>name</td>
+    <td>string</td>
+    <td>否</td>
+    <td>默认使用继承`SnailApi`的类名作为name</td>
+    <td>api实例唯一标识，请勿与其他api重复</td>
+  </tr>
+  <tr>
+    <td>timeout</td>
+    <td>number</td>
+    <td>否</td>
+    <td></td>
+    <td>请求超时时间;会覆盖Server的timeout设置</td>
+  </tr>
+  <tr>
+    <td>version</td>
+    <td>string</td>
+    <td>否</td>
+    <td></td>
+    <td>api版本号，会覆盖server的`defaultVersion`配置</td>
+  </tr>
+</table>
 
 ## 请求方法装饰器
 
+- 在`Api`类中使用，用于标记请求方法
 - 提供 axios 的全部请求方法`Get,Post,Head,Put,Delete,Patch,Options`
-- path?: string; 请求端点路径，与`baseUrl,api.url`共同拼接组成最终请求路径，不要使用`/`开头
+- 参数: `path?: string`; 请求端点路径，与`baseUrl,api.url`共同拼接组成最终请求路径
 
 ## 参数装饰器
 
-### 查询参数 `@Params`
+### 查询参数 `@Query`
+
+- `@Query(key?:string)`
+
+- 单个参数使用
+
+```typescript
+@Api("user")
+class UserApi {
+  @Get()
+  get(@Query("id") id: string, @Query("sign") sign: string) {}
+}
+```
+
+> 传入 key，标记单个查询参数，拼接到请求`?k1=v1&k2=v2`
+
+### 路由参数 `@Params`
 
 - `@Params(key?:string)`
 
 - 单个参数使用
 
 ```typescript
-@Api("user")
+@Api("user/:id/:sign")
 class UserApi {
   @Get()
   get(@Params("id") id: string, @Params("sign") sign: string) {}
@@ -130,15 +257,15 @@ class UserApi {
 - 对象参数使用
 
 ```typescript
-class QueryParams {
+class RouteParams {
   id: string;
   sign: string;
 }
 
-@Api("user")
+@Api("user/:id/:sign")
 class UserApi {
   @Get()
-  get(@Params() params: QueryParams) {}
+  get(@Params() params: RouteParams) {}
 }
 ```
 
@@ -147,15 +274,15 @@ class UserApi {
 - 混合使用
 
 ```typescript
-class QueryParams {
+class RouteParams {
   id: string;
   sign: string;
 }
 
-@Api("user")
+@Api("user/:id/:sign")
 class UserApi {
   @Get()
-  get(@Params() params: QueryParams, @Params("a") a: number) {}
+  get(@Params() params: Query, @Params("a") a: number) {}
 }
 ```
 
@@ -166,12 +293,12 @@ class UserApi {
 
 ## 策略装饰器`@UseStrategy`
 
-- `@UseStrategy(Strategy[])`
+- `@UseStrategy(...Strategy[])`
 
 ### 请求策略
 
 - 在请求发送前执行，后面的策略返回结果会覆盖前面的策略
-- 必须将处理后的 request 返回
+- 若返回处理后的request，则使用处理后的 request 发送请求，否则使用原始 request 或上一个策略返回的request发送请求
 
 ```typescript
 class CustomStrategy extends Strategy {
@@ -187,29 +314,40 @@ class CustomStrategy extends Strategy {
   baseURL: "/api",
   timeout: 5000,
 })
-@UseStrategy(new CustomStrategy())
+@UseStrategy(CustomStrategy)
 class BackEnd extends Snail<ShanheResponse> {}
 export const Service = new BackEnd();
+// 创建Service实例后再注册策略
+Service.registerStrategies(CustomStrategy);
 
 // 用在Api, 当Api下的方法请求时生效
 @Api("test")
-@UseStrategy(new CustomStrategy())
+@UseStrategy(CustomStrategy)
 class Test {}
+const TestApi = Service.createApi(Test);
+// 创建Api实例后再注册策略
+TestApi.registerStrategies(CustomStrategy);
 
 // 用在方法，此方法请求时生效
 @Api("test")
-@UseStrategy(new CustomStrategy())
+@UseStrategy(CustomStrategy)
 class Test {
   @Get()
-  @UseStrategy(new CustomStrategy())
+  @UseStrategy(CustomStrategy)
   get() {}
 }
+// 发送请求前注册策略
+const TestApi = Service.createApi(Test);
+const getSomething = TestApi.get();
+getSomething.registerStrategies(CustomStrategy);
+{ send, registerStrategies } = getSomething;
+
 ```
 
 ### 响应策略
 
 - 在收到服务器响应后执行
-- 必须将处理后的 response 返回
+- 若返回处理后的response，则使用处理后的response进行下一个策略或返回，否则使用原始response或上一个策略返回的response返回
 
 ```typescript
 // 如何定义
@@ -244,7 +382,7 @@ class BackEnd extends Snail<ShanheResponse> {}
 export const Service = new BackEnd();
 ```
 
-#### `VersioningOption`类型
+#### <a id="versioningoption">`VersioningOption`</a>类型
 
 ```typescript
 export enum VersioningType {
@@ -303,31 +441,33 @@ class Test {
 
 > 临时改变 api 版本，便于测试
 
-### 缓存装饰器`@Cache`
+### 缓存装饰器`@HitSource`
 
-- `@Cache(string | null)`
-- 当设置为 null 时，此方法不应用缓存
-- 当设置为 string 时，应为此 Api 类下的方法名称，当设置的此名称方法被调用且正常响应时，被装饰的方法缓存失效
+- `@HitSource(name:string)`
+- 为被装饰的方法设置缓存失效源，当设置的名称方法被调用且正常响应时，被装饰的方法缓存失效
+- name格式为：`serverName:apiName:methodName`
+> 注意：若您配置了SnailServer/SnailApi的name选项，请使用此name作为名称，否则使用类名作为名称
 
 ```typescript
-@Api("test")
+@Api("test",{name:'api1'})
+@HitSource("api1")
 class Test {
   @Get("HelloWorld")
-  @Cache("test2")
+  @HitSource("api1.test2")
   test1() {}
 
   @Post()
   test2() {}
 
   @Get()
-  @Cache(null)
+  // Test类下任何请求成功，这个方法的缓存都会失效
+  @HitSource("api1")
   test3() {}
 }
 ```
 
 > 当请求`[Post]test`成功时，`[Get]test/HelloWorld`的缓存失效
-> 注意：`test2`方法请求成功的前提是需要设置`@Cache(null)`,否则仅第一次请求会发送，后续请求需等待缓存管理设置的 ttl 时间到期才会发送请求
-> 因此，若未设置`test2`方法的`@Cache(null)`，仅第一次请求会使`[Get]test/HelloWorld`的缓存失效，后续需等待 ttl 时间到期，才会继续失效
+> 默认仅Get方法会进行缓存ing缓存，若要开启其他方法的缓存，请使用`@Server({cacheFor:'all'})`配置
 
 > `test3`方法请求成功时，不缓存
 
@@ -346,10 +486,8 @@ class Test {
 ### 创建 sse 端点
 
 ```typescript
-@Api("sse")
-class ServerSend {
-  @Sse()
-  create() {}
+@Sse("sse")
+class ServerSend extend SnailSse {
 
   @OnSseOpen()
   handleOpen(event: Event) {
@@ -379,8 +517,8 @@ export const Sse = Service.createSse(ServerSend);
 
 ### 服务端推送装饰器`@Sse`
 
-- `@Sse(path:string,options:{withCredentials: boolean})`
-- 创建一个服务端推送连接，返回一个函数，用于打开sse连接
+- `@Sse(path:string,options?:{withCredentials?: boolean,version?: string;})`
+- 创建一个服务端推送连接，返回一个函数，用于打开 sse 连接
   - 返回的打开函数调用后会返回`{eventSource:EventSource,close:function}`
     - eventSource: sse 连接实例
     - close: 关闭此 sse 连接的方法
@@ -406,11 +544,13 @@ export const Sse = Service.createSse(ServerSend);
 ### 默认返回类型
 
 ```typescript
-export interface ResponseData<T = any> {
-  code: 0;
+export type StandardResponseData<
+  T extends ResponseJsonData = Record<string, any>
+> = {
+  code: number;
   message: string;
   data: T;
-}
+};
 ```
 
 ### 定义返回类型
@@ -428,13 +568,13 @@ export class CustomResponse {
 
 ```typescript
 // service.ts
-import { Snail, Server } from "@snail-js/api";
+import { SnailServer, Server } from "@snail-js/api";
 
 @Server({
   baseURL: "/api",
   timeout: 5000,
 })
-class BackEnd extends Snail<CustomResponse> {}
+class BackEnd extends SnailServer<CustomResponse> {}
 
 export const Service = new BackEnd();
 ```
@@ -451,7 +591,11 @@ class User {
   age: number;
 }
 
-const res = await userApi.get<User>("1");
+const getUser = userApi.get<User>("1");
+const { send } = getUser;
+
+const res = await send();
+
 // 默认情况，以data为key存储数据
 // res.data => CustomResponse & { data : User}
 ```
@@ -459,14 +603,16 @@ const res = await userApi.get<User>("1");
 > API 被调用的返回格式
 
 ```typescript
-const res = await userApi.get<User>("1");
+const getUser = userApi.get<User>("1");
+const { send } = getUser;
+const res = await send();
 
-// res type
-{
-  data: T;
-  error: null | Error
-  hitCache?: boolean
-}
+// res.data => CustomResponse & { data: User }
+
+const getUser = userApi.get<Blob>("1");
+const { send } = getUser;
+const res = await send();
+// res => AxiosResponse<Blob>
 ```
 
 > `data: T`,后端响应数据；默认为`ResponseData<T = any>`类型；可由用户自定义修改
@@ -488,6 +634,10 @@ const res = await userApi.get<User>("1");
 // 自定义数据key
 // res.data => CustomResponse & { record : User}
 ```
+
+### 非json数据的返回
+- 若后端返回的content-type不是json类型，send方法返回的将是`AxiosResponse`
+- 若后端返回的content-type是json类型，send方法返回的将是`AxiosResponse.data`
 
 ### 代码仓库
 

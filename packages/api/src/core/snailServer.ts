@@ -113,7 +113,7 @@ export class SnailServer<
     }
   }
 
-  registerStrategys(...strategys: Array<new () => Strategy>) {
+  registerStrategies(...strategys: Array<new () => Strategy>) {
     const serverStrategies = StrategyMap.get(this.Name) ?? [];
     serverStrategies.push(...strategys);
     StrategyMap.set(this.Name, serverStrategies);
@@ -233,12 +233,6 @@ export class SnailServer<
       });
       AxiosInstanceMap.set(this.Name, axiosInstance);
     }
-    // if (!this.axiosInstance) {
-    //   this.axiosInstance = axios.create({
-    //     baseURL: resolveUrl(config.baseURL),
-    //     timeout: config.timeout,
-    //   });
-    // }
   }
 
   private getServerOptions() {
@@ -255,21 +249,6 @@ export class SnailServer<
     return options;
   }
 
-  private handleResponse(response: any, hitCache: boolean) {
-    // console.log("Response:", response);
-    return {
-      data: response.data,
-      error: null,
-      hitCache,
-    };
-  }
-
-  private handleError(error: any) {
-    return {
-      data: null,
-      error,
-    };
-  }
 
   createSse<T extends SnailSse>(
     constructor: new (server: SnailServer) => T
@@ -277,44 +256,6 @@ export class SnailServer<
     const sseInstance = new constructor(this);
     return sseInstance;
   }
-
-  // createSse<T extends object>(constructor: new () => T): SseProxy<T> {
-  //   const instance = new constructor();
-  //   const serverConfig = this.getServerConfig();
-  //   const { baseURL, enableLog } = serverConfig;
-  //   const apiConfig = this.getApiConfig(constructor);
-  //   enableLog && console.log("ApiConfig:", apiConfig);
-  //   //  配置类版本号
-  //   this.version = apiConfig.version;
-
-  //   return new Proxy(instance, {
-  //     get: (target: object, propertyKey: string | symbol) => {
-  //       enableLog && console.log("proxy:", target, "|", propertyKey);
-  //       if (typeof propertyKey !== "string") return;
-  //       // 处理SSE连接
-  //       const sseOption = Reflect.getMetadata(
-  //         EVENT_SOURCE_OPTION_KEY,
-  //         target,
-  //         propertyKey
-  //       ) as { path: string; withCredentials: boolean };
-  //       // 如果被@sse装饰
-  //       if (sseOption) {
-  //         const url =
-  //           sseOption.path == ""
-  //             ? apiConfig.url
-  //             : apiConfig.url + `/${sseOption.path}`;
-  //         const { url: versionUrl } = this.applyVersion(
-  //           { url },
-  //           target,
-  //           propertyKey
-  //         );
-  //         const sseUrl = this.generateSseUrl(baseURL, versionUrl || url);
-  //         enableLog && console.log("sse-url:", sseUrl);
-  //         return () => this.initSse(sseUrl, sseOption, target);
-  //       }
-  //     },
-  //   }) as SseProxy<T>;
-  // }
 
   get version() {
     return this.Version;

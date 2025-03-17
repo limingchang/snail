@@ -1,6 +1,6 @@
 {
   "name": "@snail-js/api",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Http Request with Decorators Api, build on axios",
   "type": "module",
   "main": "./src/index.ts",
@@ -30,6 +30,7 @@
   },
   "files": [
     "README.md",
+    "README_EN.md",
     "dist"
   ],
   "dependencies": {

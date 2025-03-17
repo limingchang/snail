@@ -5,8 +5,6 @@ import {
   CacheType,
   CacheStorageAdapter,
   CacheStorage,
-  AdapterConstructor,
-  CacheCommonOption,
   MemoryCacheOption,
   IndexDBCacheOption,
   LocalStorageCacheOption,
