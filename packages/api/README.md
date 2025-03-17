@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/npm/v/reflect-metadata?label=reflect-metadata&labelColor=1e80ff&color=67C23A"></img>
 </p>
 
-中文文档|<a href='./README_EN.md'>English Document</a>
+中文文档|<a href='https://github.com/limingchang/snail/blob/master/packages/api/README_EN.md'>English Document</a>
 
 ## 项目介绍
 
