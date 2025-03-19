@@ -41,7 +41,8 @@ export class ShanheResponse {
 })
 // @HitSource("shanhe.Test.shanheNongli")
 // @UseStrategy(new CustomStrategy())
-class BackEnd extends SnailServer<ShanheResponse,'record'> {}
+// class BackEnd extends SnailServer<ShanheResponse,'record'> {}
+class BackEnd extends SnailServer {}
 
 export const Service = new BackEnd();
-Service.registerStrategys(CustomStrategy);
+Service.registerStrategies(CustomStrategy);

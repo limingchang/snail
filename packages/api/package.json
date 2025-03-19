@@ -1,6 +1,6 @@
 {
   "name": "@snail-js/api",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "Http Request with Decorators Api, build on axios",
   "type": "module",
   "main": "./src/index.ts",
@@ -26,7 +26,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "axios": "^1.7.9"
+    "axios": "^1.8.3"
   },
   "files": [
     "README.md",

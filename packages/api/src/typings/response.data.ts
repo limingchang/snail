@@ -17,10 +17,7 @@ export type SpecialResponseData =
   | Blob // 二进制大对象
   | FormData; // 表单数据
 
-
-export type StandardResponseData<
-  T extends ResponseJsonData = Record<string, any>
-> = {
+export type StandardResponseData<T=any> = {
   code: number;
   message: string;
   data: T;

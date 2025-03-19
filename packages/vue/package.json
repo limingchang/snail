@@ -31,7 +31,6 @@
     "dist"
   ],
   "dependencies": {
-    "@snail-js/theme": "^0.1.1",
     "@vueuse/core": "^12.4.0"
   },
   "peerDependencies": {

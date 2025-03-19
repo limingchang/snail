@@ -1,6 +1,5 @@
 import {
   ResponseData,
-  ResponseJsonData,
   SpecialResponseData,
   StandardResponseData,
 } from "./response.data";
@@ -34,7 +33,7 @@ export type ApiResponse<T> = Promise<{
 //DK response.data.data key,
 export type ApiProxy<
   T extends object,
-  RT extends ResponseData = StandardResponseData<ResponseJsonData>,
+  RT extends ResponseData = StandardResponseData,
   DK extends string = "data"
 > = {
   [K in keyof T]: T[K] extends (...args: infer A) => any

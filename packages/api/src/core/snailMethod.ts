@@ -11,7 +11,6 @@ import {
   ResponseData,
   SendRequest,
   StandardResponseData,
-  ResponseJsonData,
   SnailMethodEventType,
 } from "../typings";
 
@@ -53,7 +52,7 @@ import {
  *  DK => response.data.data 类型
  */
 export class SnailMethod<
-  RT extends ResponseData = StandardResponseData<ResponseJsonData>
+  RT extends ResponseData = StandardResponseData
 > {
   // 私有属性
   // private serverInstance: SnailServer;

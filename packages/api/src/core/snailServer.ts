@@ -13,7 +13,6 @@ import {
   ApiProxy,
   ResponseData,
   StandardResponseData,
-  ResponseJsonData,
   CacheType,
   CacheForType,
 } from "../typings";
@@ -52,7 +51,7 @@ const defaultServerOptions: SnailOption = {
 };
 
 export class SnailServer<
-  RT extends ResponseData = StandardResponseData<ResponseJsonData>,
+  RT extends ResponseData = StandardResponseData,
   DK extends string = "data"
 > {
   private Name: string;
