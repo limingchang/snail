@@ -33,7 +33,7 @@ export type ApiResponse<T> = Promise<{
 //DK response.data.data key,
 export type ApiProxy<
   T extends object,
-  RT extends ResponseData = StandardResponseData,
+  RT extends ResponseData = Omit<StandardResponseData, "data">,
   DK extends string = "data"
 > = {
   [K in keyof T]: T[K] extends (...args: infer A) => any

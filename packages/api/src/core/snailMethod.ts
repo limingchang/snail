@@ -51,9 +51,7 @@ import {
  * 泛型参数: RT => response.data类型,默认标准json返回
  *  DK => response.data.data 类型
  */
-export class SnailMethod<
-  RT extends ResponseData = StandardResponseData
-> {
+export class SnailMethod<RT extends ResponseData = StandardResponseData> {
   // 私有属性
   // private serverInstance: SnailServer;
   private Name: string;
@@ -85,7 +83,7 @@ export class SnailMethod<
     this.Args = args ?? [];
     // 初始化方法设置
     this.init();
-    console.log("url:", this.Url);
+    this.enableLog() && console.log("url:", this.Url);
     // 默认事件初始化
     this.eventMap = new Map();
     this.onceWrapperMap = new Map();
@@ -117,7 +115,7 @@ export class SnailMethod<
       this.propertyKey,
       this.Args
     );
-    console.log("apiurl:", this.apiInstance.url);
+    this.enableLog() && console.log("methodUrl:", this.Request.baseURL,this.Request.url);
     // 通过路由参数构建新路由
     const newUrl = replacePlaceholders(this.Url, params);
     this.Request = {
@@ -172,7 +170,9 @@ export class SnailMethod<
       // 触发事件
       this.emit("success", response.data);
       this.emit("finish", response.data);
+      isSpecial && console.log("isSpecial:", isSpecial);
       if (isSpecial) return response as AxiosResponse<RT>;
+      !isSpecial && console.log("isSpecial:", isSpecial);
       return response.data as unknown as RT;
     } catch (error: AxiosError | any) {
       this.emit("error", error);
@@ -198,11 +198,11 @@ export class SnailMethod<
   }
 
   private initUrl() {
-    const url =
-      this.Path == ""
-        ? this.apiInstance.url || ""
-        : `${this.apiInstance.url || ""}${resolveUrl(this.Path)}`;
-    this.Url = url;
+    if(this.Path === ""){
+      this.Url = this.apiInstance.url || "";
+      return;
+    }
+    this.Url = `${this.apiInstance.url || ""}${resolveUrl(this.Path)}`;
   }
 
   private initVersion() {
@@ -267,23 +267,23 @@ export class SnailMethod<
     return request;
   }
 
-  onSuccess(handler: EventHandler<RT>) {
+  onSuccess = (handler: EventHandler<RT>) => {
     this.on("success", handler);
-  }
+  };
 
-  onError(handler: EventHandler<RT>) {
+  onError = (handler: EventHandler<RT>) => {
     this.on("error", handler);
-  }
+  };
 
-  onHitCache(handler: EventHandler<RT>) {
+  onHitCache = (handler: EventHandler<RT>) => {
     this.on("hitCache", handler);
-  }
+  };
 
-  onFinish(handler: EventHandler<RT>) {
+  onFinish = (handler: EventHandler<RT>) => {
     this.on("finish", handler);
-  }
+  };
 
-  on(eventName: SnailMethodEventType, handler: EventHandler<RT>) {
+  on = (eventName: SnailMethodEventType, handler: EventHandler<RT>) => {
     // 绑定事件
     if (typeof handler !== "function") {
       throw new TypeError("Handler must be a function");
@@ -291,9 +291,9 @@ export class SnailMethod<
     const handlers = this.eventMap.get(eventName) || new Set();
     handlers.add(handler);
     this.eventMap.set(eventName, handlers);
-  }
+  };
 
-  once(eventName: SnailMethodEventType, handler: EventHandler<RT>) {
+  once = (eventName: SnailMethodEventType, handler: EventHandler<RT>) => {
     // 绑定一次性事件
     const onceHandler = (data?: RT) => {
       // 先执行再清理（避免中途报错导致未清理）
@@ -308,9 +308,9 @@ export class SnailMethod<
     // 建立原始handler与包装后的映射
     this.onceWrapperMap.set(handler, onceHandler);
     this.on(eventName, onceHandler);
-  }
+  };
 
-  emit(eventName: SnailMethodEventType, ...args: any) {
+  emit = (eventName: SnailMethodEventType, ...args: any) => {
     // 触发事件
     const handlers = this.eventMap.get(eventName);
     if (!handlers || handlers.size === 0) return false;
@@ -322,9 +322,9 @@ export class SnailMethod<
       });
     });
     return true;
-  }
+  };
 
-  off(eventName: SnailMethodEventType, handler: EventHandler<RT>) {
+  off = (eventName: SnailMethodEventType, handler: EventHandler<RT>) => {
     // 移除事件
     const handlers = this.eventMap.get(eventName);
     if (!handlers) return;
@@ -337,7 +337,7 @@ export class SnailMethod<
     if (handlers.size === 0) {
       this.eventMap.delete(eventName);
     }
-  }
+  };
 
   private async getCacheData(serverName: string) {
     const methodKey = await generateCacheKey(
@@ -401,9 +401,9 @@ export class SnailMethod<
     return null;
   }
 
-  registerStrategies(...strategys: Array<new () => Strategy>) {
+  registerStrategies = (...strategys: Array<new () => Strategy>) => {
     this.strategies.push(...strategys);
-  }
+  };
 
   private getStrategies() {
     const [serverName, apiName] = this.apiInstance.name.split(".");
@@ -457,12 +457,14 @@ export class SnailMethod<
       this.propertyKey
     ) as boolean;
     const isApiNoCache = this.apiInstance.noCache;
+    this.enableLog() && console.log("isApiNoCache:", isApiNoCache);
+    this.enableLog() && console.log("isMethodNoCache:", isMethodNoCache);
     const noCacheFlag = isMethodNoCache
       ? true
       : false || isApiNoCache
       ? true
       : false;
-    // console.log("noCacheFlag:", noCacheFlag);
+    this.enableLog() && console.log("noCacheFlag:", noCacheFlag);
 
     return flag ? noCacheFlag : true;
   }

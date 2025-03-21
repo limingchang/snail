@@ -172,6 +172,7 @@ export const buildRequestArgs = (
  * @returns {boolean} - 如果响应的数据类型是 application/json 则返回 true，否则返回 false
  */
 export function isSpecialResponse(response: AxiosResponse): boolean {
-  const contentType = response.headers['content-type'];
-  return contentType && contentType.includes('application/json');
+  const contentType = response.headers['Content-Type'];
+  if(!contentType) return false;
+  return !(contentType as string).includes('application/json');
 }

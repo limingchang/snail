@@ -75,7 +75,7 @@ export class SnailSse {
     }
   }
 
-  open() {
+  open = () => {
     const url = `${this._baseUrl}${this._url}`;
     const eventSource = new EventSource(url, {
       withCredentials: this._withCredentials,
@@ -83,13 +83,13 @@ export class SnailSse {
     this._eventSource = eventSource;
     this.setEvent();
     this.registerSseEvent();
-  }
+  };
 
-  close() {
+  close = () => {
     const eventSource = this.eventSource;
     if (!eventSource) return;
     eventSource.close();
-  }
+  };
 
   private registerSseEvent() {
     const eventSource = this._eventSource;
@@ -125,23 +125,23 @@ export class SnailSse {
     }
   }
 
-  on(
+  on = (
     eventName: string,
     callback: EventListenerOrEventListenerObject,
     options?: boolean | AddEventListenerOptions
-  ) {
+  ) => {
     this._eventSource &&
       this._eventSource.addEventListener(eventName, callback, options);
-  }
+  };
 
-  off(
+  off = (
     eventName: string,
     callback: EventListenerOrEventListenerObject,
     options?: boolean | EventListenerOptions
-  ) {
+  ) => {
     this._eventSource &&
       this._eventSource.removeEventListener(eventName, callback, options);
-  }
+  };
 
   get url() {
     return this._url;

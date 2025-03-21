@@ -4,60 +4,52 @@
     <div style="width: 200px">
       <button style="background-color: var(--snail-color-danger); color: #fff">
         <SIcon>
-          <IconContract /> </SIcon
-        >按钮测试
+          <IconContract />
+        </SIcon>按钮测试
       </button>
       <SClickCopy text="复制内容"></SClickCopy>
     </div>
     <p>
-      <button
-        ref="btn"
-        style="background-color: var(--snail-color-danger); color: #fff"
-        @click="clickHanle"
-      >
+      <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
         <SIcon size="large">
-          <IconSign /> </SIcon
-        >图形验证
+          <IconSign />
+        </SIcon>图形验证
         <SIcon>
-          <Edit /> </SIcon
-        >兼容测试
+          <Edit />
+        </SIcon>兼容测试
       </button>
       <ElButton type="primary" @click="testHandle">
         <!-- <ElButton type="primary"> -->
         <ElIcon>
-          <Edit /> </ElIcon
-        >山河随机
+          <Edit />
+        </ElIcon>山河随机
       </ElButton>
     </p>
     <p>
       <ElButton type="primary" @click="handleNongli">
         <!-- <ElButton type="primary"> -->
         <ElIcon>
-          <Edit /> </ElIcon
-        >山河农历
+          <Edit />
+        </ElIcon>山河农历
       </ElButton>
       <ElButton type="primary" @click="handleApiTest">
         <!-- <ElButton type="primary"> -->
         <ElIcon>
-          <Edit /> </ElIcon
-        >Api调试
+          <Edit />
+        </ElIcon>Api调试
       </ElButton>
     </p>
     <p>
       <!-- <ElButton type="success" @click="handleSse">SSE测试</ElButton> -->
     </p>
     <div class="icon-box" v-show="false">
-      <span
-        class="icon"
-        v-for="(icon, index) in SIconSvgs"
-        :key="`${icon.name}`"
-      >
+      <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
         <SIcon :icon="icon.name">
           <!-- <component :is="icon.name"></component> -->
         </SIcon>
         <span class="icon-name" style="display: inline-block">{{
-          toPascalCase(icon.name!)
-        }}</span>
+        toPascalCase(icon.name!)
+      }}</span>
       </span>
     </div>
     <p>
@@ -194,7 +186,8 @@ const testHandle = async () => {
   const method = TestApi.shanheRandom<ShanHeApiRandom>();
   const { send, on } = method;
   // console.log('method:', send)
-  const res = await send();
+  const { text, code, data } = await send();
+  console.log("山河随机api:", code, text);
   // console.log('method:', method.name)
 };
 
@@ -206,8 +199,9 @@ const handleNongli = async () => {
 
 const handleApiTest = async () => {
   const { send, on } = TestApi.test<{}>("a1", { b: "cc", type: "admin" });
-  on("success", () => {});
+  on("success", () => { });
   const res = await send();
+  const {data}  =res
   console.log("Api调试", res);
 };
 

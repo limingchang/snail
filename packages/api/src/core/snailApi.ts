@@ -1,8 +1,4 @@
-import {
-  Strategy,
-  ApiOptions,
-  ApiInstanceOptions,
-} from "../typings";
+import { Strategy, ApiOptions, ApiInstanceOptions } from "../typings";
 // import keys
 import { API_CONFIG_KEY } from "../decorators/api";
 import { STRATEGY_KEY } from "../decorators/strategy";
@@ -48,18 +44,17 @@ export class SnailApi {
     StrategyMap.set(this.Name, serverStrategies);
   }
 
-  registerStrategies(...strategys:  Array<new () => Strategy>) {
+  registerStrategies = (...strategys: Array<new () => Strategy>) => {
     const serverStrategies = StrategyMap.get(this.Name) ?? [];
     serverStrategies.push(...strategys);
     StrategyMap.set(this.Name, serverStrategies);
-  }
+  };
 
   private initName() {
     const { name } = this.getApiConfig();
     const apiName = name ?? this.constructor.name;
     this.Name = `${this.serverInstance.name}.${apiName}`;
   }
-
 
   private getApiConfig() {
     return Reflect.getMetadata(
@@ -107,5 +102,4 @@ export class SnailApi {
   get timeout() {
     return this.Timeout;
   }
-
 }

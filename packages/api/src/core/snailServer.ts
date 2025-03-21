@@ -51,7 +51,7 @@ const defaultServerOptions: SnailOption = {
 };
 
 export class SnailServer<
-  RT extends ResponseData = StandardResponseData,
+  RT extends ResponseData = Omit<StandardResponseData, "data">,
   DK extends string = "data"
 > {
   private Name: string;
@@ -112,11 +112,11 @@ export class SnailServer<
     }
   }
 
-  registerStrategies(...strategys: Array<new () => Strategy>) {
+  registerStrategies = (...strategys: Array<new () => Strategy>) => {
     const serverStrategies = StrategyMap.get(this.Name) ?? [];
     serverStrategies.push(...strategys);
     StrategyMap.set(this.Name, serverStrategies);
-  }
+  };
 
   createApi<T extends SnailApi>(
     constructor: new (options: ApiInstanceOptions) => T
@@ -247,7 +247,6 @@ export class SnailServer<
     const options = Object.assign({}, defaultServerOptions, serverOptions);
     return options;
   }
-
 
   createSse<T extends SnailSse>(
     constructor: new (server: SnailServer) => T
