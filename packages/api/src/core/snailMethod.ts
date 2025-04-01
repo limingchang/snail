@@ -1,7 +1,7 @@
 import { AxiosResponse, AxiosRequestConfig, AxiosError } from "axios";
 
 import {
-  EventHandler,
+  // EventHandler,
   Strategy,
   MethodOption,
   RequestMethodEnum,
@@ -11,7 +11,10 @@ import {
   ResponseData,
   SendRequest,
   StandardResponseData,
-  SnailMethodEventType,
+  SnailSuccessListener,
+  SnailErrorListener,
+  SnailHitCacheListener,
+  SnailFinishListener,
 } from "../typings";
 
 import {
@@ -31,8 +34,12 @@ import {
   VersioningMap,
   AxiosInstanceMap,
   CacheTtlMap,
+  ServerStatusCodeRuleMap,
 } from "./snailServer";
 import { SnailApi } from "./snailApi";
+
+// event
+import { SnailEvent } from "../eventEmmit";
 
 import { applyVersioning } from "../versioning";
 
@@ -61,8 +68,9 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
   private Request: AxiosRequestConfig;
   private Response: AxiosResponse<RT>;
   private Error: any;
-  private eventMap: Map<string, Set<EventHandler>>;
-  private onceWrapperMap: Map<EventHandler, EventHandler>;
+  private EventEmit: SnailEvent;
+  // private eventMap: Map<string, Set<EventHandler>>;
+  // private onceWrapperMap: Map<EventHandler, EventHandler>;
   private propertyKey: string;
 
   private Url: string = "";
@@ -85,12 +93,7 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
     this.init();
     this.enableLog() && console.log("url:", this.Url);
     // 默认事件初始化
-    this.eventMap = new Map();
-    this.onceWrapperMap = new Map();
-    this.eventMap.set("success", new Set());
-    this.eventMap.set("hitCache", new Set());
-    this.eventMap.set("error", new Set());
-    this.eventMap.set("finish", new Set());
+    this.EventEmit = new SnailEvent<RT>();
   }
 
   public send: SendRequest<RT> = async () => {
@@ -100,6 +103,8 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
     const axios = AxiosInstanceMap.get(serverName);
     if (!axios) throw new Error("AxiosInstance not created");
     // const response = await axios.request(this.Request);
+    const serverStatusCodeRule = ServerStatusCodeRuleMap.get(serverName);
+
     const strategies = this.getStrategies();
     // console.log("strategies:", strategies.length);
     // 应用请求策略
@@ -115,7 +120,8 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
       this.propertyKey,
       this.Args
     );
-    this.enableLog() && console.log("methodUrl:", this.Request.baseURL,this.Request.url);
+    this.enableLog() &&
+      console.log("methodUrl:", this.Request.baseURL, this.Request.url);
     // 通过路由参数构建新路由
     const newUrl = replacePlaceholders(this.Url, params);
     this.Request = {
@@ -139,9 +145,9 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
       const { data } = await this.getCacheData(serverName);
       this.enableLog() && console.log("getCacheData:", data);
       if (data) {
-        this.emit("hitCache", data);
-        this.emit("success", data);
-        this.emit("finish", data);
+        this.EventEmit.emit("hitCache", data);
+        this.EventEmit.emit("success", data);
+        this.EventEmit.emit("finish", data);
         return data as RT;
       }
     }
@@ -167,16 +173,30 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
       this.applyHitSource(serverName);
       // console.log("当前方法请求成功要让下面的缓存失效");
       // console.log(this.getExpireSources());
-      // 触发事件
-      this.emit("success", response.data);
-      this.emit("finish", response.data);
       isSpecial && console.log("isSpecial:", isSpecial);
-      if (isSpecial) return response as AxiosResponse<RT>;
+      if (isSpecial) {
+        // 特殊响应处理
+        this.EventEmit.emit("success", response.data);
+        this.EventEmit.emit("finish", response.data);
+        return response as AxiosResponse<RT>;
+      }
       !isSpecial && console.log("isSpecial:", isSpecial);
+      // 触发事件
+      // 应用规则触发事件
+      if (serverStatusCodeRule) {
+        const { key, rule } = serverStatusCodeRule;
+        const statuCodeKey = key ?? "code";
+        const data = response.data as unknown as RT;
+        if (rule(data[statuCodeKey as keyof RT] as number)) {
+          this.EventEmit.emit("success", response.data);
+        } else {
+          this.EventEmit.emit("error", response.data);
+        }
+      }
       return response.data as unknown as RT;
     } catch (error: AxiosError | any) {
-      this.emit("error", error);
-      this.emit("finish", error);
+      this.EventEmit.emit("error", error);
+      this.EventEmit.emit("finish", error);
       console.error(error);
       this.Error = error;
       return error;
@@ -198,7 +218,7 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
   }
 
   private initUrl() {
-    if(this.Path === ""){
+    if (this.Path === "") {
       this.Url = this.apiInstance.url || "";
       return;
     }
@@ -267,76 +287,20 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
     return request;
   }
 
-  onSuccess = (handler: EventHandler<RT>) => {
-    this.on("success", handler);
+  onSuccess = (listener: SnailSuccessListener<RT>) => {
+    this.EventEmit.on("success", listener);
   };
 
-  onError = (handler: EventHandler<RT>) => {
-    this.on("error", handler);
+  onError = <ErrorData = any>(listener: SnailErrorListener<RT, ErrorData>) => {
+    this.EventEmit.on<ErrorData>("error", listener);
   };
 
-  onHitCache = (handler: EventHandler<RT>) => {
-    this.on("hitCache", handler);
+  onHitCache = (listener: SnailHitCacheListener<RT>) => {
+    this.EventEmit.on("hitCache", listener);
   };
 
-  onFinish = (handler: EventHandler<RT>) => {
-    this.on("finish", handler);
-  };
-
-  on = (eventName: SnailMethodEventType, handler: EventHandler<RT>) => {
-    // 绑定事件
-    if (typeof handler !== "function") {
-      throw new TypeError("Handler must be a function");
-    }
-    const handlers = this.eventMap.get(eventName) || new Set();
-    handlers.add(handler);
-    this.eventMap.set(eventName, handlers);
-  };
-
-  once = (eventName: SnailMethodEventType, handler: EventHandler<RT>) => {
-    // 绑定一次性事件
-    const onceHandler = (data?: RT) => {
-      // 先执行再清理（避免中途报错导致未清理）
-      try {
-        handler.apply(this, [data]);
-      } finally {
-        this.off(eventName, onceHandler);
-        this.onceWrapperMap.delete(handler);
-      }
-    };
-
-    // 建立原始handler与包装后的映射
-    this.onceWrapperMap.set(handler, onceHandler);
-    this.on(eventName, onceHandler);
-  };
-
-  emit = (eventName: SnailMethodEventType, ...args: any) => {
-    // 触发事件
-    const handlers = this.eventMap.get(eventName);
-    if (!handlers || handlers.size === 0) return false;
-    // 创建副本执行（防止执行过程中修改队列）
-    handlers.forEach((handler) => {
-      // 异步执行更贴近实际场景
-      Promise.resolve().then(() => {
-        handler.apply(this, args);
-      });
-    });
-    return true;
-  };
-
-  off = (eventName: SnailMethodEventType, handler: EventHandler<RT>) => {
-    // 移除事件
-    const handlers = this.eventMap.get(eventName);
-    if (!handlers) return;
-
-    // 双保险删除（直接删除+通过once包装删除）
-    if (handlers.has(handler)) {
-      handlers.delete(handler);
-    }
-    // 清理空队列
-    if (handlers.size === 0) {
-      this.eventMap.delete(eventName);
-    }
+  onFinish = (listener: SnailFinishListener<RT>) => {
+    this.EventEmit.on("finish", listener);
   };
 
   private async getCacheData(serverName: string) {

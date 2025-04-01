@@ -172,6 +172,13 @@ const data = await send();
     <td>要启用缓存的方法，默认仅开启Get缓存</td>
   </tr>
   <tr>
+    <td>serverStatusCodeRule</td>
+    <td><a href="#SnailServerStatusCodeRuleOptions">SnailServerStatusCodeRuleOptions</a></td>
+    <td>否</td>
+    <td>undefined</td>
+    <td>服务端状态码规则，若配置此项，rule函数返回false时会触发错误</td>
+  </tr>
+  <tr>
     <td>enableLog</td>
     <td>boolean</td>
     <td>否</td>
@@ -424,6 +431,19 @@ export type VersioningOption =
   | VersioningHeaderOption
   | VersioningQueryOption
   | VersioningCustomOption;
+```
+
+### <a id="SnailServerStatusCodeRuleOptions">SnailServerStatusCodeRuleOptions</a> 类型
+
+```typescript
+export class SnailServerStatusCodeRuleOptions {
+  // 通常服务端会返回一个状态码，当状态码不符合预期时，会抛出错误
+  // 可以使用此选项来定义服务端状态码的规则
+  // 当rule函数返回false时，会触发错误
+  rule: (statusCode: number) => boolean;
+  // response.data中服务端状态码的key，默认为code
+  key?: string;
+}
 ```
 
 ### 临时版本修改器`@Version`

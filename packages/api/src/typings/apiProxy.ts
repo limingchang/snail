@@ -38,10 +38,10 @@ export type ApiProxy<
 > = {
   [K in keyof T]: T[K] extends (...args: infer A) => any
     ? RT extends SpecialResponseData
-      ? <RD>(
+      ? <RD = unknown>(
           ...args: A
         ) => SnailMethod<RD extends SpecialResponseData ? RD : never>
-      : <RD>(
+      : <RD = unknown>(
           ...args: A
         ) => RD extends SpecialResponseData
           ? SnailMethod<RD>

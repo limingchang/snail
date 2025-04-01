@@ -15,6 +15,7 @@ import {
   StandardResponseData,
   CacheType,
   CacheForType,
+  SnailServerStatusCodeRuleOptions,
 } from "../typings";
 
 import { resolveUrl } from "../utils";
@@ -37,6 +38,10 @@ export const ExpireSourceMap = new Map<string, Set<string>>();
 export const AxiosInstanceMap = new Map<string, AxiosInstance>();
 export const StrategyMap = new Map<string, Array<new () => Strategy>>();
 export const VersioningMap = new Map<string, VersioningOption>();
+export const ServerStatusCodeRuleMap = new Map<
+  string,
+  SnailServerStatusCodeRuleOptions
+>();
 
 const defaultCacheManageOptions: CacheManagementOption = {
   type: CacheType.Memory,
@@ -69,9 +74,20 @@ export class SnailServer<
 
   private init() {
     const options = this.getServerOptions();
-    const { baseURL, timeout, cacheManage, enableLog, cacheFor } = options;
+    const {
+      baseURL,
+      timeout,
+      cacheManage,
+      enableLog,
+      cacheFor,
+      serverStatusCodeRule,
+    } = options;
     this.BaseURL = baseURL ?? resolveUrl("");
     this.initAxios({ baseURL, timeout });
+    // 设置服务端状态码规则
+    if (serverStatusCodeRule) {
+      this.initServerStatusCodeRule(serverStatusCodeRule);
+    }
     this.initStrategy();
     this.initCacheManage(cacheManage, cacheFor);
     this.initVersioning();
@@ -79,6 +95,12 @@ export class SnailServer<
     this.initExpireSource(this);
     this.EnableLog = enableLog ?? false;
     this.initLog(enableLog);
+  }
+
+  private initServerStatusCodeRule(
+    ruleOptions: SnailServerStatusCodeRuleOptions
+  ) {
+    ServerStatusCodeRuleMap.set(this.name, ruleOptions);
   }
 
   private initLog(enableLog?: boolean) {

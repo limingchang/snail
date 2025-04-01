@@ -192,16 +192,23 @@ const testHandle = async () => {
 };
 
 const handleNongli = async () => {
-  const { send, on } = TestApi.shanheNongli();
+  const { send, onSuccess } = TestApi.shanheNongli();
   await send();
   console.log("山河农历api:");
 };
 
 const handleApiTest = async () => {
-  const { send, on } = TestApi.test<{}>("a1", { b: "cc", type: "admin" });
-  on("success", () => { });
+  // const { send, onSuccess, onError } = TestApi.test<object>("a1", { b: "cc", type: "admin" });
+  const { send, onSuccess,onError } = TestApi.test("a1", { b: "cc", type: "admin" });
+  onSuccess((data) => {
+    console.log('onSuccess')
+  })
+  onError((err) => {
+
+  })
+  // on("success", () => { });
   const res = await send();
-  const {data}  =res
+  const { data } = res
   console.log("Api调试", res);
 };
 

@@ -6,16 +6,16 @@ import {
   SpecialResponseData,
 } from "./response.data";
 
-export type EventHandler<T = any> = (data?: T) => void;
+// export type EventHandler<T = any> = (data?: T) => void;
 
-export enum EventType {
-  Success = "success",
-  Error = "error",
-  hitCache = "hitCache",
-  Finish = "finish",
-}
+// export enum EventType {
+//   Success = "success",
+//   Error = "error",
+//   hitCache = "hitCache",
+//   Finish = "finish",
+// }
 
-export type SnailMethodEventType = `${EventType}` | EventType | string;
+// export type SnailMethodEventType = `${EventType}` | EventType | string;
 
 export type SendRequest<
   RD extends ResponseData = StandardResponseData<ResponseJsonData>

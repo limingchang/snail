@@ -2,11 +2,12 @@ import { CacheManagementOption } from "./cache.management.option";
 import { RequestMethod } from "./request.method";
 
 // import { VersioningOption } from "./versioning.option";
-export type CacheForType =
-  | "All"
-  | "all"
-  | RequestMethod
-  | RequestMethod[];
+export type CacheForType = "All" | "all" | RequestMethod | RequestMethod[];
+
+export class SnailServerStatusCodeRuleOptions {
+  key?: string;
+  rule: (status: number) => boolean;
+}
 
 export interface SnailOption {
   name?: string;
@@ -15,4 +16,5 @@ export interface SnailOption {
   cacheFor?: CacheForType;
   enableLog?: boolean;
   timeout?: number;
+  serverStatusCodeRule?: SnailServerStatusCodeRuleOptions;
 }
