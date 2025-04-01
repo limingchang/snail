@@ -1,50 +1,24 @@
 import {
-  ResponseData,
   SpecialResponseData,
   StandardResponseData,
+  ResponseJsonData,
 } from "./response.data";
 
-import { SnailMethod } from "../core/snailMethod";
 
-export type ApiResponse<T> = Promise<{
-  data: T | null;
-  error: Error | null;
-  hitCache?: boolean;
-}>;
+import { MethodProxy } from "./snail.method";
 
-// export type ApiProxy<
-//   T,
-//   R extends {} = ResponseData,
-//   DK extends string = "data"
-// > = {
-//   [K in keyof T]: T[K] extends (...args: infer A) => any
-//     ? <D = any>(...args: A) => ApiResponse<R & { [KK in DK]: D }>
-//     : T[K];
-// };
+export type StandardResponseWithoutData = Omit<StandardResponseData, "data">;
 
-// export type ApiProxy<T, R extends ResponseData = ResponseJsonData> = {
-//   [K in keyof T]: T[K] extends (...args: infer A) => any
-//     ? <D = any>(...args: A) => SnailMethod<R, D>
-//     : T[K];
-// };
 
-//T 代理的api cass,
-//RT response.data类型,
-//DK response.data.data key,
 export type ApiProxy<
   T extends object,
-  RT extends ResponseData = Omit<StandardResponseData, "data">,
+  RT extends StandardResponseWithoutData | ResponseJsonData,
   DK extends string = "data"
 > = {
   [K in keyof T]: T[K] extends (...args: infer A) => any
-    ? RT extends SpecialResponseData
-      ? <RD = unknown>(
-          ...args: A
-        ) => SnailMethod<RD extends SpecialResponseData ? RD : never>
-      : <RD = unknown>(
-          ...args: A
-        ) => RD extends SpecialResponseData
-          ? SnailMethod<RD>
-          : SnailMethod<RT & { [KK in DK]: RD }>
+    ? <RD = unknown>() => MethodProxy<
+        RD extends SpecialResponseData ? RD : RT & { [KK in DK]: RD },
+        A extends any[] ? A : []
+      >
     : T[K];
 };

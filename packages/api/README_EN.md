@@ -80,9 +80,9 @@ export const userApi = Service.createApi(UserApi);
 ```ts
 import { userApi } from "./user";
 
-const getUser = await userApi.get("1");
-const { send, onSuccess, onError, onHitCache, on } = getUser;
-const data = await send();
+const { send:getUser, onSuccess, onError, onHitCache } = await userApi.get();
+
+const data = await getUser("1");
 ```
 
 ## `SnailMethod` Instance
@@ -102,13 +102,8 @@ const data = await send();
   _Register cache hit event handler_
 - `onFinish`: Request completion callback  
   _Register completion event handler (fires on both success/error)_
-- `on`: Event listener  
-  _Register custom event handlers_
- _Register custom event handlers_
-- `emit`: Trigger custom events  
-  _Emit custom events_
-- `off`: Remove event listeners  
-  _Unregister custom event handlers_
+- `registerStrategies` Register Strategies
+  _Register Strategies of this method instance_
 
 ### `SnailMethod` Properties
 - `response`: AxiosResponse - Raw response object
@@ -171,6 +166,13 @@ const data = await send();
     <td>No</td>
     <td>Get</td>
     <td>Methods to enable caching</td>
+  </tr>
+  <tr>
+    <td>serverStatusCodeRule</td>
+    <td><a href="#SnailServerStatusCodeRuleOptions">SnailServerStatusCodeRuleOptions</a></td>
+    <td>否</td>
+    <td>undefined</td>
+    <td>Server status code validation rules (triggers error when rule function returns false)</td>
   </tr>
   <tr>
     <td>enableLog</td>
@@ -303,8 +305,9 @@ class Test {
 // Register strategy before request
 const TestApi = Service.createApi(Test);
 const getSomething = TestApi.get();
-getSomething.registerStrategies(CustomStrategy);
 { send, registerStrategies } = getSomething;
+registerStrategies(CustomStrategy);
+
 ```
 
 ### Response Strategy
@@ -383,6 +386,18 @@ export type VersioningOption =
   | VersioningHeaderOption
   | VersioningQueryOption
   | VersioningCustomOption;
+```
+
+### <a id="SnailServerStatusCodeRuleOptions">SnailServerStatusCodeRuleOptions</a> Type
+
+```typescript
+export class SnailServerStatusCodeRuleOptions {
+  // Defines validation rules for server status codes
+  // Triggers error when rule function returns false
+  rule: (statusCode: number) => boolean;
+  // Specifies the key in response.data for status code (default: 'code')
+  key?: string;
+}
 ```
 
 ### Temporary Version Modifier @Version
@@ -533,10 +548,10 @@ class User {
   age: number;
 }
 
-const getUser = userApi.get<User>("1");
+const getUser = userApi.get<User>();
 const { send } = getUser;
 
-const res = await send();
+const res = await send("1");
 
 // Default data key:
 // res.data => CustomResponse & { data: User }
@@ -544,15 +559,15 @@ const res = await send();
 
 > API response format:
 ```typescript
-const getUser = userApi.get<User>("1");
+const getUser = userApi.get<User>();
 const { send } = getUser;
-const res = await send();
+const res = await send("1");
 
 // res.data => CustomResponse & { data: User }
 
-const getUser = userApi.get<Blob>("1");
+const getUser = userApi.get<Blob>();
 const { send } = getUser;
-const res = await send();
+const res = await send("1");
 // res => AxiosResponse<Blob>
 ```
 
@@ -565,8 +580,8 @@ const res = await send();
 })
 class BackEnd extends Snail<CustomResponse, "record"> {}
 
-const { send } = userApi.get<User>("1");
-const res = await send();
+const { send } = userApi.get<User>();
+const res = await send("1");
 // Custom data key:
 // res.data => CustomResponse & { record: User }
 ```

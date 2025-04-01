@@ -1,15 +1,12 @@
-import { AxiosResponse, AxiosRequestConfig, AxiosError } from "axios";
+import { AxiosResponse, AxiosRequestConfig, AxiosError, Method } from "axios";
 
 import {
   // EventHandler,
   Strategy,
   MethodOption,
-  RequestMethodEnum,
-  RequestMethod,
   VersioningType,
   CacheSetData,
   ResponseData,
-  SendRequest,
   StandardResponseData,
   SnailSuccessListener,
   SnailErrorListener,
@@ -45,7 +42,7 @@ import { applyVersioning } from "../versioning";
 
 // import keys
 import { STRATEGY_KEY } from "../decorators/strategy";
-import { METHOD_KEY } from "../decorators/api";
+import { METHOD_KEY } from "../decorators/method";
 import { VERSION_KEY } from "../decorators/versioning";
 import { NO_CACHE_KEY } from "../decorators/cache";
 import {
@@ -75,20 +72,20 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
 
   private Url: string = "";
   private Path: string = "";
-  private Method: RequestMethod = RequestMethodEnum.GET;
+  private Method: Method = "GET";
+  private Adapter: AxiosRequestConfig["adapter"] = undefined;
   private Version?: string;
-  private Args: any[] = [];
+  // private Args: any[] = [];
 
   constructor(
     apiInstance: SnailApi,
     target: Object,
     propertyKey: string | symbol,
-    args?: []
   ) {
     this.apiInstance = apiInstance;
     this.target = target;
     this.propertyKey = propertyKey.toString();
-    this.Args = args ?? [];
+    // this.Args = args ?? [];
     // 初始化方法设置
     this.init();
     this.enableLog() && console.log("url:", this.Url);
@@ -96,111 +93,116 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
     this.EventEmit = new SnailEvent<RT>();
   }
 
-  public send: SendRequest<RT> = async () => {
+  public send = (...args: any) => {
     // 发送请求方法
     this.enableLog() && console.log("send:", this.name);
     const [serverName] = this.apiInstance.name.split(".");
     const axios = AxiosInstanceMap.get(serverName);
     if (!axios) throw new Error("AxiosInstance not created");
     // const response = await axios.request(this.Request);
-    const serverStatusCodeRule = ServerStatusCodeRuleMap.get(serverName);
-
-    const strategies = this.getStrategies();
-    // console.log("strategies:", strategies.length);
-    // 应用请求策略
-    this.Request = await applyStrategies(this.Request, strategies, "request");
-    // 添加进度条
-    this.Request = this.applyProgress(this.Request);
-    // 构建请求参数
-    // data 请求数据
-    // params url参数
-    // querys 查询参数
-    const { data, querys, params } = buildRequestArgs(
-      this.target,
-      this.propertyKey,
-      this.Args
-    );
-    this.enableLog() &&
-      console.log("methodUrl:", this.Request.baseURL, this.Request.url);
-    // 通过路由参数构建新路由
-    const newUrl = replacePlaceholders(this.Url, params);
-    this.Request = {
-      ...this.Request,
-      url: newUrl,
-      params: {
-        ...this.Request.params,
-        ...querys,
-      },
-      data,
-    };
-    this.enableLog() && console.log("request:", this.Request);
-    // this.enableLog() && console.log("expSources:", ExpireSourceMap);
-    // return
-    // // 获取缓存
-    // ----
-    const isNoCache = this.isNoCache();
-    this.enableLog() && console.log("method is noCache:", isNoCache);
-    if (!isNoCache) {
-      // 启用缓存
-      const { data } = await this.getCacheData(serverName);
-      this.enableLog() && console.log("getCacheData:", data);
-      if (data) {
-        this.EventEmit.emit("hitCache", data);
-        this.EventEmit.emit("success", data);
-        this.EventEmit.emit("finish", data);
-        return data as RT;
-      }
-    }
-    // // 发送请求
-    const requester = AxiosInstanceMap.get(serverName);
-    if (!requester) throw new Error("AxiosInstance not created");
-    try {
-      const rawResponse = await requester.request<RT>(this.Request);
-      const isSpecial = isSpecialResponse(rawResponse);
-      // 应用响应策略
-      const response = (await applyStrategies(
-        rawResponse,
-        strategies,
-        "response"
-      )) as AxiosResponse<RT>;
-      // // 设置缓存
+    return new Promise(async (resolve, reject) => {
+      const serverStatusCodeRule = ServerStatusCodeRuleMap.get(serverName);
+      const strategies = this.getStrategies();
+      // console.log("strategies:", strategies.length);
+      // 应用请求策略
+      this.Request = await applyStrategies(this.Request, strategies, "request");
+      // 添加进度条
+      this.Request = this.applyProgress(this.Request);
+      // 构建请求参数
+      // data 请求数据
+      // params url参数
+      // querys 查询参数
+      const { data, querys, params } = buildRequestArgs(
+        this.target,
+        this.propertyKey,
+        // this.Args
+        args
+      );
+      this.enableLog() &&
+        console.log("methodUrl:", this.Request.baseURL, this.Request.url);
+      // 通过路由参数构建新路由
+      const newUrl = replacePlaceholders(this.Url, params);
+      this.Request = {
+        ...this.Request,
+        url: newUrl,
+        params: {
+          ...this.Request.params,
+          ...querys,
+        },
+        data,
+      };
+      this.enableLog() && console.log("request:", this.Request);
+      // this.enableLog() && console.log("expSources:", ExpireSourceMap);
+      // return
+      // // 获取缓存
+      // ----
+      const isNoCache = this.isNoCache();
+      this.enableLog() && console.log("method is noCache:", isNoCache);
       if (!isNoCache) {
         // 启用缓存
-        !isSpecial && (await this.setCacheData(serverName, response));
-      }
-      this.Response = response;
-      // 触发hitSource
-      this.applyHitSource(serverName);
-      // console.log("当前方法请求成功要让下面的缓存失效");
-      // console.log(this.getExpireSources());
-      isSpecial && console.log("isSpecial:", isSpecial);
-      if (isSpecial) {
-        // 特殊响应处理
-        this.EventEmit.emit("success", response.data);
-        this.EventEmit.emit("finish", response.data);
-        return response as AxiosResponse<RT>;
-      }
-      !isSpecial && console.log("isSpecial:", isSpecial);
-      // 触发事件
-      // 应用规则触发事件
-      if (serverStatusCodeRule) {
-        const { key, rule } = serverStatusCodeRule;
-        const statuCodeKey = key ?? "code";
-        const data = response.data as unknown as RT;
-        if (rule(data[statuCodeKey as keyof RT] as number)) {
-          this.EventEmit.emit("success", response.data);
-        } else {
-          this.EventEmit.emit("error", response.data);
+        const { data } = await this.getCacheData(serverName);
+        this.enableLog() && console.log("getCacheData:", data);
+        if (data) {
+          this.EventEmit.emit("hitCache", data);
+          this.EventEmit.emit("success", data);
+          this.EventEmit.emit("finish", data);
+          resolve(data);
+          return;
         }
       }
-      return response.data as unknown as RT;
-    } catch (error: AxiosError | any) {
-      this.EventEmit.emit("error", error);
-      this.EventEmit.emit("finish", error);
-      console.error(error);
-      this.Error = error;
-      return error;
-    }
+      // 发送请求
+      const requester = AxiosInstanceMap.get(serverName);
+      if (!requester) throw new Error("AxiosInstance not created");
+      try {
+        const rawResponse = await requester.request<RT>(this.Request);
+        const isSpecial = isSpecialResponse(rawResponse);
+        // 应用响应策略
+        const response = (await applyStrategies(
+          rawResponse,
+          strategies,
+          "response"
+        )) as AxiosResponse<RT>;
+        // // 设置缓存
+        if (!isNoCache) {
+          // 启用缓存
+          !isSpecial && (await this.setCacheData(serverName, response));
+        }
+        this.Response = response;
+        // 触发hitSource
+        this.applyHitSource(serverName);
+        // console.log("当前方法请求成功要让下面的缓存失效");
+        // console.log(this.getExpireSources());
+        isSpecial && console.log("isSpecial:", isSpecial);
+        if (isSpecial) {
+          // 特殊响应处理
+          this.EventEmit.emit("success", response.data);
+          this.EventEmit.emit("finish", response.data);
+          resolve(response);
+          return;
+        }
+        !isSpecial && console.log("isSpecial:", isSpecial);
+        // 触发事件
+        // 应用规则触发事件
+        if (serverStatusCodeRule) {
+          const { key, rule } = serverStatusCodeRule;
+          const statuCodeKey = key ?? "code";
+          const data = response.data as unknown as RT;
+          if (rule(data[statuCodeKey as keyof RT] as number)) {
+            this.EventEmit.emit("success", response.data);
+          } else {
+            this.EventEmit.emit("error", response.data);
+          }
+        }
+        resolve(response.data);
+      } catch (error: AxiosError | any) {
+        this.EventEmit.emit("error", error);
+        this.EventEmit.emit("finish", error);
+        console.error(error);
+        this.Error = error;
+        reject(error);
+        return;
+      }
+    });
   };
 
   private init() {
@@ -208,10 +210,11 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
     if (!methodOptions) {
       throw new Error("Create SnailMethod must be used for decoration");
     }
-    const { path, method, name } = methodOptions;
+    const { path, method, name, adapter } = methodOptions;
     this.Name = name ?? this.propertyKey;
     this.Path = path;
     this.Method = method;
+    this.Adapter = adapter;
     this.createRequest();
     this.initUrl();
     this.initVersion();
@@ -278,6 +281,7 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
     const request: AxiosRequestConfig = {
       url: this.Url,
       method: this.Method,
+      adapter: this.Adapter,
       timeout: this.apiInstance.timeout,
       data: {},
       params: {},
@@ -404,17 +408,13 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
     const [serverName] = this.apiInstance.name.split(".");
     const cacheForMap = CacheForMap.get(serverName);
     let flag = false;
-    if (
-      typeof cacheForMap === "string" &&
-      (cacheForMap.toLowerCase() === "all" || cacheForMap === this.Method)
-    ) {
-      flag = true;
+    if (cacheForMap) {
+      flag = cacheForMap.includes(this.Method.toLowerCase());
     }
-    if (Array.isArray(cacheForMap)) {
-      flag = cacheForMap.includes(this.Method);
-    }
+    this.enableLog() && console.log('cacheForMap:',cacheForMap)
+    this.enableLog() && console.log('cacheMethodFlag:',flag)
     // console.log("cacheForMap:", cacheForMap, this.Method, flag);
-    // 是否开启缓存
+    // 方法是否开启缓存
     const isMethodNoCache = Reflect.getMetadata(
       NO_CACHE_KEY,
       this.target,

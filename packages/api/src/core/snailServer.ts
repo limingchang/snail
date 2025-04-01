@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import axios, { AxiosInstance, CreateAxiosDefaults } from "axios";
+import axios, { AxiosInstance, CreateAxiosDefaults,Method } from "axios";
 import { createCache } from "../cache";
 import {
   SnailOption,
@@ -11,16 +11,16 @@ import {
   CacheStorage,
   MethodOption,
   ApiProxy,
-  ResponseData,
-  StandardResponseData,
+  StandardResponseWithoutData,
   CacheType,
   CacheForType,
   SnailServerStatusCodeRuleOptions,
+  ResponseJsonData,
 } from "../typings";
 
 import { resolveUrl } from "../utils";
 // import keys
-import { METHOD_KEY } from "../decorators/api";
+import { METHOD_KEY } from "../decorators/method";
 import { SERVER_CONFIG_KEY } from "../decorators/server";
 import { STRATEGY_KEY } from "../decorators/strategy";
 
@@ -33,7 +33,7 @@ import { SnailSse } from "./snailSse";
 
 export const CacheStorageMap = new Map<string, CacheStorage>();
 export const CacheTtlMap = new Map<string, number>();
-export const CacheForMap = new Map<string, CacheForType>();
+export const CacheForMap = new Map<string, string[]>();
 export const ExpireSourceMap = new Map<string, Set<string>>();
 export const AxiosInstanceMap = new Map<string, AxiosInstance>();
 export const StrategyMap = new Map<string, Array<new () => Strategy>>();
@@ -56,7 +56,9 @@ const defaultServerOptions: SnailOption = {
 };
 
 export class SnailServer<
-  RT extends ResponseData = Omit<StandardResponseData, "data">,
+  RT extends
+    | StandardResponseWithoutData
+    | ResponseJsonData = StandardResponseWithoutData,
   DK extends string = "data"
 > {
   private Name: string;
@@ -140,9 +142,9 @@ export class SnailServer<
     StrategyMap.set(this.Name, serverStrategies);
   };
 
-  createApi<T extends SnailApi>(
-    constructor: new (options: ApiInstanceOptions) => T
-  ): ApiProxy<T, RT, DK> {
+  createApi<TApiClass extends SnailApi>(
+    constructor: new (options: ApiInstanceOptions) => TApiClass
+  ): ApiProxy<TApiClass, RT, DK> {
     const serverVersioning = Reflect.getMetadata(
       VERSIONING_KEY,
       this.constructor
@@ -174,15 +176,13 @@ export class SnailServer<
         // 未被@Method装饰的方法直接返回
         if (!methodConfig) return (target as any)[propertyKey];
 
-        return (...args: []) => {
-          const method = new SnailMethod<RT>(apiInstance, target, propertyKey, [
-            ...args,
-          ]);
+        return () => {
+          const method = new SnailMethod<RT>(apiInstance, target, propertyKey);
           this.initExpireSource(method, propertyKey);
           return method;
         };
       },
-    }) as ApiProxy<T, RT, DK>; //as ApiProxy<T, R, DK>;
+    }) as ApiProxy<TApiClass, RT, DK>; //as ApiProxy<T, R, DK>;
   }
 
   private initCacheManage(
@@ -206,7 +206,14 @@ export class SnailServer<
     }
     // 设置开启缓存的方法
     if (cacheFor) {
-      CacheForMap.set(this.Name, cacheFor);
+      if (Array.isArray(cacheFor)) {
+        CacheForMap.set(
+          this.Name,
+          cacheFor.map((method) => method.toLowerCase()) as Method[]
+        );
+        return;
+      }
+      CacheForMap.set(this.Name, [cacheFor.toLowerCase()] );
     }
   }
 

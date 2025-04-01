@@ -3,10 +3,8 @@ export interface PaginationData<T> {
   total: number;
   // 第几页
   page: number;
-  // 每页条数
-  size: number;
   // 数据
-  record: T[];
+  records: T[];
 }
 
 export type ResponseJsonData = Record<string, any> | object;

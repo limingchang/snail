@@ -1,5 +1,4 @@
 export * from "./request.body";
-export * from "./request.method";
 export * from "./snail.option";
 export * from "./api.option"
 export * from "./versioning.option";

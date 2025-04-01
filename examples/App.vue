@@ -181,33 +181,37 @@ const hotWords = ["java", "javaScript", "HTML", "CSS"];
 
 import { TestApi, ShanHeApiRandom } from "./server/shanhe";
 
+const method = TestApi.shanheRandom<ShanHeApiRandom>();
+const { send: shanheRandom } = method;
 const testHandle = async () => {
   // const res = await TestApi.shanheRandom<ShanHeApiRandom>()
-  const method = TestApi.shanheRandom<ShanHeApiRandom>();
-  const { send, on } = method;
+
   // console.log('method:', send)
-  const { text, code, data } = await send();
+  const { text, code, data } = await shanheRandom();
   console.log("山河随机api:", code, text);
   // console.log('method:', method.name)
 };
 
+const { send: shanheNongli } = TestApi.shanheNongli();
 const handleNongli = async () => {
-  const { send, onSuccess } = TestApi.shanheNongli();
-  await send();
+  await shanheNongli();
   console.log("山河农历api:");
 };
 
+const { send, onSuccess, onError } = TestApi.test<{ id: string }>();
+onSuccess((data) => {
+  const { text, code } = data
+  console.log('onSuccess')
+})
+onError((err) => {
+
+})
 const handleApiTest = async () => {
   // const { send, onSuccess, onError } = TestApi.test<object>("a1", { b: "cc", type: "admin" });
-  const { send, onSuccess,onError } = TestApi.test("a1", { b: "cc", type: "admin" });
-  onSuccess((data) => {
-    console.log('onSuccess')
-  })
-  onError((err) => {
 
-  })
+
   // on("success", () => { });
-  const res = await send();
+  const res = await send("a1", { b: "cc", type: "admin" });
   const { data } = res
   console.log("Api调试", res);
 };

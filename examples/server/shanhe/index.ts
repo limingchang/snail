@@ -44,4 +44,4 @@ class Test extends SnailApi {
   }
 }
 export const TestApi = Service.createApi(Test);
-TestApi.shanheNongli<Blob>
+// TestApi.shanheNongli<Blob>

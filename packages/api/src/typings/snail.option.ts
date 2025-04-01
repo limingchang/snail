@@ -1,8 +1,8 @@
 import { CacheManagementOption } from "./cache.management.option";
-import { RequestMethod } from "./request.method";
+import { Method } from "axios";
 
 // import { VersioningOption } from "./versioning.option";
-export type CacheForType = "All" | "all" | RequestMethod | RequestMethod[];
+export type CacheForType = "All" | "all" | Method | Method[];
 
 export class SnailServerStatusCodeRuleOptions {
   key?: string;

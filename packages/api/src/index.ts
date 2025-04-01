@@ -1,7 +1,7 @@
 export * from "./core";
 export { Server } from "./decorators/server";
+export { Api } from "./decorators/api";
 export {
-  Api,
   Get,
   Put,
   Post,
@@ -9,9 +9,9 @@ export {
   Options,
   Head,
   Delete,
-} from "./decorators/api";
+} from "./decorators/method";
 export { NoCache, HitSource } from "./decorators/cache";
-export { Params, Data,Query } from "./decorators/args";
+export { Params, Data, Query } from "./decorators/args";
 export { UseStrategy } from "./decorators/strategy";
 export { Versioning, Version } from "./decorators/versioning";
 export { Sse, SseEvent, OnSseError, OnSseOpen } from "./decorators/sse";

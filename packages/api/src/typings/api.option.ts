@@ -1,16 +1,11 @@
-import { RequestMethod } from "./request.method";
-import { SnailServer } from "../core"; '../core/snailServer'
+import { SnailServer } from "../core";
 export interface ApiOptions {
   name?: string;
   timeout?: number;
   version?: string;
 }
 
-export interface MethodOption {
-  name?: string;
-  method: RequestMethod;
-  path: string;
-}
+
 
 export interface ApiInstanceOptions{
   serverInstance:SnailServer;
