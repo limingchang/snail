@@ -32,7 +32,7 @@ import { SnailMethod } from "./snailMethod";
 import { SnailSse } from "./snailSse";
 
 export const CacheStorageMap = new Map<string, CacheStorage>();
-export const CacheTtlMap = new Map<string, number>();
+// export const CacheTtlMap = new Map<string, number>();
 export const CacheForMap = new Map<string, string[]>();
 export const ExpireSourceMap = new Map<string, Set<string>>();
 export const AxiosInstanceMap = new Map<string, AxiosInstance>();
@@ -202,7 +202,7 @@ export class SnailServer<
     if (!cacheStorage && options !== undefined) {
       const storage = createCache(options);
       CacheStorageMap.set(this.Name, storage);
-      CacheTtlMap.set(this.Name, options.ttl || 500);
+      // CacheTtlMap.set(this.Name, options.ttl || 500);
     }
     // 设置开启缓存的方法
     if (cacheFor) {

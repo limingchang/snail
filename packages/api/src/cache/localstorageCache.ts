@@ -1,4 +1,4 @@
-import { CacheSetData, CacheGetData, CacheStorageAdapter } from "../typings";
+import { CacheGetData, CacheStorageAdapter } from "../typings";
 
 export default class LocalStorageCache implements CacheStorageAdapter {
   public ttl: number;
@@ -16,7 +16,7 @@ export default class LocalStorageCache implements CacheStorageAdapter {
             data: null,
           });
         }
-        const { data, exp } = JSON.parse(cacheItem) as CacheSetData<T>;
+        const { data, exp } = JSON.parse(cacheItem);
         if (exp < Math.ceil(new Date().getTime() / 1000)) {
           this.delete(key);
           return resolve({

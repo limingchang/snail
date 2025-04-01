@@ -1,16 +1,14 @@
-import { CacheSetData, CacheGetData, CacheStorageAdapter } from "../typings";
+import { CacheGetData, CacheStorageAdapter } from "../typings";
 
 export default class MemoryCache implements CacheStorageAdapter {
   // private cache: Record<string, CacheSetData> = {};
-  private CacheMap: Map<string, CacheSetData> = new Map();
+  private CacheMap: Map<string, any> = new Map();
 
   public ttl: number;
   constructor(ttl: number) {
     this.ttl = ttl;
   }
-  public async get<T = any>(
-    key: string
-  ):  Promise<CacheGetData<T>> {
+  public async get<T = any>(key: string): Promise<CacheGetData<T>> {
     return new Promise((resolve, reject) => {
       try {
         const cacheItem = this.CacheMap.get(key);
@@ -43,7 +41,7 @@ export default class MemoryCache implements CacheStorageAdapter {
         this.CacheMap.set(key, {
           data: value,
           exp: Math.ceil(new Date().getTime() / 1000) + this.ttl,
-        })
+        });
         resolve(true);
       } catch (error) {
         console.error("[MemoryCache]设置缓存错误：", error);
@@ -52,9 +50,7 @@ export default class MemoryCache implements CacheStorageAdapter {
     });
   }
 
-  public async delete(
-    key: string
-  ): Promise<boolean> {
+  public async delete(key: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
       try {
         this.CacheMap.delete(key);

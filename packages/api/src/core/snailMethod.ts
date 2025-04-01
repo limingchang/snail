@@ -5,7 +5,6 @@ import {
   Strategy,
   MethodOption,
   VersioningType,
-  CacheSetData,
   ResponseData,
   StandardResponseData,
   SnailSuccessListener,
@@ -30,7 +29,6 @@ import {
   StrategyMap,
   VersioningMap,
   AxiosInstanceMap,
-  CacheTtlMap,
   ServerStatusCodeRuleMap,
 } from "./snailServer";
 import { SnailApi } from "./snailApi";
@@ -165,7 +163,7 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
         // // 设置缓存
         if (!isNoCache) {
           // 启用缓存
-          !isSpecial && (await this.setCacheData(serverName, response));
+          !isSpecial && (await this.setCacheData(serverName, response.data));
         }
         this.Response = response;
         // 触发hitSource
@@ -329,7 +327,7 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
   private async setCacheData(
     serverName: string,
     // Bug 修复：泛型类型“StandardResponseData”需要介于 0 和 4 类型参数之间，这里只传递 3 个参数
-    responseData: AxiosResponse<RT>
+    responseData: any
   ) {
     const methodKey = await generateCacheKey(
       this.name,
@@ -340,12 +338,12 @@ export class SnailMethod<RT extends ResponseData = StandardResponseData> {
     // 设置tt
     const cacheStorage = CacheStorageMap.get(serverName);
     if (!cacheStorage) throw new Error("CacheStorage not created");
-    const ttl = CacheTtlMap.get(serverName) as number;
-    const cacheData: CacheSetData = {
-      data: responseData.data,
-      exp: Date.now() + ttl * 1000,
-    };
-    cacheStorage.set(methodKey, cacheData);
+    // const ttl = CacheTtlMap.get(serverName) as number;
+    // const cacheData: CacheSetData = {
+    //   data: responseData,
+    //   exp: Date.now() + ttl * 1000,
+    // };
+    cacheStorage.set(methodKey, responseData);
   }
 
   get response() {

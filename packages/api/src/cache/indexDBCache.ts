@@ -1,4 +1,4 @@
-import { CacheSetData,CacheGetData,CacheStorageAdapter } from "../typings";
+import { CacheSetData, CacheGetData, CacheStorageAdapter } from "../typings";
 
 const INDEXDB_DATABASE_NAME = "SNAIL_CACHE";
 const INDEXDB_VERSION = 3;
@@ -42,9 +42,7 @@ export default class IndexDBCache implements CacheStorageAdapter {
     });
   }
 
-  public async get<T = any>(
-    key: string
-  ) : Promise<CacheGetData<T>>{
+  public async get<T = any>(key: string): Promise<CacheGetData<T>> {
     return new Promise(async (resolve, reject) => {
       if (this.db === null || this.db === undefined) {
         // return reject({ error: new Error("数据库未初始化"), data: null });
@@ -73,10 +71,7 @@ export default class IndexDBCache implements CacheStorageAdapter {
     });
   }
 
-  public async set<T = any>(
-    key: string,
-    value: T
-  ): Promise<boolean> {
+  public async set<T = any>(key: string, value: T): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
       if (this.db === null || this.db === undefined) {
         await this.init();
@@ -102,9 +97,7 @@ export default class IndexDBCache implements CacheStorageAdapter {
     });
   }
 
-  public async delete(
-    key: string
-  ): Promise<boolean> {
+  public async delete(key: string): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
       if (this.db === null || this.db === undefined) {
         await this.init();
@@ -129,9 +122,11 @@ export default class IndexDBCache implements CacheStorageAdapter {
   public async clear(): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
       if (!this.db) await this.init();
-      
-      const transaction = (this.db as IDBDatabase)
-        .transaction(INDEXDB_OBJECT_STORE_NAME, "readwrite");
+
+      const transaction = (this.db as IDBDatabase).transaction(
+        INDEXDB_OBJECT_STORE_NAME,
+        "readwrite"
+      );
       const request = transaction
         .objectStore(INDEXDB_OBJECT_STORE_NAME)
         .clear();
@@ -147,15 +142,17 @@ export default class IndexDBCache implements CacheStorageAdapter {
   public async keys(): Promise<string[]> {
     return new Promise(async (resolve, reject) => {
       if (!this.db) await this.init();
-      
-      const transaction = (this.db as IDBDatabase)
-        .transaction(INDEXDB_OBJECT_STORE_NAME, "readonly");
+
+      const transaction = (this.db as IDBDatabase).transaction(
+        INDEXDB_OBJECT_STORE_NAME,
+        "readonly"
+      );
       const request = transaction
         .objectStore(INDEXDB_OBJECT_STORE_NAME)
         .getAllKeys();
 
-      request.onsuccess = () => 
-        resolve(request.result.map(key => key.toString()));
+      request.onsuccess = () =>
+        resolve(request.result.map((key) => key.toString()));
       request.onerror = (event) => {
         console.error(`[indexDB]获取键名错误：${event.target}`);
         reject([]);
