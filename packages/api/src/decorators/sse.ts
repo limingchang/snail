@@ -16,7 +16,7 @@ export const Sse = (path?: string, options?: SseOptions) => {
         path,
         ...options,
       },
-      target,
+      target
     );
   };
 };
@@ -34,13 +34,14 @@ export const SseEvent = (
   options?: boolean | AddEventListenerOptions
 ) => {
   return (target: any, propertyKey: string) => {
+    console.log("SseEvent:", target.constructor);
     const events = Reflect.getMetadata(EVENT_SOURCE_EVENTS_KEY, target) || [];
     events.push({
       eventName: eventName ? eventName : "message",
       emit: target[propertyKey],
       options,
     });
-    Reflect.defineMetadata(EVENT_SOURCE_EVENTS_KEY, events, target);
+    Reflect.defineMetadata(EVENT_SOURCE_EVENTS_KEY, events, target.constructor);
   };
 };
 

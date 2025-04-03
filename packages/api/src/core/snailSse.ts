@@ -90,6 +90,7 @@ export class SnailSse {
     this._eventSource = eventSource;
     this.setEvent();
     this.registerSseEvent();
+    return this._eventSource;
   };
 
   close = () => {
@@ -101,11 +102,13 @@ export class SnailSse {
   private registerSseEvent() {
     const eventSource = this._eventSource;
     if (!eventSource) return;
+    // console.log('registerSseEvent:',this.constructor)
     const events = Reflect.getMetadata(
       EVENT_SOURCE_EVENTS_KEY,
       this.constructor
     ) as SseEventListener[];
     // console.log('registerSseEvent:',events)
+    if (!events) return;
     events.map((event) => {
       eventSource.addEventListener(event.eventName, event.emit, event.options);
     });
