@@ -42,7 +42,7 @@
     <p>
       <!-- <ElButton type="success" @click="handleSse">SSE测试</ElButton> -->
     </p>
-    <div class="icon-box" v-show="false">
+    <div class="icon-box" v-show="true">
       <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
         <SIcon :icon="icon.name">
           <!-- <component :is="icon.name"></component> -->

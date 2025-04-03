@@ -1,20 +1,28 @@
 <template>
-  <div ref="clickCopyRef" class="s-click-copy" @click="handleCopy">
+  <div v-if="!success" ref="clickCopyRef" class="s-click-copy" @click="handleCopy">
     <SIcon>
       <IconCopy />
     </SIcon>
     <span>{{ label }}</span>
   </div>
+  <div v-if="success" class="s-click-copy-message">
+    <SIcon>
+      <IconOk />
+    </SIcon>
+    <span>{{ message }}</span>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { ElMessage } from "element-plus";
+// import { ElMessage } from "element-plus";
 import { SIcon } from "../icon";
 import { IconCopy } from "../icon/icons";
 
 // const clickCopyRef = useTemplateRef("clickCopyRef");
 const clickCopyRef = ref(null)
+
+const success = ref(false)
 
 const props = defineProps({
   label: {
@@ -39,9 +47,14 @@ onMounted(() => {
 
 const handleCopy = async () => {
   await navigator.clipboard.writeText(props.text);
-  ElMessage.success({
-    message: props.message || "复制成功",
-  });
+  // ElMessage.success({
+  //   message: props.message || "复制成功",
+  // });
+  success.value = true;
+  const timer = setTimeout(() => {
+    success.value = false;
+    clearTimeout(timer)
+  }, 1500);
 };
 
 defineOptions({

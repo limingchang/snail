@@ -94,6 +94,16 @@ button {
   color: #409eff;
   cursor: pointer;
 }
+.s-click-copy-message {
+  position: absolute;
+  // display: none;
+  right: 5px;
+  bottom: 5px;
+  font-size: 12px;
+  color: #67c23a;
+  cursor: pointer;
+}
+
 .s-click-copy-parent .s-click-copy {
   display: none;
 }
