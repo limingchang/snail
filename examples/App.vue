@@ -206,14 +206,17 @@ onSuccess((data) => {
 onError((err) => {
 
 })
+
+import { SystemSse } from './server/local'
+const { open } = SystemSse;
 const handleApiTest = async () => {
   // const { send, onSuccess, onError } = TestApi.test<object>("a1", { b: "cc", type: "admin" });
-
+  open()
 
   // on("success", () => { });
-  const res = await send("a1", { b: "cc", type: "admin" });
-  const { data } = res
-  console.log("Api调试", res);
+  // const res = await send("a1", { b: "cc", type: "admin" });
+  // const { data } = res
+  // console.log("Api调试", res);
 };
 
 // import { SystemSse } from "./server/local";

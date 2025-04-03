@@ -1,8 +1,8 @@
-import { Api, Sse, SseEvent, OnSseError, OnSseOpen,SnailSse } from "@snail-js/api";
+import { Sse, SseEvent, OnSseError, OnSseOpen,SnailSse } from "@snail-js/api";
 
 import { Service } from "./service";
 
-@Sse("sse", {
+@Sse("system/sse", {
   withCredentials: true,
 })
 class System extends SnailSse {

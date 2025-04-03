@@ -280,7 +280,16 @@ export class SnailServer<
   createSse<T extends SnailSse>(
     constructor: new (server: SnailServer) => T
   ): SnailSse {
+    const serverVersioning = Reflect.getMetadata(
+      VERSIONING_KEY,
+      this.constructor
+    ) as VersioningOption;
+    if (serverVersioning) {
+      this.Version = serverVersioning.defaultVersion || "";
+    }
     const sseInstance = new constructor(this);
+    // console.log("createSse-this:", this);
+    // console.log("createSse:", sseInstance);
     return sseInstance;
   }
 

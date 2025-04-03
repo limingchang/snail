@@ -34,12 +34,14 @@ export class SnailSse {
   constructor(server: SnailServer) {
     this._serverInstance = server;
     this._baseUrl = server.baseUrl;
+    // console.log('server-version:',server.version)
     const options = this.getSseOptions();
     const { path, withCredentials, version } = options;
     this._url = resolveUrl(path);
-    this._version = version;
+    this._version = version ?? server.version;
     this._withCredentials = withCredentials ? withCredentials : false;
     this.initVersion();
+    // console.log("Sse-constructor:", this);
   }
 
   private getSseOptions() {
@@ -52,6 +54,7 @@ export class SnailSse {
         "you need to use @Sse() decorator to decorate your class"
       );
     }
+    // console.log("getSseOptions:", sseOptions);
     const options = Object.assign({}, defaultSseOptions, sseOptions);
     return options;
   }
@@ -62,8 +65,10 @@ export class SnailSse {
     const versioningResult = applyVersioning(this._version, versioningOptions);
     if (!versioningResult) return;
     const { type, result } = versioningResult;
+    // console.log("versioningResult:", type, result);
     if (type === VersioningType.Uri) {
       const url = `${resolveUrl(result as string)}${this._url}`;
+      // console.log("versioningResult[url]:", url);
       this._url = url;
       return;
     }
@@ -77,6 +82,8 @@ export class SnailSse {
 
   open = () => {
     const url = `${this._baseUrl}${this._url}`;
+    // console.log("open sse[baseUrl]:", this._baseUrl);
+    // console.log("open sse[url]:", url);
     const eventSource = new EventSource(url, {
       withCredentials: this._withCredentials,
     });
@@ -144,7 +151,7 @@ export class SnailSse {
   };
 
   get url() {
-    return this._url;
+    return `${this._baseUrl}${this._url}`;
   }
 
   get eventSource() {
