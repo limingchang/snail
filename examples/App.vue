@@ -9,7 +9,7 @@
       </button>
       <SClickCopy text="复制内容"></SClickCopy>
     </div>
-    <p>
+    <!-- <p>
       <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
         <SIcon size="large">
           <IconSign />
@@ -19,54 +19,56 @@
         </SIcon>兼容测试
       </button>
       <ElButton type="primary" @click="testHandle">
-        <!-- <ElButton type="primary"> -->
-        <ElIcon>
+         <ElButton type="primary"> -->
+        <!-- <ElIcon>
           <Edit />
         </ElIcon>山河随机
-      </ElButton>
-    </p>
-    <p>
-      <ElButton type="primary" @click="handleNongli">
+      </ElButton> -->
+    <!-- </p> -->
+    <!-- <p> -->
+      <!-- <ElButton type="primary" @click="handleNongli"> -->
         <!-- <ElButton type="primary"> -->
-        <ElIcon>
+        <!-- <ElIcon>
           <Edit />
-        </ElIcon>山河农历
-      </ElButton>
-      <ElButton type="primary" @click="handleApiTest">
+        </ElIcon>山河农历 -->
+      <!-- </ElButton> -->
+      <!-- <ElButton type="primary" @click="handleApiTest"> -->
         <!-- <ElButton type="primary"> -->
-        <ElIcon>
+        <!-- <ElIcon>
           <Edit />
-        </ElIcon>Api调试
-      </ElButton>
-    </p>
+        </ElIcon>Api调试 -->
+      <!-- </ElButton> -->
+    <!-- </p> -->
     <p>
       <!-- <ElButton type="success" @click="handleSse">SSE测试</ElButton> -->
     </p>
-    <div class="icon-box" v-show="true">
+    <!-- <div class="icon-box" v-show="true">
       <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
         <SIcon :icon="icon.name">
-          <!-- <component :is="icon.name"></component> -->
         </SIcon>
         <span class="icon-name" style="display: inline-block">{{
         toPascalCase(icon.name!)
       }}</span>
       </span>
-    </div>
+    </div> -->
     <p>
-      <button @click="menuHandle">点击菜单</button>
+      <!-- <button @click="menuHandle">点击菜单</button> -->
       <!-- <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha> -->
       <!-- <SPopupMenu :width="150" v-model="showMenu" :items="menuItems"></SPopupMenu> -->
     </p>
     <!-- <div>
       <SWordCloud :hotWords="hotWords" :radius="100" :speed="10"></SWordCloud>
     </div> -->
+    <p>
+      <SAiChat></SAiChat>
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, useTemplateRef, watch } from "vue";
 import { SIcon, SClickCopy } from "@snail-js/vue";
-import { IconMobile, IconSign, IconContract, SIconSvgs } from "@snail-js/vue";
+import { IconMobile, IconSign, IconContract, SIconSvgs,SAiChat } from "@snail-js/vue";
 // import * as SnailIcons from "@snail-js/theme";
 
 import { SWordCloud } from "@snail-js/vue";

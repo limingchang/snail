@@ -34,7 +34,7 @@ export const SseEvent = (
   options?: boolean | AddEventListenerOptions
 ) => {
   return (target: any, propertyKey: string) => {
-    console.log("SseEvent:", target.constructor);
+    // console.log("SseEvent:", target.constructor);
     const events = Reflect.getMetadata(EVENT_SOURCE_EVENTS_KEY, target) || [];
     events.push({
       eventName: eventName ? eventName : "message",
