@@ -62,13 +62,17 @@
     <p>
       <SAiChat></SAiChat>
     </p>
+    <p>
+      <SDocxDesign></SDocxDesign>
+    </p>
+      
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, useTemplateRef, watch } from "vue";
 import { SIcon, SClickCopy } from "@snail-js/vue";
-import { IconMobile, IconSign, IconContract, SIconSvgs,SAiChat } from "@snail-js/vue";
+import { IconMobile, IconSign, IconContract, SIconSvgs,SAiChat,SDocxDesign } from "@snail-js/vue";
 // import * as SnailIcons from "@snail-js/theme";
 
 import { SWordCloud } from "@snail-js/vue";
