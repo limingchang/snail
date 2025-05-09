@@ -34,7 +34,7 @@ watch(activeTab, (newVal) => {
 
 <style scoped lang="scss">
 @use '../theme/style/variables.scss' as *;
-$tab-height: 52px;
+$labels-height: 56px;
 $active-color: #ffffff;
 $default-color: #e2e8f8;
 
@@ -44,7 +44,7 @@ $default-color: #e2e8f8;
 
 .tab-labels {
   width: 100%;
-  height: $tab-height;
+  height: $labels-height;
   display: flex;
   // flex-direction: column;
   position: relative;

@@ -40,13 +40,15 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @use '../theme/style/variables.scss' as *;
-$tab-height: 52px;
+$labels-height: 56px;
+$tab-label-height: 40px;
 $active-color: #ffffff;
 $default-color: #e2e8f8;
 
 .tab-label {
   // flex: 1;
-  height: $tab-height;
+  height: $tab-label-height;
+  line-height: $tab-label-height; // 垂直居中，兼容ie;
   // display: flex;
   justify-content: center;
   align-items: center;
@@ -56,6 +58,7 @@ $default-color: #e2e8f8;
   position: relative;
   cursor: pointer;
   padding: 8px 15px;
+  // padding-bottom: 0;
 
   &:not(.active) {
     background: #f0f0f0;
@@ -64,10 +67,10 @@ $default-color: #e2e8f8;
     &::before {
       content: '';
       position: absolute;
-      left: 6px;
-      bottom: 15px;
+      left: 5px;
       width: 12px;
-      height: $tab-height;
+      bottom: 0;
+      height: $labels-height;
       background: $default-color;
       border-bottom-left-radius: 12px;
       transform: skewX(15deg);
@@ -75,10 +78,10 @@ $default-color: #e2e8f8;
     &::after {
       content: '';
       position: absolute;
-      right: 6px;
-      bottom: 15px;
+      right: 5px;
       width: 12px;
-      height: $tab-height;
+      bottom: 0;
+      height: $labels-height;
       background: $default-color;
       border-bottom-right-radius: 12px;
       transform: skewX(-15deg); 
@@ -89,17 +92,18 @@ $default-color: #e2e8f8;
     z-index: 2;
     font-weight: bold;
     opacity: 1;
-    background: #ffffff;
+    background: $active-color;
     border-radius: 12px 12px 0 0;
-    box-shadow: 24px 40px 0 $active-color, -24px 40px 0 0 $active-color;
+    // box-shadow: 12px 35px 0 $active-color, -12px 35px 0 0 $active-color;
+    // box-shadow: 5px $tab-height 0 5px $active-color;
 
     &::before{
       content: '';
       position: absolute;
-      left: -6px;
-      bottom: 15px;
+      left: -5px;
+      bottom: 0;
       width: 12px;
-      height: $tab-height;
+      height: $labels-height;
       border-top-left-radius: 12px;
       background-color: $active-color;
       transform: skewX(-15deg);
@@ -107,10 +111,10 @@ $default-color: #e2e8f8;
     &::after {
       content: '';
       position: absolute;
-      right: -6px;
-      bottom: 15px;
+      right: -5px;
+      bottom: 0;
       width: 12px;
-      height: $tab-height;
+      height: $labels-height;
       border-top-right-radius: 12px;
       background-color: $active-color;
       transform: skewX(15deg);
