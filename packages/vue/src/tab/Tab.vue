@@ -5,9 +5,9 @@
     </div>
     <div class="tab-content">
       <template v-for="item in items" :key="item.name">
-        <div v-if="activeTab === item.name">
-          <component :is="item.content" />
-        </div>
+        <!-- <div v-if="activeTab === item.name"> -->
+        <component v-if="activeTab === item.name" :is="item.content" />
+        <!-- </div> -->
       </template>
     </div>
   </div>
@@ -38,9 +38,7 @@ $labels-height: 56px;
 $active-color: #ffffff;
 $default-color: #e2e8f8;
 
-.tab-container {
-  
-}
+.tab-container {}
 
 .tab-labels {
   width: 100%;
@@ -55,6 +53,15 @@ $default-color: #e2e8f8;
 }
 
 .tab-content {
+  background-color: #ffffff;
   padding: 16px;
+  display: flex;
+  // flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+
+  > * {
+    margin-left: 10px;
+  }
 }
 </style>

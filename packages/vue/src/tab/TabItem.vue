@@ -54,6 +54,7 @@ $default-color: #e2e8f8;
   align-items: center;
   font-size: 1.2em;
   // opacity: 0.65;   // 暂时删除，不选中样式需要重新编写
+  background-color: $default-color;
   color: $snail-color-primary;
   position: relative;
   cursor: pointer;
@@ -61,31 +62,9 @@ $default-color: #e2e8f8;
   // padding-bottom: 0;
 
   &:not(.active) {
-    background: #f0f0f0;
-    border-bottom: 1px solid #ddd;
+    background-color: $default-color;
+    border-bottom: 1px solid $default-color;
     border-radius: 8px;
-    &::before {
-      content: '';
-      position: absolute;
-      left: 5px;
-      width: 12px;
-      bottom: 0;
-      height: $labels-height;
-      background: $default-color;
-      border-bottom-left-radius: 12px;
-      transform: skewX(15deg);
-    }
-    &::after {
-      content: '';
-      position: absolute;
-      right: 5px;
-      width: 12px;
-      bottom: 0;
-      height: $labels-height;
-      background: $default-color;
-      border-bottom-right-radius: 12px;
-      transform: skewX(-15deg); 
-    }
   }
 
   &.active {
@@ -94,8 +73,6 @@ $default-color: #e2e8f8;
     opacity: 1;
     background: $active-color;
     border-radius: 12px 12px 0 0;
-    // box-shadow: 12px 35px 0 $active-color, -12px 35px 0 0 $active-color;
-    // box-shadow: 5px $tab-height 0 5px $active-color;
 
     &::before{
       content: '';
@@ -121,10 +98,4 @@ $default-color: #e2e8f8;
     }
   }
 }
-
-// .tab-item.active {
-//   border-bottom-color: #1890ff;
-//   color: #1890ff;
-//   font-weight: bold;
-// }
 </style>

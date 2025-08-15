@@ -2,5 +2,4 @@ export * from "./icon";
 export * from "./clickCopy";
 export * from "./aliCaptcha";
 export * from "./wordCloud";
-export * from "./chat"
-export * from "./docx"
+export * from "./tab";
