@@ -1,0 +1,68 @@
+{
+  "name": "@snail-js/editor-vue",
+  "version": "0.1.0",
+  "type": "module",
+  "module": "dist/snail-editor-vue.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/snail-editor-vue.js",
+      "require": "./dist/snail-editor-vue.umd.cjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./index.css": "./dist/index.css",
+    "./*": "./*"
+  },
+  "description": "vue editor component lib, base on ant-design-vue and tiptap",
+  "main": "src/index.ts",
+  "scripts": {
+    "clean:dist": "rimraf ./dist",
+    "build": "pnpm run clean:dist && vite build && pnpm run build:type && pnpm run build:css",
+    "build:type": "vue-tsc -p tsconfig.build.json --composite false --declaration --emitDeclarationOnly",
+    "build:css": "sass ./src/index.scss ./dist/index.css --no-source-map",
+    "publish": "npm publish",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "snail",
+    "vue",
+    "editor",
+    "tiptap"
+  ],
+  "author": "",
+  "license": "MIT",
+  "files": [
+    "README.md",
+    "dist"
+  ],
+  "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
+    "@tiptap/core": "^3.1.0",
+    "@tiptap/extension-bold": "^3.1.0",
+    "@tiptap/extension-bubble-menu": "^3.2.0",
+    "@tiptap/extension-document": "^3.0.9",
+    "@tiptap/extension-heading": "^3.0.9",
+    "@tiptap/extension-image": "^3.2.0",
+    "@tiptap/extension-italic": "^3.1.0",
+    "@tiptap/extension-paragraph": "^3.0.9",
+    "@tiptap/extension-strike": "^3.1.0",
+    "@tiptap/extension-table": "^3.2.0",
+    "@tiptap/extension-text": "^3.0.9",
+    "@tiptap/extension-text-align": "^3.2.0",
+    "@tiptap/extension-text-style": "^3.1.0",
+    "@tiptap/extension-underline": "^3.1.0",
+    "@tiptap/extensions": "^3.1.0",
+    "@tiptap/pm": "^3.0.9",
+    "@tiptap/vue-3": "^3.0.9",
+    "ant-design-vue": "4"
+  },
+  "peerDependencies": {
+    "vue": ">=3.5.13"
+  },
+  "devDependencies": {
+    "sass": "^1.83.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.3",
+    "vue-tsc": "^2.0.21"
+  }
+}

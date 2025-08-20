@@ -60,10 +60,7 @@
       <SWordCloud :hotWords="hotWords" :radius="100" :speed="10"></SWordCloud>
     </div> -->
     <p>
-      <SAiChat></SAiChat>
-    </p>
-    <p>
-      <SDocxDesign></SDocxDesign>
+      <SEditor></SEditor>
     </p>
       
   </div>
@@ -72,7 +69,7 @@
 <script setup lang="ts">
 import { ref, onMounted, useTemplateRef, watch } from "vue";
 import { SIcon, SClickCopy } from "@snail-js/vue";
-import { IconMobile, IconSign, IconContract, SIconSvgs,SAiChat } from "@snail-js/vue";
+import { IconMobile, IconSign, IconContract, SIconSvgs } from "@snail-js/vue";
 // import * as SnailIcons from "@snail-js/theme";
 
 import { SWordCloud } from "@snail-js/vue";
@@ -81,6 +78,7 @@ import { AliCaptcha, CaptchaObj } from "@snail-js/vue";
 import { ElButton, ElIcon } from "element-plus";
 import { Edit, EditPen } from "@element-plus/icons-vue";
 import { SPopUpMenu, SPopUpMenuItemOptions } from "@snail-js/vue";
+import { SEditor } from "@snail-js/editor";
 
 // import { SIcon,CaptchaObj,SClickCopy,AliCaptcha } from '../packages/vue'
 // const captchaId = ref(import.meta.env.VITE_APP_CAPTCHA_ID);

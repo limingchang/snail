@@ -30,6 +30,7 @@
     "@snail-js/api": "workspace:^",
     "@snail-js/shared": "workspace:^",
     "@snail-js/vue": "workspace:^",
+    "@snail-js/editor-vue": "workspace:^",
     "element-plus": "^2.9.2",
     "vue": "^3.5.13"
   },

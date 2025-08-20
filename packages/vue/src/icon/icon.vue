@@ -17,8 +17,8 @@ const emits = defineEmits(["click"]);
 const iconStyle = computed(() => {
   return {
     color: props.color || "inherit",
-    height: '1em',
-    width: '1em'
+    height: 'inherit',
+    width: 'inherit'
   };
 });
 

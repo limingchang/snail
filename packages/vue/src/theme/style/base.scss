@@ -1,13 +1,13 @@
 body {
   margin: 0 auto;
 }
-button {
-  outline: none;
-  border: none;
-  border-radius: 8px;
-  padding: 5px 10px;
-  cursor: pointer;
-}
+// button {
+//   outline: none;
+//   border: none;
+//   border-radius: 8px;
+//   padding: 5px 10px;
+//   cursor: pointer;
+// }
 
 .s-pop-up-menu {
   position: absolute;
@@ -75,7 +75,7 @@ button {
   // display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1em;
+  line-height: inherit;
   position: relative;
   fill: currentColor;
   color: var(--color);
