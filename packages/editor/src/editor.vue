@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import { Editor, useEditor, EditorContent } from '@tiptap/vue-3'
 import { Document } from '@tiptap/extension-document'
-import { Paragraph } from '@tiptap/extension-paragraph'
+import { ParagraphPro } from './extensions/paragraph'
 import { Text } from '@tiptap/extension-text'
 import { Heading } from '@tiptap/extension-heading'
 // import { HeadingPro } from './extensions/heading'
@@ -18,18 +18,19 @@ import { Italic } from '@tiptap/extension-italic'
 import { Underline } from '@tiptap/extension-underline'
 import { TextStyleKit } from '@tiptap/extension-text-style'
 import { TextAlign } from '@tiptap/extension-text-align'
+import { TextIndent } from './extensions/textIndent'
 
 
 import ToolBar from './components/toolBar.vue';
 
 const editor = useEditor({
   extensions: [
-    Document,
-    Paragraph.configure({
+    Document.configure({
       HTMLAttributes: {
-        style: 'text-indent: 2em;line-height: 1.5;',
+        style: 'padding: 10mm;',
       },
     }),
+    ParagraphPro,
     Text,
     TextStyleKit,
     TextAlign.configure({
@@ -41,6 +42,7 @@ const editor = useEditor({
     Bold,
     Italic,
     Underline,
+    TextIndent,
   ],
   content: {
     type: 'doc',

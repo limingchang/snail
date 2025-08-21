@@ -52,7 +52,7 @@ const props = defineProps({
 
 const headingLevel = ref<number>(0)
 
-// type 定义命令类型,因未引入对应插件，防止报错
+// type 定义命令类型
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     blod: {
@@ -80,6 +80,14 @@ declare module '@tiptap/core' {
       setTextAlign: (align:string) => ReturnType,
       toggleTextAlign: (align: string ) => ReturnType,
       unsetTextAlign: () => ReturnType;
+    }
+    lineHeight:{
+      setLineHeight: (lineHeight: string) => ReturnType,
+      unsetLineHeight: () => ReturnType;
+    }
+    textIndent: {
+      setTextIndent: (textIndent: string) => ReturnType,
+      unsetTextIndent: () => ReturnType;
     }
   }
 }
@@ -122,36 +130,16 @@ const isAlignJustifyActivate = computed(() => {
 
 // 缩进工具
 const isIndentActivate = computed(() => {
-  // return props.editor?.isActive({ textIndent: "2em" })
-  console.log()
-  return false
+  return props.editor?.isActive({ textIndent: "2em" })
 })
 
 const handleIndentClick = () => {
   console.log('缩进设置')
-  props.editor.chain()
-  .updateAttributes('paragraph',{
-    style:{
-      textIndent: '2em'
-    }
-    // textIndent: '2em'
-  }).run()
-  // props.editor?.chain().focus().setTextIndent("2em").run()
+  props.editor?.chain().focus().setTextIndent('2em').run()
 }
 const handleUnIndentClick = () => {
   console.log('取消缩进')
-  console.log(props.editor.state.selection)
-  props.editor.chain().selectParentNode().updateAttributes('paragraph',{
-    HTMLAttributes:{
-      style: 'text-indent: 0em'
-    }
-  })
-  // .updateAttributes('paragraph',{
-  //   style:`text-indent: 0em;`
-  // })
-  .run()
-  
-  console.log(props.editor.state.selection)
+  props.editor?.chain().focus().unsetTextIndent().run()
 }
 
 // 行高工具
@@ -162,9 +150,11 @@ const handleLineHeightTypeChange = (value: any, option: any) => {
   if (value === 'fixedValue') {
     lineHeightUnit.value = '磅'
     lineHeight.value = 28
+    props.editor.chain().setLineHeight(`${lineHeight.value}pt`).run()
   } else {
     lineHeightUnit.value = '倍'
     lineHeight.value = option.key as number
+    props.editor.chain().setLineHeight(`${lineHeight.value}`).run()
   }
 }
 
@@ -172,6 +162,11 @@ const handleLineHeightTypeChange = (value: any, option: any) => {
 const handleLineHeightChange = (value: any) => {
   if (lineHeightType.value !== 'fixedValue' && lineHeightUnit.value == '倍' && lineHeight.value >= 2) {
     lineHeightType.value = 'multiple'
+  }
+  if(lineHeightUnit.value == '磅'){
+    props.editor.chain().setLineHeight(`${lineHeight.value}pt`).run()
+  }else{
+    props.editor.chain().setLineHeight(`${lineHeight.value}`).run()
   }
 }
 
