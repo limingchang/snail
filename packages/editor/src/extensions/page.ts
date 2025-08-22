@@ -12,7 +12,7 @@ export const Page = Node.create({
   // 不是顶级节点，顶级节点仍然是doc
   topNode: false,
   // 优先级高于其他块级元素，确保页面在文档结构中正确排序
-  priority: 100,
+  priority: 10002,
   // 解析HTML
   parseHTML() {
     return [

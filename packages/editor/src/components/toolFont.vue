@@ -1,11 +1,13 @@
 <template>
   <div class="tool-font">
     <div class="font-style">
-      <Select v-model:value="fontFamily" class="font-family-select" @change="handleFontFamilyChange">
-        <Select.Option v-for="(item, key) in FontFamilyList" :key="key" :value="item">{{ key }}</Select.Option>
+      <Select v-model:value="fontFamily" class="font-family-select">
+        <Select.Option v-for="(item, key) in FontFamilyList" :key="key" :value="item"
+          @click="handleSetFontFamily(item)">{{ key }}</Select.Option>
       </Select>
-      <Select v-model:value="fontSize" class="font-size-select" @change="handleFontSizeChange">
-        <Select.Option v-for="(item, key) in FontSizeList" :key="key" :value="item">{{ key }}</Select.Option>
+      <Select v-model:value="fontSize" class="font-size-select">
+        <Select.Option v-for="(item, key) in FontSizeList" :key="key" :value="item" @click="handleSetFontSize(item)">{{
+          key }}</Select.Option>
       </Select>
     </div>
     <div class="font-marks">
@@ -35,16 +37,39 @@ const props = defineProps({
   }
 })
 
-const fontFamily = ref('宋体')
-const fontSize = ref('四号')
+// const fontFamily = ref('宋体')
+const fontFamily = computed(() => {
+  if(!props.editor){
+    return '宋体'
+  }
+  for (const key in FontFamilyList) {
+    if (props.editor?.isActive('textStyle', { fontFamily: FontFamilyList[key as keyof typeof FontFamilyList] })) {
+      return FontFamilyList[key as keyof typeof FontFamilyList]
+    }
+  }
+  // 如果没有激活的字体，返回默认字体
+  return '宋体'
+})
+const fontSize = computed(() => {
+  if(!props.editor){
+    return '四号'
+  }
+  for (const key in FontSizeList) {
+    if (props.editor?.isActive('textStyle', { fontSize: FontSizeList[key as keyof typeof FontSizeList] })) {
+      return FontSizeList[key as keyof typeof FontSizeList]
+    }
+  }
+  // 如果没有激活的字体，返回默认字体
+  return '四号'
+})
 
 // font style工具
 // 设置字体
-const handleFontFamilyChange = (value: any) => {
+const handleSetFontFamily = (value: string) => {
   props.editor?.chain().focus().setFontFamily(value).run()
 }
 // 设置字体大小
-const handleFontSizeChange = (value: any) => {
+const handleSetFontSize = (value: string) => {
   props.editor?.chain().focus().setFontSize(value).run()
 }
 

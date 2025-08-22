@@ -19,9 +19,11 @@ import { Underline } from '@tiptap/extension-underline'
 import { TextStyleKit } from '@tiptap/extension-text-style'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { TextIndent } from './extensions/textIndent'
-
+// import { Content } from '@tiptap/core'
 
 import ToolBar from './components/toolBar.vue';
+
+import { defaultContent } from './contents/default'
 
 const editor = useEditor({
   extensions: [
@@ -44,20 +46,7 @@ const editor = useEditor({
     Underline,
     TextIndent,
   ],
-  content: {
-    type: 'doc',
-    content: [
-      {
-        type: 'paragraph',
-        content: [
-          {
-            type: 'text',
-            text: 'Hello World!',
-          }
-        ]
-      }
-    ]
-  },
+  content: defaultContent,
 })
 
 const testExport = () => {
@@ -78,6 +67,14 @@ const testExport = () => {
     :deep(.tiptap) {
       outline: none;
       background-color: #fff;
+      min-height: 297mm; /* A4纵向高度 */
+      max-width: 210mm; /* A4宽度 */
+      margin: 0 auto; /* 居中显示 */
+      padding: 20mm; /* 页边距 */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
+      border-radius: 4px; /* 轻微圆角 */
+      box-sizing: border-box; /* 确保padding不影响总宽度 */
+      position: relative;
     }
   }
 }

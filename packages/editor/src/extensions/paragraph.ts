@@ -1,4 +1,4 @@
-import { mergeAttributes, Node } from "@tiptap/core";
+import { mergeAttributes } from "@tiptap/core";
 import { Paragraph } from "@tiptap/extension-paragraph";
 
 export interface CustomParagraphOptions {

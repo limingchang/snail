@@ -150,11 +150,11 @@ const handleLineHeightTypeChange = (value: any, option: any) => {
   if (value === 'fixedValue') {
     lineHeightUnit.value = '磅'
     lineHeight.value = 28
-    props.editor.chain().setLineHeight(`${lineHeight.value}pt`).run()
+    props.editor.chain().focus().setLineHeight(`${lineHeight.value}pt`).run()
   } else {
     lineHeightUnit.value = '倍'
     lineHeight.value = option.key as number
-    props.editor.chain().setLineHeight(`${lineHeight.value}`).run()
+    props.editor.chain().focus().setLineHeight(`${lineHeight.value}`).run()
   }
 }
 
@@ -164,9 +164,9 @@ const handleLineHeightChange = (value: any) => {
     lineHeightType.value = 'multiple'
   }
   if(lineHeightUnit.value == '磅'){
-    props.editor.chain().setLineHeight(`${lineHeight.value}pt`).run()
+    props.editor.chain().focus().setLineHeight(`${lineHeight.value}pt`).run()
   }else{
-    props.editor.chain().setLineHeight(`${lineHeight.value}`).run()
+    props.editor.chain().focus().setLineHeight(`${lineHeight.value}`).run()
   }
 }
 

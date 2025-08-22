@@ -49,17 +49,6 @@ export const TextIndent = Extension.create<TextIndentOptions>({
         attributes: {
           textIndent: {
             default: '2em',
-            // parseHTML: element => element.style.textIndent,
-            // renderHTML: attributes => {
-            //   if (!attributes.textIndent) {
-            //     return {}
-            //   }
-
-            //   // 确保样式格式正确，并且不会覆盖其他样式
-            //   return {
-            //     style: `text-indent: ${attributes.textIndent};`,
-            //   }
-            // },
           },
         },
       },
