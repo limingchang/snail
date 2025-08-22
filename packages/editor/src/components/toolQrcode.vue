@@ -31,6 +31,7 @@ import { Button, InputNumber, Select, Tooltip } from 'ant-design-vue'
 import { QrcodeOutlined } from '@ant-design/icons-vue'
 
 import { Editor } from '@tiptap/vue-3'
+import { IQRCodeOptions } from '../typing/QRCode'
 
 const props = defineProps({
   editor: {
@@ -41,7 +42,7 @@ const props = defineProps({
 
 // 插入二维码
 
-const QRCodeOptions = reactive({
+const QRCodeOptions = reactive<IQRCodeOptions>({
   text: '这是一个测试用二维码，内容由文档相关信息生成',
   size: {
     value: 100,
@@ -52,11 +53,11 @@ const QRCodeOptions = reactive({
     y: 10,
     unit: 'mm',
   },
-  download: true,
 })
 
 const handleInsertQRCodeClick = () => {
   console.log('插入二维码')
+  props.editor?.chain().focus().insertQRCode(QRCodeOptions).run()
 }
 
 </script>

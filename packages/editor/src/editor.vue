@@ -21,6 +21,9 @@ import { TextAlign } from '@tiptap/extension-text-align'
 import { TextIndent } from './extensions/textIndent'
 // import { Content } from '@tiptap/core'
 
+// import { Image } from '@tiptap/extension-image'
+import { QRCode } from './extensions/QRCode'
+
 import ToolBar from './components/toolBar.vue';
 
 import { defaultContent } from './contents/default'
@@ -45,6 +48,8 @@ const editor = useEditor({
     Italic,
     Underline,
     TextIndent,
+    // Image,
+    QRCode,
   ],
   content: defaultContent,
 })

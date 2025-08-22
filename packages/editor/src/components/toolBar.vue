@@ -3,10 +3,10 @@
     <TabPane key="style" tab="格式" class="tool-pane">
       <ToolStylePane :editor="props.editor"></ToolStylePane>
     </TabPane>
+    <TabPane key="page" tab="页面">页面</TabPane>
     <TabPane key="insert" tab="插入" class="tool-pane">
         <ToolInsertPane :editor="props.editor"></ToolInsertPane>
     </TabPane>
-    <TabPane key="page" tab="页面">页面</TabPane>
   </Tabs>
 </template>
 
@@ -28,7 +28,7 @@ const props = defineProps({
 })
 
 
-const tab = ref('style')
+const tab = ref('insert')
 
 const handleTabChange = ()=>{
   props.editor?.chain().focus().run()
