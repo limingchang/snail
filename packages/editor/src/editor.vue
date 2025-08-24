@@ -56,6 +56,7 @@ const editor = useEditor({
 
 const testExport = () => {
   console.log(editor.value?.getJSON())
+  console.log(editor.value?.$node('qrcode'))
 }
 
 </script>

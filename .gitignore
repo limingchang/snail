@@ -30,3 +30,6 @@ lib
 # vitePress
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+
+# qoder
+.qoder/quests
