@@ -3,11 +3,12 @@
     <Tooltip title="插入二维码" :color="'#2db7f5'" placement="right">
       <Button :icon="h(QrcodeOutlined)" size="middle" @click="handleInsertQRCodeClick"></Button>
     </Tooltip>
+    <button @click="handleTest">测试焦点</button>
     <div class="qrcode-position">
       <span>位置：上</span>
-      <InputNumber v-model:value="QRCodeOptions.position.y"></InputNumber><span>左</span>
-      <InputNumber v-model:value="QRCodeOptions.position.x"></InputNumber>
-      <Select v-model:value="QRCodeOptions.position.unit">
+      <InputNumber v-model:value="QRCodeOptions.position.y" @change="handleUpdateQRCode"></InputNumber><span>左</span>
+      <InputNumber v-model:value="QRCodeOptions.position.x" @change="handleUpdateQRCode"></InputNumber>
+      <Select v-model:value="QRCodeOptions.position.unit" @select="handleUpdateQRCode">
         <Select.Option value="px" title="像素(px)">px</Select.Option>
         <Select.Option value="mm" title="毫米(mm)">mm</Select.Option>
         <Select.Option value="cm" title="厘米(cm)">cm</Select.Option>
@@ -15,8 +16,8 @@
     </div>
     <div class="qrcode-size">
       <span>宽高：</span>
-      <InputNumber v-model:value="QRCodeOptions.size.value"></InputNumber>
-      <Select v-model:value="QRCodeOptions.size.unit">
+      <InputNumber v-model:value="QRCodeOptions.size.value" @change="handleUpdateQRCode"></InputNumber>
+      <Select v-model:value="QRCodeOptions.size.unit" @select="handleUpdateQRCode">
         <Select.Option value="px" title="像素(px)">px</Select.Option>
         <Select.Option value="mm" title="毫米(mm)">mm</Select.Option>
         <Select.Option value="cm" title="厘米(cm)">cm</Select.Option>
@@ -27,7 +28,7 @@
 
 <script setup lang="ts">
 import { reactive, h } from 'vue'
-import { Button, InputNumber, Select, Tooltip, message, Modal } from 'ant-design-vue'
+import { Button, InputNumber, Select, Tooltip, message } from 'ant-design-vue'
 import { QrcodeOutlined } from '@ant-design/icons-vue'
 import qrcode from 'qrcode'
 
@@ -40,6 +41,12 @@ const props = defineProps({
     default: () => null
   }
 })
+
+const handleTest = () => {
+  console.log('[hasQRCode]',props.editor.storage.qrcode.hasQRCode)
+  console.log('[qrcode-node:]',props.editor.$node('qrcode'))
+}
+
 
 // 插入二维码
 
@@ -58,38 +65,20 @@ const QRCodeOptions = reactive<IQRCodeOptions>({
 
 const handleInsertQRCodeClick = async () => {
   console.log('插入二维码')
-  
+
   if (!props.editor) {
     message.error('编辑器实例不存在')
     return
   }
-  
+
   try {
-    // 1. 检查编辑器焦点状态
-    const hadFocus = props.editor.isFocused;
-    let savedSelection = null;
-    
-    // 2. 如果编辑器有焦点，保存当前光标位置
-    if (hadFocus) {
-      savedSelection = props.editor.state.selection;
-      console.log('编辑器有焦点，保存光标位置:', savedSelection);
-    } else {
-      console.log('编辑器无焦点，将强制聚焦并插入到文档末尾');
+    // 1.检查文档中是否有二维码
+    const {hasQRCode} = props.editor.storage.qrcode
+    if (hasQRCode) {
+      message.error('文档中已存在二维码')
+      return
     }
-    
-    // 3. 强制编辑器获取焦点，确保 state 有效
-    props.editor.commands.focus();
-    
-    // 4. 等待焦点生效
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
-    // 5. 验证编辑器状态
-    if (!props.editor.state || !props.editor.state.doc) {
-      message.error('编辑器状态无效，无法插入二维码');
-      return;
-    }
-    
-    // 6. 生成二维码数据
+
     const dataURL = await qrcode.toDataURL(QRCodeOptions.text, {
       width: 200,
       margin: 1,
@@ -98,35 +87,39 @@ const handleInsertQRCodeClick = async () => {
         light: '#FFFFFF'
       }
     });
-    
-    // 7. 使用QRCode扩展中定义的insertQRCode命令插入到文档末尾
-    const success = props.editor.commands.insertQRCode({
+
+    // 5. 使用QRCode扩展中定义的insertQRCode命令插入到文档末尾
+    const success = props.editor.chain().insertQRCode({
       ...QRCodeOptions,
       src: dataURL
-    });
-    
+    }).run();
+
     if (success) {
       message.success('二维码插入成功');
-      
-      // 8. 如果编辑器原来有焦点，恢复光标位置
-      if (hadFocus && savedSelection) {
-        // 等待DOM更新后恢复光标位置
-        setTimeout(() => {
-          try {
-            props.editor.commands.setTextSelection(savedSelection);
-            console.log('光标位置已恢复');
-          } catch (error) {
-            console.warn('恢复光标位置失败:', error);
-          }
-        }, 50);
-      }
     } else {
       message.error('插入失败');
     }
-    
+
   } catch (error: any) {
     console.error('插入二维码失败:', error)
     message.error(`插入失败: ${error.message}`)
+  }
+  props.editor.chain().focus('end').run()
+}
+
+const handleUpdateQRCode = () => {
+  // console.log('[position]',QRCodeOptions.position)
+  if(props.editor.storage.qrcode.hasQRCode){
+    const qrcodeEle = document.querySelector('[data-type="qrcode"]') as HTMLElement
+    qrcodeEle.style.width = `${QRCodeOptions.size.value}${QRCodeOptions.size.unit}`
+    qrcodeEle.style.height = `${QRCodeOptions.size.value}${QRCodeOptions.size.unit}`
+    qrcodeEle.style.top = `${QRCodeOptions.position.y}${QRCodeOptions.position.unit}`
+    qrcodeEle.style.left = `${QRCodeOptions.position.x}${QRCodeOptions.position.unit}`
+    props.editor.chain().updateQRCode({
+      ...QRCodeOptions,
+    }).run()
+  }else{
+    console.error('请先插入二维码')
   }
 }
 
@@ -136,26 +129,32 @@ const handleInsertQRCodeClick = async () => {
 <style scoped lang="scss">
 .tool-qrcode {
   width: 345px;
-  .qrcode-position{
+
+  .qrcode-position {
     width: 100%;
     margin-top: 10px;
-    span{
+
+    span {
       margin-left: 5px;
       margin-right: 5px;
     }
-    .ant-input-number{
+
+    .ant-input-number {
       transform: translateY(-4px);
       width: 60px;
     }
   }
-  .qrcode-size{
+
+  .qrcode-size {
     margin-top: 10px;
     width: 100%;
-    span{
+
+    span {
       margin-left: 5px;
       margin-right: 5px;
     }
-    .ant-input-number{
+
+    .ant-input-number {
       transform: translateY(-4px);
       width: 65px;
     }

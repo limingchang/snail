@@ -14,6 +14,16 @@ const underlineMark: Content = {
   type: 'underline'
 }
 
+const defaultQRCode = {
+  type: 'qrcode',
+  attrs: {
+    src: '',
+    text: '123',
+    size: { value: 30, unit: "mm" },
+    position: { x: 10, y: 10, unit: "mm" },
+  },
+}
+
 const defaultH1StyleMark = {
   type:'textStyle',
   attrs:{
@@ -59,16 +69,16 @@ const defaultParagraph = {
   content: [
     {
       type: 'text',
-      text: '这是基于TipTap3.0创建的编辑器,支持文本加粗、斜体、下划线',
+      text: '这是基于TipTap3.0创建的编辑器,支持文本',
     },
     {
       type: 'text',
-      text: '加粗',
+      text: '加粗、',
       marks: [boldMark]
     },
     {
       type: 'text',
-      text: '斜体',
+      text: '斜体、',
       marks: [italicMark]
     },
     {
@@ -113,6 +123,7 @@ const defaultH2 = {
 export const defaultContent = {
   type: 'doc',
   content: [
+    // defaultQRCode,
     defaultH1,
     defaultH2,
     defaultParagraph
