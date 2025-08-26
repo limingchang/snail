@@ -7,40 +7,45 @@
 </template>
 
 <script setup lang="ts">
-import { Editor, useEditor, EditorContent } from '@tiptap/vue-3'
-import { Document } from '@tiptap/extension-document'
-import { ParagraphPro } from './extensions/paragraphPro/index'
-import { Text } from '@tiptap/extension-text'
-import { Heading } from '@tiptap/extension-heading'
+import { Editor, useEditor, EditorContent } from "@tiptap/vue-3";
+import { Document } from "@tiptap/extension-document";
+import { Paragraph } from "@tiptap/extension-paragraph";
+// import { ParagraphPro } from './extensions/paragraphPro/index'
+import { Text } from "@tiptap/extension-text";
+import { Heading } from "@tiptap/extension-heading";
 // import { HeadingPro } from './extensions/heading'
-import { Bold } from '@tiptap/extension-bold'
-import { Italic } from '@tiptap/extension-italic'
-import { Underline } from '@tiptap/extension-underline'
-import { TextStyleKit } from '@tiptap/extension-text-style'
-import { TextAlign } from '@tiptap/extension-text-align'
-import { TextIndent } from './extensions/textIndent/index'
+import { Bold } from "@tiptap/extension-bold";
+import { Italic } from "@tiptap/extension-italic";
+import { Underline } from "@tiptap/extension-underline";
+import { TextStyleKit } from "@tiptap/extension-text-style";
+import { TextAlign } from "@tiptap/extension-text-align";
+// import { TextIndent } from "./extensions/textIndent/index";
+import { TableKit } from "@tiptap/extension-table";
 // import { Content } from '@tiptap/core'
 
+import { ParagraphStyle } from "./extensions/paragraphStyle/index";
+
 // import { Image } from '@tiptap/extension-image'
-import { QRCode } from './extensions/QRCode/index'
-import { Variable } from './extensions/variable/index'
+import { QRCode } from "./extensions/QRCode/index";
+import { Variable } from "./extensions/variable/index";
 
-import ToolBar from './components/toolBar.vue';
+import ToolBar from "./components/toolBar.vue";
 
-import { defaultContent } from './contents/default'
+import { defaultContent } from "./contents/default";
 
 const editor = useEditor({
   extensions: [
     Document.configure({
       HTMLAttributes: {
-        style: 'padding: 10mm;',
+        style: "padding: 10mm;",
       },
     }),
-    ParagraphPro,
+    Paragraph,
+    ParagraphStyle,
     Text,
     TextStyleKit,
     TextAlign.configure({
-      types: ['heading', 'paragraph'],
+      types: ["heading", "paragraph"],
     }),
     Heading.configure({
       levels: [1, 2, 3, 4],
@@ -48,7 +53,12 @@ const editor = useEditor({
     Bold,
     Italic,
     Underline,
-    TextIndent,
+    TableKit.configure({
+      table: {
+        resizable: true,
+      },
+    }),
+    // TextIndent,
     // Image,
     QRCode,
     Variable.configure({
@@ -56,12 +66,12 @@ const editor = useEditor({
     }),
   ],
   content: defaultContent,
-})
+  autofocus: true,
+});
 
 const testExport = () => {
-  console.log(editor.value?.getJSON())
-}
-
+  console.log(editor.value?.getJSON());
+};
 </script>
 
 <style scoped lang="scss">
@@ -91,6 +101,14 @@ const testExport = () => {
       box-sizing: border-box;
       /* 确保padding不影响总宽度 */
       position: relative;
+    }
+    :deep(table) {
+      border-collapse: collapse;
+      td,
+      th {
+        border: 1px solid #000;
+        padding: 5px;
+      }
     }
   }
 }

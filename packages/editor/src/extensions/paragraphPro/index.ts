@@ -42,18 +42,41 @@ export const ParagraphPro = Paragraph.extend<CustomParagraphOptions>({
       {
         types: ["paragraph"],
         attributes: {
-          textIndent: {
-            default: "2em",
-            parseHTML: (element) => element.style.textIndent,
-            renderHTML: (attributes) => {
-              // console.log("text-indent|render:", attributes);
-              if (!attributes.textIndent) {
+          // textIndent: {
+          //   default: "0",
+          //   parseHTML: (element) => element.style.textIndent,
+          //   renderHTML: (attributes) => {
+          //     // console.log("text-indent|render:", attributes);
+          //     if (!attributes.textIndent) {
+          //       return {};
+          //     }
+          //     // 确保样式格式正确，并且不会覆盖其他样式
+          //     return {
+          //       style: `text-indent: ${attributes.textIndent};`,
+          //     };
+          //   },
+          // },
+          paragraphStart:{
+            default:'0',
+            parseHTML:(element) =>element.style.marginBlockStart,
+            renderHTML:(attributes)=> {
+              if(!attributes.paragraphStart){
                 return {};
               }
-
-              // 确保样式格式正确，并且不会覆盖其他样式
               return {
-                style: `text-indent: ${attributes.textIndent};`,
+                style: `margin-block-start: ${attributes.paragraphStart}`,
+              };
+            },
+          },
+          paragraphEnd:{
+            default:'0',
+            parseHTML:(element) =>element.style.marginBlockEnd,
+            renderHTML:(attributes)=> {
+              if(!attributes.paragraphEnd){
+                return {};
+              }
+              return {
+                style: `margin-block-end: ${attributes.paragraphEnd}`,
               };
             },
           },
@@ -63,28 +86,62 @@ export const ParagraphPro = Paragraph.extend<CustomParagraphOptions>({
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    const { textIndent } = node.attrs;
+    const { textIndent,paragraphStart,paragraphEnd } = node.attrs;
     // Create base attributes
     const baseAttrs = mergeAttributes(this.options.HTMLAttributes, HTMLAttributes);
     // console.log(baseAttrs);
     // If textIndent is present, add it to style
-    if (textIndent) {
-      const style = baseAttrs.style || "";
-      // Ensure style ends with semicolon if it's not empty
+    // if (textIndent) {
+    //   const style = baseAttrs.style || "";
+    //   // Ensure style ends with semicolon if it's not empty
+    //   const normalizedStyle = style ? style.replace(/;?$/, ";") : "";
+    //   // Add text-indent style
+    //   // 查找normalizedStyle中的text-indent,匹配到分号,则替换,否则添加
+    //   if (normalizedStyle.match(/text-indent:/)) {
+    //     baseAttrs.style = normalizedStyle.replace(/text-indent:.*/, `text-indent: ${textIndent};`);
+    //   } else {
+    //     baseAttrs.style = `${normalizedStyle}text-indent: ${textIndent};`;
+    //   }
+    // } else {
+    //   const style = baseAttrs.style || "";
+    //   const normalizedStyle = style ? style.replace(/;?$/, ";") : "";
+    //   // 查找normalizedStyle中的text-indent,匹配到分号,则替换,否则添加
+    //   if (normalizedStyle.match(/text-indent:/)) {
+    //     baseAttrs.style = normalizedStyle.replace(/text-indent:.*/, "");
+    //   }
+    // }
+
+    if(paragraphStart){
+      const style = baseAttrs.style || ""
       const normalizedStyle = style ? style.replace(/;?$/, ";") : "";
-      // Add text-indent style
-      // 查找normalizedStyle中的text-indent,匹配到分号,则替换,否则添加
-      if (normalizedStyle.match(/text-indent:/)) {
-        baseAttrs.style = normalizedStyle.replace(/text-indent:.*/, `text-indent: ${textIndent};`);
+      if (normalizedStyle.match(/margin-block-start:/)) {
+        baseAttrs.style = normalizedStyle.replace(/margin-block-start:.*/, `margin-block-start: ${paragraphStart};`);
       } else {
-        baseAttrs.style = `${normalizedStyle}text-indent: ${textIndent};`;
+        baseAttrs.style = `${normalizedStyle}margin-block-start: ${paragraphStart};`;
       }
-    } else {
+    }else{
       const style = baseAttrs.style || "";
       const normalizedStyle = style ? style.replace(/;?$/, ";") : "";
       // 查找normalizedStyle中的text-indent,匹配到分号,则替换,否则添加
-      if (normalizedStyle.match(/text-indent:/)) {
-        baseAttrs.style = normalizedStyle.replace(/text-indent:.*/, "");
+      if (normalizedStyle.match(/margin-block-start:/)) {
+        baseAttrs.style = normalizedStyle.replace(/margin-block-start:.*/, "");
+      }
+    }
+
+    if(paragraphEnd){
+      const style = baseAttrs.style || ""
+      const normalizedStyle = style ? style.replace(/;?$/, ";") : "";
+      if (normalizedStyle.match(/margin-block-end:/)) {
+        baseAttrs.style = normalizedStyle.replace(/margin-block-end:.*/, `margin-block-end: ${paragraphEnd};`);
+      } else {
+        baseAttrs.style = `${normalizedStyle}margin-block-end: ${paragraphEnd};`;
+      }
+    }else{
+      const style = baseAttrs.style || "";
+      const normalizedStyle = style ? style.replace(/;?$/, ";") : "";
+      // 查找normalizedStyle中的text-indent,匹配到分号,则替换,否则添加
+      if (normalizedStyle.match(/margin-block-end:/)) {
+        baseAttrs.style = normalizedStyle.replace(/margin-block-end:.*/, "");
       }
     }
 
