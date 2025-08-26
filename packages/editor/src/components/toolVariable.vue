@@ -21,7 +21,7 @@ const props = defineProps({
 
 // 变量工具
 const handleInsertVariableClick = () => {
-  console.log('插入变量')
+  props.editor.chain().focus().insertVariable().run()
 }
 
 </script>

@@ -1,5 +1,5 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-import { IQRCodeOptions } from "../typing/QRCode";
+import { IQRCodeOptions } from "./typing";
 
 /**
  * 合并样式字符串

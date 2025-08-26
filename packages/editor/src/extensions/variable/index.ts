@@ -1,7 +1,9 @@
 import { mergeAttributes, Node } from '@tiptap/core'
 import { VueNodeViewRenderer } from '@tiptap/vue-3'
 
-import TipTapVariable from './TipTapVariable.vue'
+import TipTapVariable from './Variable.vue'
+
+import {VariableOptions} from './typing'
 
 // type 定义命令类型
 declare module '@tiptap/core' {
@@ -12,15 +14,23 @@ declare module '@tiptap/core' {
   }
 }
 
-export default Node.create({
+export const Variable = Node.create<VariableOptions>({
   name: 'variable',
   inline: true,
   group: "inline",
   content: "text*",
   isolating: true,
+
+  addOptions() {
+    return {
+      mode:"design",
+      HTMLAttributes: {},
+    }
+  },
+
   addAttributes(){
     return {
-      name: {
+      label: {
         default: "新变量",
       },
       type: {
@@ -40,7 +50,7 @@ export default Node.create({
    parseHTML() {
     return [
       {
-        tag: 'TipTapVariable',
+        tag: 'Variable',
       },
     ]
   },

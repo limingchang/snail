@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import { Editor, useEditor, EditorContent } from '@tiptap/vue-3'
 import { Document } from '@tiptap/extension-document'
-import { ParagraphPro } from './extensions/paragraph'
+import { ParagraphPro } from './extensions/paragraphPro/index'
 import { Text } from '@tiptap/extension-text'
 import { Heading } from '@tiptap/extension-heading'
 // import { HeadingPro } from './extensions/heading'
@@ -18,11 +18,12 @@ import { Italic } from '@tiptap/extension-italic'
 import { Underline } from '@tiptap/extension-underline'
 import { TextStyleKit } from '@tiptap/extension-text-style'
 import { TextAlign } from '@tiptap/extension-text-align'
-import { TextIndent } from './extensions/textIndent'
+import { TextIndent } from './extensions/textIndent/index'
 // import { Content } from '@tiptap/core'
 
 // import { Image } from '@tiptap/extension-image'
-import { QRCode } from './extensions/QRCode'
+import { QRCode } from './extensions/QRCode/index'
+import { Variable } from './extensions/variable/index'
 
 import ToolBar from './components/toolBar.vue';
 
@@ -50,6 +51,9 @@ const editor = useEditor({
     TextIndent,
     // Image,
     QRCode,
+    Variable.configure({
+      // mode:'view'
+    }),
   ],
   content: defaultContent,
 })
@@ -72,13 +76,20 @@ const testExport = () => {
     :deep(.tiptap) {
       outline: none;
       background-color: #fff;
-      min-height: 297mm; /* A4纵向高度 */
-      max-width: 210mm; /* A4宽度 */
-      margin: 0 auto; /* 居中显示 */
-      padding: 20mm; /* 页边距 */
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
-      border-radius: 4px; /* 轻微圆角 */
-      box-sizing: border-box; /* 确保padding不影响总宽度 */
+      min-height: 297mm;
+      /* A4纵向高度 */
+      max-width: 210mm;
+      /* A4宽度 */
+      margin: 0 auto;
+      /* 居中显示 */
+      padding: 20mm;
+      /* 页边距 */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      /* 添加阴影效果 */
+      border-radius: 4px;
+      /* 轻微圆角 */
+      box-sizing: border-box;
+      /* 确保padding不影响总宽度 */
       position: relative;
     }
   }

@@ -64,7 +64,6 @@ const defaultParagraph = {
   attrs:{
     textAlign: 'justify',
     textIndent:'2em',
-    lineHeight:'1.5',
   },
   content: [
     {
@@ -120,12 +119,49 @@ const defaultH2 = {
   ]
 }
 
+const defaultVariable = {
+  type:'variable',
+  attrs:{
+    label: '新变量',
+    type: 'text',
+    key: 'key',
+    desc: '变量描述',
+    defaultValue: '默认值',
+  }
+}
+
+const defaultParagraph2 = {
+  type: 'paragraph',
+  attrs:{
+    textAlign: 'justify',
+    textIndent:'2em',
+  },
+  content: [
+    {
+      type: 'text',
+      text: '你可以在设计模式插入',
+    },
+    defaultVariable,
+    {
+      type: 'text',
+      text: '、普通表格、布局表格',
+      marks:[boldMark]
+    },
+    {
+      type: 'text',
+      text: '，变量在查看模式下，变量将替换为传入的json数据；布局表格在查看模式下，将不会显示边框，仅用作内容分栏布局。',
+    },
+  ],
+  marks:[defaultTextStyleMark]
+}
+
 export const defaultContent = {
   type: 'doc',
   content: [
     // defaultQRCode,
     defaultH1,
     defaultH2,
-    defaultParagraph
+    defaultParagraph,
+    defaultParagraph2
   ]
 } as Content

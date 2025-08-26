@@ -3,7 +3,6 @@
     <Tooltip title="插入二维码" :color="'#2db7f5'" placement="right">
       <Button :icon="h(QrcodeOutlined)" size="middle" @click="handleInsertQRCodeClick"></Button>
     </Tooltip>
-    <button @click="handleTest">测试焦点</button>
     <div class="qrcode-position">
       <span>位置：上</span>
       <InputNumber v-model:value="QRCodeOptions.position.y" @change="handleUpdateQRCode"></InputNumber><span>左</span>
@@ -33,7 +32,7 @@ import { QrcodeOutlined } from '@ant-design/icons-vue'
 import qrcode from 'qrcode'
 
 import { Editor } from '@tiptap/vue-3'
-import { IQRCodeOptions } from '../typing/QRCode'
+import { IQRCodeOptions } from '../extensions/QRCode/typing'
 
 const props = defineProps({
   editor: {
