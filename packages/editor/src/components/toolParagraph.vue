@@ -35,13 +35,13 @@
     </div>
     <div class="tool-paragraph-style">
       <span>段前&nbsp;</span>
-      <InputNumber v-model:value="paragraphStart" step="0.5"></InputNumber>
-      <Select v-model:value="paragraphStartUnit" style="width: 60px;">
+      <InputNumber v-model:value="paragraphStart" step="0.5" @change="handelUpdateParagraphStyle"></InputNumber>
+      <Select v-model:value="paragraphStartUnit" style="width: 60px;" @select="handelUpdateParagraphStyle">
         <Select.Option v-for="(value, key) in Units" :value="key">{{ value }}</Select.Option>
       </Select>
       <span>段后&nbsp;</span>
-      <InputNumber v-model:value="paragraphEnd" step="0.5"></InputNumber>
-      <Select v-model:value="paragraphEndUnit" style="width: 60px;">
+      <InputNumber v-model:value="paragraphEnd" step="0.5" @change="handelUpdateParagraphStyle"></InputNumber>
+      <Select v-model:value="paragraphEndUnit" style="width: 60px;" @select="handelUpdateParagraphStyle">
         <Select.Option v-for="(value, key) in Units" :value="key">{{ value }}</Select.Option>
       </Select>
     </div>
@@ -189,9 +189,18 @@ const handleLineHeightChange = (value: any) => {
 
 // 段前段后设置
 const paragraphStart = ref(0.5)
-const paragraphStartUnit = ref(Units.em)
+const paragraphStartUnit = ref('em')
 const paragraphEnd = ref(0.5)
-const paragraphEndUnit = ref(Units.em)
+const paragraphEndUnit = ref('em')
+
+const handelUpdateParagraphStyle = ()=>{
+  const style = {
+    paragraphStart: `${paragraphStart.value}${paragraphStartUnit.value}`,
+    paragraphEnd: `${paragraphEnd.value}${paragraphEndUnit.value}`,
+  }
+  console.log('段前段后设置:', style)
+  props.editor?.chain().focus().setParagraphStyle(style).run()
+}
 </script>
 
 <style scoped lang="scss">
