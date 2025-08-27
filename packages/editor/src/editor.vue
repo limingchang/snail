@@ -40,15 +40,16 @@ const editor = useEditor({
         style: "padding: 10mm;",
       },
     }),
-    Paragraph,
-    ParagraphStyle,
     Text,
+    // 首先加载 ParagraphStyle，确保属性定义优先生效
+    ParagraphStyle,
+    Paragraph,
+    Heading.configure({
+      levels: [1, 2, 3, 4],
+    }),
     TextStyleKit,
     TextAlign.configure({
       types: ["heading", "paragraph"],
-    }),
-    Heading.configure({
-      levels: [1, 2, 3, 4],
     }),
     Bold,
     Italic,

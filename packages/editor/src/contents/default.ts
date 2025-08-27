@@ -69,28 +69,29 @@ const defaultParagraph = {
     {
       type: "text",
       text: "这是基于TipTap3.0创建的编辑器,支持文本",
+      marks: [defaultTextStyleMark],
     },
     {
       type: "text",
       text: "加粗、",
-      marks: [boldMark],
+      marks: [boldMark,defaultTextStyleMark],
     },
     {
       type: "text",
       text: "斜体、",
-      marks: [italicMark],
+      marks: [italicMark,defaultTextStyleMark],
     },
     {
       type: "text",
       text: "下划线",
-      marks: [underlineMark],
+      marks: [underlineMark,defaultTextStyleMark],
     },
     {
       type: "text",
       text: "以及基础的段落设置,如缩进、段落间距、对齐方式等。",
+      marks: [defaultTextStyleMark],
     },
   ],
-  marks: [defaultTextStyleMark],
 };
 
 const defaultH2StyleMark = {
@@ -139,19 +140,20 @@ const defaultParagraph2 = {
     {
       type: "text",
       text: "你可以在设计模式插入",
+      marks: [defaultTextStyleMark],
     },
     defaultVariable,
     {
       type: "text",
       text: "、普通表格、布局表格",
-      marks: [boldMark],
+      marks: [boldMark,defaultTextStyleMark],
     },
     {
       type: "text",
       text: "，变量在查看模式下，变量将替换为传入的json数据；布局表格在查看模式下，将不会显示边框，仅用作内容分栏布局。",
+      marks: [defaultTextStyleMark],
     },
   ],
-  marks: [defaultTextStyleMark],
 };
 
 export const defaultContent = {

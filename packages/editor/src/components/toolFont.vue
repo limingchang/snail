@@ -99,6 +99,7 @@ const handleUnderlineClick = () => {
 <style scoped lang="scss">
 .tool-font {
   width: 200px;
+  height: 100%;
 
   .font-family-select {
     width: 120px;

@@ -29,8 +29,21 @@
         <Select.Option value="multiple" :key="2" @click="lineHeightUnit = '倍'">多倍行距</Select.Option>
         <Select.Option value="fixedValue" :key="4" @click="lineHeightUnit = '磅'">固定值</Select.Option>
       </Select>
-      <InputNumber v-model:value="lineHeight" style="width: 60px;" @change="handleLineHeightChange"></InputNumber>
+      <InputNumber v-model:value="lineHeight" step="0.5" style="width: 60px;" @change="handleLineHeightChange">
+      </InputNumber>
       <span>{{ lineHeightUnit }}</span>
+    </div>
+    <div class="tool-paragraph-style">
+      <span>段前&nbsp;</span>
+      <InputNumber v-model:value="paragraphStart" step="0.5"></InputNumber>
+      <Select v-model:value="paragraphStartUnit" style="width: 60px;">
+        <Select.Option v-for="(value, key) in Units" :value="key">{{ value }}</Select.Option>
+      </Select>
+      <span>段后&nbsp;</span>
+      <InputNumber v-model:value="paragraphEnd" step="0.5"></InputNumber>
+      <Select v-model:value="paragraphEndUnit" style="width: 60px;">
+        <Select.Option v-for="(value, key) in Units" :value="key">{{ value }}</Select.Option>
+      </Select>
     </div>
   </div>
 </template>
@@ -42,6 +55,8 @@ import { MenuUnfoldOutlined, MenuFoldOutlined, AlignLeftOutlined, AlignCenterOut
 import { Editor } from '@tiptap/vue-3'
 
 import { HeadingList, Level } from '../typing/heading'
+
+import { Units } from '../typing/units'
 
 const props = defineProps({
   editor: {
@@ -77,18 +92,18 @@ declare module '@tiptap/core' {
       }) => ReturnType,
     }
     textAlign: {
-      setTextAlign: (align:string) => ReturnType,
-      toggleTextAlign: (align: string ) => ReturnType,
+      setTextAlign: (align: string) => ReturnType,
+      toggleTextAlign: (align: string) => ReturnType,
       unsetTextAlign: () => ReturnType;
     }
-    lineHeight:{
+    lineHeight: {
       setLineHeight: (lineHeight: string) => ReturnType,
       unsetLineHeight: () => ReturnType;
     }
-    textIndent: {
-      setTextIndent: (textIndent: string) => ReturnType,
-      unsetTextIndent: () => ReturnType;
-    }
+    // textIndent: {
+    //   setTextIndent: (textIndent: string) => ReturnType,
+    //   unsetTextIndent: () => ReturnType;
+    // }
   }
 }
 
@@ -135,11 +150,13 @@ const isIndentActivate = computed(() => {
 
 const handleIndentClick = () => {
   console.log('缩进设置')
-  props.editor?.chain().focus().setTextIndent('2em').run()
+  // props.editor?.chain().focus().setTextIndent('2em').run()
+  props.editor?.chain().focus().setParagraphStyle({ textIndent: "2em" }).run()
 }
 const handleUnIndentClick = () => {
   console.log('取消缩进')
-  props.editor?.chain().focus().unsetTextIndent().run()
+  // props.editor?.chain().focus().unsetTextIndent().run()
+  props.editor?.chain().focus().setParagraphStyle({ textIndent: "0em" }).run()
 }
 
 // 行高工具
@@ -163,22 +180,25 @@ const handleLineHeightChange = (value: any) => {
   if (lineHeightType.value !== 'fixedValue' && lineHeightUnit.value == '倍' && lineHeight.value >= 2) {
     lineHeightType.value = 'multiple'
   }
-  if(lineHeightUnit.value == '磅'){
+  if (lineHeightUnit.value == '磅') {
     props.editor.chain().focus().setLineHeight(`${lineHeight.value}pt`).run()
-  }else{
+  } else {
     props.editor.chain().focus().setLineHeight(`${lineHeight.value}`).run()
   }
 }
 
+// 段前段后设置
+const paragraphStart = ref(0.5)
+const paragraphStartUnit = ref(Units.em)
+const paragraphEnd = ref(0.5)
+const paragraphEndUnit = ref(Units.em)
 </script>
 
 <style scoped lang="scss">
 .tool-paragraph {
-  width: 260px;
+  width: 320px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  align-content: space-between;
   flex-wrap: wrap;
 
   // flex-direction: row;
@@ -196,8 +216,8 @@ const handleLineHeightChange = (value: any) => {
   }
 
   .tool-line-height {
-    width: 245px;
-    line-height: 32px;
+    // width: 245px;
+    // line-height: 32px;
     margin-top: 10px;
 
     span {
@@ -208,6 +228,22 @@ const handleLineHeightChange = (value: any) => {
       width: 115px;
     }
 
+    .ant-input-number {
+      width: 60px;
+      transform: translateY(-4px);
+    }
+  }
+
+  .tool-paragraph-style {
+    margin-top: 10px;
+
+    span {
+      margin-right: 5px;
+    }
+    :nth-child(4){
+
+      margin-left: 5px;
+    }
     .ant-input-number {
       width: 60px;
       transform: translateY(-4px);
