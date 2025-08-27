@@ -102,15 +102,38 @@ const testExport = () => {
       box-sizing: border-box;
       /* 确保padding不影响总宽度 */
       position: relative;
+
+      &.resize-cursor {
+        cursor: ew-resize;
+        cursor: col-resize;
+      }
+
     }
+
     :deep(table) {
       border-collapse: collapse;
+
       td,
       th {
         border: 1px solid #000;
         padding: 5px;
       }
+
+      th,
+      tr {
+        .column-resize-handle {
+          background-color: var(--purple);
+          bottom: -2px;
+          pointer-events: none;
+          position: absolute;
+          right: -2px;
+          top: 0;
+          width: 4px;
+        }
+      }
+
     }
+
   }
 }
 </style>

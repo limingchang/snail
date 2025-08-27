@@ -28,7 +28,7 @@ const props = defineProps({
 })
 
 
-const tab = ref('style')
+const tab = ref('insert')
 
 const handleTabChange = ()=>{
   props.editor?.chain().focus().run()
