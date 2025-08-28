@@ -20,8 +20,8 @@ import { Underline } from "@tiptap/extension-underline";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import { TextAlign } from "@tiptap/extension-text-align";
 // import { TextIndent } from "./extensions/textIndent/index";
-import { TableKit } from "@tiptap/extension-table";
-// import { Content } from '@tiptap/core'
+// import { TableKit } from "@tiptap/extension-table";
+import { TableKit } from "./extensions/table/tableKit";
 
 import { ParagraphStyle } from "./extensions/paragraphStyle/index";
 
@@ -107,7 +107,6 @@ const testExport = () => {
         cursor: ew-resize;
         cursor: col-resize;
       }
-
     }
 
     :deep(table) {
@@ -131,9 +130,7 @@ const testExport = () => {
           width: 4px;
         }
       }
-
     }
-
   }
 }
 </style>
