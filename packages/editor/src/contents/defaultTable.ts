@@ -9,7 +9,7 @@ const defaultCell = {
 
 const defaultRow = {
   type: "tableRow",
-  content: [defaultCell, defaultCell, defaultCell],
+  content: [defaultCell, defaultCell, defaultCell,defaultCell],
 };
 
 export const defaultTable = {
@@ -17,7 +17,7 @@ export const defaultTable = {
   attrs: {
     layout: true,
   },
-  content: [defaultRow, defaultRow],
+  content: [defaultRow, defaultRow,defaultRow, defaultRow],
 };
 
 export const defaultLayoutTable = {
@@ -25,5 +25,10 @@ export const defaultLayoutTable = {
   attrs: {
     class: "layout",
   },
-  content: [defaultRow, defaultRow],
+  content: [
+    {...defaultRow,attrs:{layoutMode:true}}, 
+    {...defaultRow,attrs:{layoutMode:true}},
+    {...defaultRow,attrs:{layoutMode:true}},
+    {...defaultRow,attrs:{layoutMode:true}},
+  ],
 };

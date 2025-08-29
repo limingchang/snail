@@ -21,6 +21,7 @@ import { TextStyleKit } from "@tiptap/extension-text-style";
 import { TextAlign } from "@tiptap/extension-text-align";
 // import { TextIndent } from "./extensions/textIndent/index";
 import { TableKit } from "@tiptap/extension-table";
+import { Table,TableRow,TableHeader,TableCell } from "@tiptap/extension-table";
 // import { TableKit } from "./extensions/table/tableKit";
 
 import { ParagraphStyle } from "./extensions/paragraphStyle/index";
@@ -28,6 +29,8 @@ import { ParagraphStyle } from "./extensions/paragraphStyle/index";
 // import { Image } from '@tiptap/extension-image'
 import { QRCode } from "./extensions/QRCode/index";
 import { Variable } from "./extensions/variable/index";
+
+import { LayoutMode } from "./extensions/table/layoutMode"
 
 import ToolBar from "./components/toolBar.vue";
 
@@ -39,6 +42,9 @@ const editor = useEditor({
       HTMLAttributes: {
         style: "padding: 10mm;",
       },
+    }),
+    LayoutMode.configure({
+      types: ["tableRow"],
     }),
     Text,
     // 首先加载 ParagraphStyle，确保属性定义优先生效
@@ -59,8 +65,12 @@ const editor = useEditor({
         resizable: true,
       },
     }),
-    // TextIndent,
-    // Image,
+    // Table.configure({
+    //   resizable: true,
+    //   HTMLAttributes: {
+    //     class: "test-table"
+    //   }
+    // }),TableRow.configure({HTMLAttributes:{class:"test-table-row"}}),TableHeader,TableCell,
     QRCode,
     Variable.configure({
       // mode:'view'
@@ -77,6 +87,7 @@ const testExport = () => {
 
 <style scoped lang="scss">
 $selectedBorderColor :#109968;
+
 .s-editor {
   width: 100%;
   height: 100%;
@@ -113,13 +124,21 @@ $selectedBorderColor :#109968;
     }
 
     :deep(table) {
+      // 
       border-collapse: collapse;
-
+      tr.layout-mode{
+        td,
+        th {
+          width: 80px;
+          border-style: dashed;
+        }
+      }
       td,
       th {
         border: 1px solid #000;
         padding: 5px;
         position: relative;
+        width:120px;
 
         .column-resize-handle {
           background-color: #409EFF;
@@ -142,7 +161,7 @@ $selectedBorderColor :#109968;
       /* 选中单元格的智能边框样式 - 只显示外框 */
       .selectedCell {
         position: relative;
-        
+
         /* 背景高亮 */
         &::before {
           content: '';
@@ -156,11 +175,11 @@ $selectedBorderColor :#109968;
           z-index: 1;
         }
       }
-      
+
       /* 选中单元格的智能边框样式 - 使用伪元素实现精确控制 */
       .selectedCell {
         position: relative;
-        
+
         /* 背景高亮 */
         &::before {
           content: '';
@@ -173,7 +192,7 @@ $selectedBorderColor :#109968;
           pointer-events: none;
           z-index: 1;
         }
-        
+
         /* 使用after伪元素创建边框 */
         &::after {
           content: '';
@@ -187,15 +206,15 @@ $selectedBorderColor :#109968;
           z-index: 2;
         }
       }
-      
+
       /* 左侧有选中单元格时，去除左边框 */
-      .selectedCell + .selectedCell::after {
+      .selectedCell+.selectedCell::after {
         border-left: none;
         left: 0;
       }
-      
+
       /* 上方有选中单元格时，去除上边框 */
-      tr:has(.selectedCell) + tr .selectedCell::after {
+      tr:has(.selectedCell)+tr .selectedCell::after {
         border-top: none;
         top: 0;
       }
