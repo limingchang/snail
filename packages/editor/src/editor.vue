@@ -76,6 +76,7 @@ const testExport = () => {
 </script>
 
 <style scoped lang="scss">
+$selectedBorderColor :#109968;
 .s-editor {
   width: 100%;
   height: 100%;
@@ -120,7 +121,7 @@ const testExport = () => {
         padding: 5px;
         position: relative;
 
-        div.column-resize-handle {
+        .column-resize-handle {
           background-color: #409EFF;
           bottom: 0px;
           pointer-events: none;
@@ -130,6 +131,73 @@ const testExport = () => {
           width: 2px;
           // height: 100%;
         }
+
+      }
+
+      th {
+        text-align: center;
+        font-weight: bold;
+      }
+
+      /* 选中单元格的智能边框样式 - 只显示外框 */
+      .selectedCell {
+        position: relative;
+        
+        /* 背景高亮 */
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(64, 158, 255, 0.1);
+          pointer-events: none;
+          z-index: 1;
+        }
+      }
+      
+      /* 选中单元格的智能边框样式 - 使用伪元素实现精确控制 */
+      .selectedCell {
+        position: relative;
+        
+        /* 背景高亮 */
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(64, 158, 255, 0.1);
+          pointer-events: none;
+          z-index: 1;
+        }
+        
+        /* 使用after伪元素创建边框 */
+        &::after {
+          content: '';
+          position: absolute;
+          top: -1px;
+          left: -1px;
+          right: -1px;
+          bottom: -1px;
+          border: 2px solid $selectedBorderColor;
+          pointer-events: none;
+          z-index: 2;
+        }
+      }
+      
+      /* 左侧有选中单元格时，去除左边框 */
+      .selectedCell + .selectedCell::after {
+        border-left: none;
+        left: 0;
+      }
+      
+      /* 上方有选中单元格时，去除上边框 */
+      tr:has(.selectedCell) + tr .selectedCell::after {
+        border-top: none;
+        top: 0;
       }
 
     }

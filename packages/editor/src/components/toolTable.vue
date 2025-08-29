@@ -22,7 +22,7 @@ import { TableOutlined } from "@ant-design/icons-vue";
 import { IconLayout } from "@snail-js/vue";
 import { Editor } from "@tiptap/vue-3";
 
-import { defaultTable } from "../contents/defaultTable";
+// import { defaultTable } from "../contents/defaultTable";
 
 const props = defineProps({
   editor: {
@@ -33,12 +33,12 @@ const props = defineProps({
 
 // 插入普通表格
 const handleInsertTable = async () => {
-  props.editor.chain().focus().insertContent(defaultTable).run()
-  // props.editor
-  //   .chain()
-  //   .focus()
-  //   .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-  //   .run();
+  // props.editor.chain().focus().insertContent(defaultTable).run()
+  props.editor
+    .chain()
+    .focus()
+    .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+    .run();
 };
 </script>
 

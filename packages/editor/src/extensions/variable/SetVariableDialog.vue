@@ -40,9 +40,10 @@
         <Input v-model:value="attrs.defaultValue" />
       </Form.Item>
       <Form.Item v-if="attrs.type == VariableType.List" label="列表项">
-        <Tag color="#a83279" v-for="(item,index) in listItems" closable  @close="handleDelListItem(index)">{{ item }}</Tag>
+        <Tag color="#a83279" v-for="(item, index) in listItems" closable @close="handleDelListItem(index)">{{ item }}
+        </Tag>
         <InputGroup compact size="small" style="width: 112px;display: inline-block;">
-          <Input v-model:value="addedItem" style="width: 80px;" placeholder="添加项"/>
+          <Input v-model:value="addedItem" style="width: 80px;" placeholder="添加项" />
           <Button :icon="h(PlusOutlined)" type="primary" @click="handleAddListItem"></Button>
         </InputGroup>
       </Form.Item>
@@ -54,8 +55,8 @@
 </template>
 
 <script setup lang="ts">
-import { defineModel, defineEmits, onMounted, ref, PropType, reactive, h } from 'vue'
-import { Modal, Form, Select, Input, Tag, Button,InputGroup } from 'ant-design-vue'
+import { defineEmits, onMounted, ref, PropType, reactive, h } from 'vue'
+import { Modal, Form, Select, Input, Tag, Button, InputGroup } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 
 import { VariableAttrs, VariableType } from './typing'
