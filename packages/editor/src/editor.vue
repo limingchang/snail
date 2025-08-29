@@ -30,7 +30,7 @@ import { ParagraphStyle } from "./extensions/paragraphStyle/index";
 import { QRCode } from "./extensions/QRCode/index";
 import { Variable } from "./extensions/variable/index";
 
-import { LayoutMode } from "./extensions/table/layoutMode"
+import { LayoutMode } from "./extensions/layoutMode/index"
 
 import ToolBar from "./components/toolBar.vue";
 
@@ -65,12 +65,6 @@ const editor = useEditor({
         resizable: true,
       },
     }),
-    // Table.configure({
-    //   resizable: true,
-    //   HTMLAttributes: {
-    //     class: "test-table"
-    //   }
-    // }),TableRow.configure({HTMLAttributes:{class:"test-table-row"}}),TableHeader,TableCell,
     QRCode,
     Variable.configure({
       // mode:'view'
