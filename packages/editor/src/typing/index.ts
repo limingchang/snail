@@ -16,10 +16,11 @@ export interface ToolBarOptions {
  * @description: 编辑器配置项
  * @property {"design" | "view"}[mode='design'] 设计模式design(默认) | 查看模式view(不可编辑，根据document渲染文档)
  * @property {Content}doc 查看模式下的文档内容
- * @property {}
+ * @property {}innerObject 内置对象列表，用于插入变量
  * @return {*}
  */
 export interface EditorOptions {
   mode?: "design" | "view";
   doc?: Content;
+  innerObject?:any
 }
