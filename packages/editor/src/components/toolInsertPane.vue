@@ -1,9 +1,9 @@
 <template>
   <ToolQrcode :editor="props.editor"></ToolQrcode>
   <Divider type="vertical" style="height: 100%;"></Divider>
-  <ToolVariable :editor="props.editor"></ToolVariable>
-  <Divider type="vertical" style="height: 100%;"></Divider>
   <ToolTable :editor="props.editor"></ToolTable>
+  <Divider type="vertical" style="height: 100%;"></Divider>
+  <ToolVariable :editor="props.editor"></ToolVariable>
 </template>
 
 <script setup lang="ts">

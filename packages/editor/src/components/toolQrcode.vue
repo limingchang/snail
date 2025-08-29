@@ -1,8 +1,6 @@
 <template>
   <div class="tool-qrcode">
-    <Tooltip title="插入二维码" :color="'#2db7f5'" placement="right">
-      <Button :icon="h(QrcodeOutlined)" size="middle" @click="handleInsertQRCodeClick"></Button>
-    </Tooltip>
+      <Button :icon="h(QrcodeOutlined)" size="middle" @click="handleInsertQRCodeClick">插入二维码</Button>
     <div class="qrcode-position">
       <span>位置：上</span>
       <InputNumber v-model:value="QRCodeOptions.position.y" @change="handleUpdateQRCode"></InputNumber><span>左</span>
@@ -27,7 +25,7 @@
 
 <script setup lang="ts">
 import { reactive, h } from 'vue'
-import { Button, InputNumber, Select, Tooltip, message } from 'ant-design-vue'
+import { Button, InputNumber, Select, message } from 'ant-design-vue'
 import { QrcodeOutlined } from '@ant-design/icons-vue'
 import qrcode from 'qrcode'
 
@@ -127,7 +125,7 @@ const handleUpdateQRCode = () => {
 
 <style scoped lang="scss">
 .tool-qrcode {
-  width: 345px;
+  width: 285px;
 
   .qrcode-position {
     width: 100%;
