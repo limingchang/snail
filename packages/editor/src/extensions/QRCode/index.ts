@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { IQRCodeOptions } from "./typing";
 
+
 /**
  * 合并样式字符串
  * @param existingStyle 现有样式
@@ -189,18 +190,11 @@ export const QRCode = Node.create({
             size: options.size,
             position: options.position,
           };
-          const docJson = editor.getJSON();
-          const newDocJson = {
-            ...docJson,
-            content: [
-              {
-                type: "qrcode",
-                attrs,
-              },
-              ...docJson.content,
-            ],
+          const qrcodeContent = {
+            type: this.name,
+            attrs,
           };
-          const result = commands.setContent(newDocJson);
+          const result = commands.insertContentAt(0, qrcodeContent)
           if (result) {
             this.storage.hasQRCode = true;
           }
