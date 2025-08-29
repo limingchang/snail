@@ -1,4 +1,4 @@
-const defaultCell = {
+export const defaultCell = {
   type: "tableCell",
   content: [
     {
@@ -9,26 +9,11 @@ const defaultCell = {
 
 const defaultRow = {
   type: "tableRow",
-  content: [defaultCell, defaultCell, defaultCell,defaultCell],
+  content: [defaultCell, defaultCell, defaultCell, defaultCell],
 };
 
 export const defaultTable = {
   type: "table",
-  attrs: {
-    layout: true,
-  },
-  content: [defaultRow, defaultRow,defaultRow, defaultRow],
+  content: [defaultRow, defaultRow, defaultRow, defaultRow],
 };
 
-export const defaultLayoutTable = {
-  type: "table",
-  attrs: {
-    class: "layout",
-  },
-  content: [
-    {...defaultRow,attrs:{layoutMode:true}}, 
-    {...defaultRow,attrs:{layoutMode:true}},
-    {...defaultRow,attrs:{layoutMode:true}},
-    {...defaultRow,attrs:{layoutMode:true}},
-  ],
-};

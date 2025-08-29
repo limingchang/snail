@@ -5,10 +5,21 @@
         <template #content>
           <div class="table-selector">
             <div class="table-grid">
-              <div v-for="(_, rowIndex) in 8" :key="`row-${rowIndex}`" class="grid-row">
-                <div v-for="(_, colIndex) in 8" :key="`cell-${rowIndex}-${colIndex}`" class="grid-cell" :class="{
-                  'highlighted': isHighlighted(rowIndex, colIndex)
-                }" @mouseenter="onCellHover(rowIndex, colIndex)" @click="onCellClick(rowIndex + 1, colIndex + 1)"></div>
+              <div
+                v-for="(_, rowIndex) in 8"
+                :key="`row-${rowIndex}`"
+                class="grid-row"
+              >
+                <div
+                  v-for="(_, colIndex) in 8"
+                  :key="`cell-${rowIndex}-${colIndex}`"
+                  class="grid-cell"
+                  :class="{
+                    highlighted: isHighlighted(rowIndex, colIndex),
+                  }"
+                  @mouseenter="onCellHover(rowIndex, colIndex)"
+                  @click="handleInsertTable(rowIndex + 1, colIndex + 1)"
+                ></div>
               </div>
             </div>
             <div class="table-info">
@@ -16,16 +27,40 @@
             </div>
           </div>
         </template>
-        <Button :icon="h(TableOutlined)" size="small" @click="handleInsertTable">插入表格</Button>
+        <Button :icon="h(TableOutlined)" size="small">插入表格</Button>
       </Popover>
-      <Popover title="插入布局定位表(一般用于分栏布局)">
+      <Popover>
+        <template #title>
+          <div class="ant-popover-title">插入布局定位表</div>
+          <div style="font-size: 0.85em; color: #f56c6c; font-weight: normal">
+            一般用于分栏布局
+          </div>
+        </template>
         <template #content>
           <div class="table-selector">
             <div class="table-grid layout">
-              <div v-for="(_, rowIndex) in 8" :key="`row-${rowIndex}`" class="grid-row">
-                <div v-for="(_, colIndex) in 8" :key="`cell-${rowIndex}-${colIndex}`" class="grid-cell" :class="{
-                  'highlighted': isHighlighted(rowIndex, colIndex)
-                }" @mouseenter="onCellHover(rowIndex, colIndex)" @click="onCellClick(rowIndex + 1, colIndex + 1)"></div>
+              <div
+                v-for="(_, rowIndex) in 8"
+                :key="`row-${rowIndex}`"
+                class="grid-row"
+              >
+                <div
+                  v-for="(_, colIndex) in 8"
+                  :key="`cell-${rowIndex}-${colIndex}`"
+                  class="grid-cell"
+                  :class="{
+                    highlighted: isHighlighted(rowIndex, colIndex),
+                  }"
+                  @mouseenter="onCellHover(rowIndex, colIndex)"
+                  @click="
+                    handleInsertTable(
+                      rowIndex + 1,
+                      colIndex + 1,
+                      false,
+                      'layout'
+                    )
+                  "
+                ></div>
               </div>
             </div>
             <div class="table-info">
@@ -33,7 +68,7 @@
             </div>
           </div>
         </template>
-        <Button size="small" :icon="h(IconLayout)" @click="handleInsertLayoutTable">插入布局表</Button>
+        <Button size="small" :icon="h(IconLayout)">插入布局表</Button>
       </Popover>
     </div>
     <div class="tool-table-operation">
@@ -41,17 +76,16 @@
       <Button :icon="h(IconUnMergeCells)" size="small">取消合并</Button>
     </div>
   </div>
-
 </template>
 
 <script setup lang="ts">
 import { h, ref } from "vue";
-import { Button, Tooltip, Popover } from "ant-design-vue";
+import { Button, Popover } from "ant-design-vue";
 import { TableOutlined } from "@ant-design/icons-vue";
 import { IconLayout, IconMergeCells, IconUnMergeCells } from "@snail-js/vue";
 import { Editor } from "@tiptap/vue-3";
 
-import { defaultLayoutTable } from "../contents/defaultTable";
+import { defaultCell } from "../contents/defaultTable";
 
 const props = defineProps({
   editor: {
@@ -75,57 +109,60 @@ const onCellHover = (rowIndex: number, colIndex: number) => {
   hoveredCols.value = colIndex + 1;
 };
 
-// 单元格点击事件
-const onCellClick = (rows: number, cols: number) => {
-  console.log('col:', cols, 'row:', rows);
-
-  // 插入选定大小的表格
-  props.editor
-    .chain()
-    .focus()
-    .insertTable({ rows, cols, withHeaderRow: true })
-    .insertContent({ type: "paragraph" })
-    .run();
+const resetHoverRowCol = () => {
+  hoveredRows.value = 1;
+  hoveredCols.value = 1;
 };
 
-// 插入普通表格
-const handleInsertTable = async () => {
-  // props.editor.chain().focus().insertContent(defaultTable).run()
-  props.editor
-    .chain()
-    .focus()
-    .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-    .insertContent({ type: "paragraph" })
-    .run();
-  // props.editor.chain()
+const handleInsertTable = (
+  rows: number,
+  cols: number,
+  withHeaderRow = true,
+  type: "normal" | "layout" = "normal"
+) => {
+  console.log("插入表,行:", rows, "列:", cols, "布局表", type);
+  if (type === "normal") {
+    props.editor
+      .chain()
+      .focus()
+      .insertTable({ rows, cols, withHeaderRow })
+      .run();
+
+    return;
+  }
+  if (type === "layout") {
+    const layoutRowContent = new Array(cols).fill(defaultCell);
+    const layoutRow = {
+      type: "tableRow",
+      attrs: { layoutMode: true },
+      content: layoutRowContent,
+    };
+    const layoutTable = {
+      type: "table",
+      attrs: { layoutMode: true },
+      content: new Array(rows).fill(layoutRow),
+    };
+    props.editor.chain().focus().insertContent(layoutTable).run();
+  }
+  resetHoverRowCol();
 };
-
-const handleInsertLayoutTable = () => {
-  props.editor
-    .chain()
-    .focus()
-    .insertContent(defaultLayoutTable)
-    .run();
-}
-
-
 </script>
 
 <style lang="scss" scoped>
-.tool-table{
+.tool-table {
   width: 240px;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between
+  justify-content: space-between;
 }
 .tool-table-insert {
   width: 100%;
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between
+  justify-content: space-between;
 }
 
 .tool-table-operation {
@@ -172,8 +209,8 @@ const handleInsertLayoutTable = () => {
       .grid-row {
         .grid-cell {
           &.highlighted {
-            background-color: #F56C6C;
-            border-color: #F56C6C;
+            background-color: #f56c6c;
+            border-color: #f56c6c;
           }
         }
       }

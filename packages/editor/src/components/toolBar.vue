@@ -1,43 +1,46 @@
 <template>
-  <Tabs v-model:activeKey="tab" animated @change="handleTabChange" class="tool-tabs"> 
+  <Tabs
+    v-model:activeKey="tab"
+    animated
+    @change="handleTabChange"
+    class="tool-tabs"
+  >
     <TabPane key="style" tab="格式" class="tool-pane">
       <ToolStylePane :editor="props.editor"></ToolStylePane>
     </TabPane>
     <TabPane key="page" tab="页面">页面</TabPane>
     <TabPane key="insert" tab="插入" class="tool-pane">
-        <ToolInsertPane :editor="props.editor"></ToolInsertPane>
+      <ToolInsertPane :editor="props.editor"></ToolInsertPane>
+    </TabPane>
+    <TabPane
+      v-for="(item, index) in props.custom"
+      :key="index"
+      class="tool-pane"
+      :tab="item.title"
+    >
+      <component :is="item.tools" :editor="props.editor"></component>
     </TabPane>
   </Tabs>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-// import { STab, STabItem } from '@snail-js/vue'
+import { ref } from "vue";
+import { Tabs, TabPane } from "ant-design-vue";
+import ToolStylePane from "./toolStylePane.vue";
+import ToolInsertPane from "./toolInsertPane.vue";
+import { ToolBarOptions } from "../typing/index";
 
-import { Tabs, TabPane } from 'ant-design-vue'
+const props = defineProps<ToolBarOptions>();
 
-import type { Editor } from '@tiptap/vue-3'
-import ToolStylePane from './toolStylePane.vue'
-import ToolInsertPane from './toolInsertPane.vue'
+const tab = ref("insert");
 
-const props = defineProps({
-  editor: {
-    type: Object as () => Editor,
-    default: () => null
-  }
-})
-
-
-const tab = ref('insert')
-
-const handleTabChange = ()=>{
-  props.editor?.chain().focus().run()
-}
-
+const handleTabChange = () => {
+  props.editor?.chain().focus().run();
+};
 </script>
 
 <style scoped lang="scss">
-.tool-tabs{
+.tool-tabs {
   background-color: #ffffff; /* 白色背景 */
   border-radius: 8px; /* 圆角效果 */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 阴影效果 */

@@ -1,7 +1,11 @@
 <template>
   <div class="s-editor">
     <ToolBar :editor="editor"></ToolBar>
-    <EditorContent class="editor-content" :editor="editor"></EditorContent>
+    <EditorContent
+      class="editor-content"
+      :editor="editor"
+      :style="`--layout-line-style:${mode === 'view' ? 'none' : 'dashed'}`"
+    ></EditorContent>
   </div>
   <div @click="testExport">测试导出</div>
 </template>
@@ -21,7 +25,7 @@ import { TextStyleKit } from "@tiptap/extension-text-style";
 import { TextAlign } from "@tiptap/extension-text-align";
 // import { TextIndent } from "./extensions/textIndent/index";
 import { TableKit } from "@tiptap/extension-table";
-import { Table,TableRow,TableHeader,TableCell } from "@tiptap/extension-table";
+// import { Table,TableRow,TableHeader,TableCell } from "@tiptap/extension-table";
 // import { TableKit } from "./extensions/table/tableKit";
 
 import { ParagraphStyle } from "./extensions/paragraphStyle/index";
@@ -30,11 +34,16 @@ import { ParagraphStyle } from "./extensions/paragraphStyle/index";
 import { QRCode } from "./extensions/QRCode/index";
 import { Variable } from "./extensions/variable/index";
 
-import { LayoutMode } from "./extensions/layoutMode/index"
+import { LayoutMode } from "./extensions/layoutMode/index";
+import { fixLayoutTable } from "./extensions/layoutMode/fixLayout";
 
 import ToolBar from "./components/toolBar.vue";
 
 import { defaultContent } from "./contents/default";
+
+import { EditorOptions } from "./typing/index";
+
+const { mode = "design", doc = undefined } = defineProps<EditorOptions>();
 
 const editor = useEditor({
   extensions: [
@@ -70,8 +79,11 @@ const editor = useEditor({
       // mode:'view'
     }),
   ],
-  content: defaultContent,
+  content: doc || defaultContent,
   autofocus: true,
+  onUpdate({ editor, transaction, appendedTransactions }) {
+    fixLayoutTable(editor)
+  },
 });
 
 const testExport = () => {
@@ -80,7 +92,7 @@ const testExport = () => {
 </script>
 
 <style scoped lang="scss">
-$selectedBorderColor :#109968;
+$selectedBorderColor: #109968;
 
 .s-editor {
   width: 100%;
@@ -89,7 +101,6 @@ $selectedBorderColor :#109968;
   .editor-content {
     padding: 3mm;
     background-color: #ccc;
-
 
     :deep(.tiptap) {
       outline: none;
@@ -114,17 +125,16 @@ $selectedBorderColor :#109968;
         cursor: ew-resize;
         cursor: col-resize;
       }
-
     }
 
     :deep(table) {
-      // 
+      //
       border-collapse: collapse;
-      tr.layout-mode{
+      tr.layout-mode {
         td,
         th {
           width: 80px;
-          border-style: dashed;
+          border-style: var(--layout-line-style);
         }
       }
       td,
@@ -132,10 +142,10 @@ $selectedBorderColor :#109968;
         border: 1px solid #000;
         padding: 5px;
         position: relative;
-        width:120px;
+        width: 120px;
 
         .column-resize-handle {
-          background-color: #409EFF;
+          background-color: #409eff;
           bottom: 0px;
           pointer-events: none;
           position: absolute;
@@ -144,7 +154,6 @@ $selectedBorderColor :#109968;
           width: 2px;
           // height: 100%;
         }
-
       }
 
       th {
@@ -158,7 +167,7 @@ $selectedBorderColor :#109968;
 
         /* 背景高亮 */
         &::before {
-          content: '';
+          content: "";
           position: absolute;
           top: 0;
           left: 0;
@@ -176,7 +185,7 @@ $selectedBorderColor :#109968;
 
         /* 背景高亮 */
         &::before {
-          content: '';
+          content: "";
           position: absolute;
           top: 0;
           left: 0;
@@ -189,7 +198,7 @@ $selectedBorderColor :#109968;
 
         /* 使用after伪元素创建边框 */
         &::after {
-          content: '';
+          content: "";
           position: absolute;
           top: -1px;
           left: -1px;
@@ -202,17 +211,16 @@ $selectedBorderColor :#109968;
       }
 
       /* 左侧有选中单元格时，去除左边框 */
-      .selectedCell+.selectedCell::after {
+      .selectedCell + .selectedCell::after {
         border-left: none;
         left: 0;
       }
 
       /* 上方有选中单元格时，去除上边框 */
-      tr:has(.selectedCell)+tr .selectedCell::after {
+      tr:has(.selectedCell) + tr .selectedCell::after {
         border-top: none;
         top: 0;
       }
-
     }
   }
 }

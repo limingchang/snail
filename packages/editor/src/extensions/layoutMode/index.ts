@@ -23,11 +23,12 @@ export const LayoutMode = Extension.create<LayoutModeOptions>({
   addGlobalAttributes() {
     return [
       {
-        types: this.options.types,
+        types: [...this.options.types, "table"],
         attributes: {
           layoutMode: {
             default: false,
-            parseHTML: (element) => element.getAttribute("data-layout-mode") || false,
+            parseHTML: (element) =>
+              element.getAttribute("data-layout-mode") || false,
             renderHTML: (attributes) => {
               if (!attributes.layoutMode) {
                 return {};
