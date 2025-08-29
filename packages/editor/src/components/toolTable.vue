@@ -72,8 +72,54 @@
       </Popover>
     </div>
     <div class="tool-table-operation">
-      <Button :icon="h(IconMergeCells)" size="small">合并单元格</Button>
-      <Button :icon="h(IconUnMergeCells)" size="small">取消合并</Button>
+      <Button
+        :icon="h(IconMergeCells)"
+        size="small"
+        @click="editor.chain().focus().mergeCells().run()"
+        >合并单元格</Button
+      >
+      <Button
+        :icon="h(IconUnMergeCells)"
+        size="small"
+        @click="editor.chain().focus().splitCell().run()"
+        >取消合并</Button
+      >
+      <Button
+        :icon="h(IconAddColumnBefore)"
+        size="small"
+        @click="editor.chain().focus().addColumnBefore().run()"
+        >左侧插入列</Button
+      >
+      <Button
+        :icon="h(IconAddColumnAfter)"
+        size="small"
+        @click="editor.chain().focus().addColumnAfter().run()"
+        >右侧插入列</Button
+      >
+      <Button
+        :icon="h(IconAddRowBefore)"
+        size="small"
+        @click="editor.chain().focus().addRowBefore().run()"
+        >上方插入行</Button
+      >
+      <Button
+        :icon="h(IconAddRowAfter)"
+        size="small"
+        @click="editor.chain().focus().addRowAfter().run()"
+        >下方插入行</Button
+      >
+      <Button
+        :icon="h(IconDeleteColumn)"
+        size="small"
+        @click="editor.chain().focus().deleteColumn().run()"
+        >删除当前列</Button
+      >
+      <Button
+        :icon="h(IconDeleteColumn)"
+        size="small"
+        @click="editor.chain().focus().deleteRow().run()"
+        >删除当前行</Button
+      >
     </div>
   </div>
 </template>
@@ -82,7 +128,17 @@
 import { h, ref } from "vue";
 import { Button, Popover } from "ant-design-vue";
 import { TableOutlined } from "@ant-design/icons-vue";
-import { IconLayout, IconMergeCells, IconUnMergeCells } from "@snail-js/vue";
+import {
+  IconLayout,
+  IconMergeCells,
+  IconUnMergeCells,
+  IconAddColumnAfter,
+  IconAddColumnBefore,
+  IconDeleteColumn,
+  IconDeleteRow,
+  IconAddRowAfter,
+  IconAddRowBefore
+} from "@snail-js/vue";
 import { Editor } from "@tiptap/vue-3";
 
 import { defaultCell } from "../contents/defaultTable";
@@ -150,7 +206,7 @@ const handleInsertTable = (
 
 <style lang="scss" scoped>
 .tool-table {
-  width: 240px;
+  width: 225px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -167,8 +223,10 @@ const handleInsertTable = (
 
 .tool-table-operation {
   width: 100%;
+  height: 105px;
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
 }

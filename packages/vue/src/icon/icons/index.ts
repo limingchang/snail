@@ -1,6 +1,10 @@
 import type { Component, App } from "vue";
 
 import Account from "./Account.vue";
+import AddColumnAfter from "./AddColumnAfter.vue";
+import AddColumnBefore from "./AddColumnBefore.vue";
+import AddRowAfter from "./AddRowAfter.vue";
+import AddRowBefore from "./AddRowBefore.vue";
 import Approve from "./Approve.vue";
 import Book from "./Book.vue";
 import Card from "./Card.vue";
@@ -17,7 +21,9 @@ import Dashboard from "./Dashboard.vue";
 import DashboardSolid from "./DashboardSolid.vue";
 import Data from "./Data.vue";
 import Delete from "./Delete.vue";
+import DeleteColumn from "./DeleteColumn.vue";
 import DeleteFill from "./DeleteFill.vue";
+import DeleteRow from "./DeleteRow.vue";
 import Edit from "./Edit.vue";
 import EditFill from "./EditFill.vue";
 import EditSolid from "./EditSolid.vue";
@@ -46,7 +52,7 @@ import Location from "./Location.vue";
 import LocationFill from "./LocationFill.vue";
 import Lock from "./Lock.vue";
 import Manage from "./Manage.vue";
-import MergeCells from "./mergeCells.vue";
+import MergeCells from "./MergeCells.vue";
 import Minus from "./Minus.vue";
 import Mobile from "./Mobile.vue";
 import Ok from "./Ok.vue";
@@ -90,6 +96,10 @@ function install(component: Component) {
 }
 
 export const IconAccount = install(Account);
+export const IconAddColumnAfter = install(AddColumnAfter);
+export const IconAddColumnBefore = install(AddColumnBefore);
+export const IconAddRowAfter = install(AddRowAfter);
+export const IconAddRowBefore = install(AddRowBefore);
 export const IconApprove = install(Approve);
 export const IconBook = install(Book);
 export const IconCard = install(Card);
@@ -106,7 +116,9 @@ export const IconDashboard = install(Dashboard);
 export const IconDashboardSolid = install(DashboardSolid);
 export const IconData = install(Data);
 export const IconDelete = install(Delete);
+export const IconDeleteColumn = install(DeleteColumn);
 export const IconDeleteFill = install(DeleteFill);
+export const IconDeleteRow = install(DeleteRow);
 export const IconEdit = install(Edit);
 export const IconEditFill = install(EditFill);
 export const IconEditSolid = install(EditSolid);
