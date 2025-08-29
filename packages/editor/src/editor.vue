@@ -20,8 +20,8 @@ import { Underline } from "@tiptap/extension-underline";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import { TextAlign } from "@tiptap/extension-text-align";
 // import { TextIndent } from "./extensions/textIndent/index";
-// import { TableKit } from "@tiptap/extension-table";
-import { TableKit } from "./extensions/table/tableKit";
+import { TableKit } from "@tiptap/extension-table";
+// import { TableKit } from "./extensions/table/tableKit";
 
 import { ParagraphStyle } from "./extensions/paragraphStyle/index";
 
@@ -84,6 +84,7 @@ const testExport = () => {
     padding: 3mm;
     background-color: #ccc;
 
+
     :deep(.tiptap) {
       outline: none;
       background-color: #fff;
@@ -107,6 +108,7 @@ const testExport = () => {
         cursor: ew-resize;
         cursor: col-resize;
       }
+
     }
 
     :deep(table) {
@@ -116,20 +118,20 @@ const testExport = () => {
       th {
         border: 1px solid #000;
         padding: 5px;
-      }
+        position: relative;
 
-      th,
-      tr {
-        .column-resize-handle {
-          background-color: var(--purple);
-          bottom: -2px;
+        div.column-resize-handle {
+          background-color: #409EFF;
+          bottom: 0px;
           pointer-events: none;
           position: absolute;
-          right: -2px;
+          right: -1px;
           top: 0;
-          width: 4px;
+          width: 2px;
+          // height: 100%;
         }
       }
+
     }
   }
 }

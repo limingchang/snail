@@ -33,8 +33,6 @@ const props = defineProps({
 
 // 插入普通表格
 const handleInsertTable = async () => {
-  // props.editor.chain().focus().enter().run()
-  // await new Promise(resolve => setTimeout(resolve, 100))
   props.editor.chain().focus().insertContent(defaultTable).run()
   // props.editor
   //   .chain()
