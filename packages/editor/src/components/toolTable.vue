@@ -115,7 +115,7 @@
         >删除当前列</Button
       >
       <Button
-        :icon="h(IconDeleteColumn)"
+        :icon="h(IconDeleteRow)"
         size="small"
         @click="editor.chain().focus().deleteRow().run()"
         >删除当前行</Button
@@ -139,7 +139,7 @@ import {
   IconAddRowAfter,
   IconAddRowBefore
 } from "@snail-js/vue";
-import { Editor } from "@tiptap/vue-3";
+import { Editor } from "@tiptap/core";
 
 import { defaultCell } from "../contents/defaultTable";
 

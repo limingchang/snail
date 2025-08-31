@@ -29,7 +29,7 @@ import { BoldOutlined, ItalicOutlined, UnderlineOutlined } from '@ant-design/ico
 import { FontFamilyList } from '../typing/fontFamily'
 import { FontSizeList } from '../typing/fontSize'
 
-import { Editor } from '@tiptap/vue-3'
+import { Editor } from '@tiptap/core'
 const props = defineProps({
   editor: {
     type: Object as () => Editor,

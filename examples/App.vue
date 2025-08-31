@@ -60,7 +60,7 @@
       <SWordCloud :hotWords="hotWords" :radius="100" :speed="10"></SWordCloud>
     </div> -->
     <p>
-      <SEditor></SEditor>
+      <SEditor :tool-bars="{variable:{innerVariable:[innerVariable]}}"></SEditor>
     </p>
       
   </div>
@@ -229,6 +229,34 @@ const handleApiTest = async () => {
 //   open();
 //   console.log("app:", eventSource);
 // };
+
+
+// s-editor
+const innerVariable = {
+  label:'当前企业',
+  key:'company',
+  children:[{
+    label: '企业名称',
+    key: 'name'
+  },
+  {
+    label: '企业地址',
+    key: 'address'
+  },
+  {
+    label: '企业法人',
+    key: 'legalPerson',
+  },
+  {
+    label: '统一社会信用代码',
+    key: 'unifiedCreditCode',
+  },
+  {
+    label: '法人电话',
+    key: 'tel',
+  },]
+}
+
 </script>
 
 <style lang="scss">

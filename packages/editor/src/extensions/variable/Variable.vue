@@ -76,7 +76,7 @@ const handleUpdateAttrs = () => {
   color: #fff;
 }
 
-[data-variable-type="innerObject"] {
+[data-variable-type="innerVariable"] {
   background-color: #ee3f4d;
   color: #fff;
 }

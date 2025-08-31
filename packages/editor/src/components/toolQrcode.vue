@@ -29,7 +29,7 @@ import { Button, InputNumber, Select, message } from 'ant-design-vue'
 import { QrcodeOutlined } from '@ant-design/icons-vue'
 import qrcode from 'qrcode'
 
-import { Editor } from '@tiptap/vue-3'
+import { Editor } from '@tiptap/core'
 import { IQRCodeOptions } from '../extensions/QRCode/typing'
 
 const props = defineProps({

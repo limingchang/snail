@@ -52,7 +52,7 @@
 import { ref, computed, h } from 'vue'
 import { Select, Button, InputNumber } from 'ant-design-vue'
 import { MenuUnfoldOutlined, MenuFoldOutlined, AlignLeftOutlined, AlignCenterOutlined, AlignRightOutlined, MenuOutlined } from '@ant-design/icons-vue';
-import { Editor } from '@tiptap/vue-3'
+import { Editor } from '@tiptap/core'
 
 import { HeadingList, Level } from '../typing/heading'
 

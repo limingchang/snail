@@ -3,13 +3,13 @@ import { VueNodeViewRenderer } from '@tiptap/vue-3'
 
 import TipTapVariable from './Variable.vue'
 
-import {VariableOptions} from './typing'
+import {VariableOptions,VariableAttrs} from './typing'
 
 // type 定义命令类型
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     variable: {
-      insertVariable: () => ReturnType
+      insertVariable: (attrs:VariableAttrs) => ReturnType
     }
   }
 }
@@ -63,11 +63,12 @@ export const Variable = Node.create<VariableOptions>({
   addCommands(){
     return {
       insertVariable:
-        () =>
+        (attrs) =>
         ({ chain }) => {
           return chain()
             .insertContent({
               type: this.name,
+              attrs
             })
             .selectNodeBackward()
             .run()

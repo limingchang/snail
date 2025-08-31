@@ -4,10 +4,16 @@ export enum VariableType {
   Money = "money",
   Bollean = "boolean",
   Object = "object",
-  InnerObject = "innerObject",
+  InnerVariable = "innerVariable",
   List = "list",
   Radio = "radio",
   Date = "date",
+}
+
+export interface InnerVariableOptions {
+  label: string;
+  key: string;
+  children?: Array<InnerVariableOptions>;
 }
 
 export type VariableAttrs = {
@@ -19,6 +25,6 @@ export type VariableAttrs = {
   value?: any;
 };
 
-export interface VariableOptions{
-  mode:"design"|'view'
+export interface VariableOptions {
+  mode: "design" | "view";
 }

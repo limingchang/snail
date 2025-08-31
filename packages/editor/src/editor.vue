@@ -1,6 +1,6 @@
 <template>
   <div class="s-editor">
-    <ToolBar :editor="editor"></ToolBar>
+    <ToolBar :editor="editor" :options="toolBars" :variable="toolBars?.variable"></ToolBar>
     <EditorContent
       class="editor-content"
       :editor="editor"
@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { Editor, useEditor, EditorContent } from "@tiptap/vue-3";
+import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { Document } from "@tiptap/extension-document";
 import { Paragraph } from "@tiptap/extension-paragraph";
 // import { ParagraphPro } from './extensions/paragraphPro/index'
