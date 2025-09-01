@@ -1,6 +1,5 @@
 <template>
-  <div>
-    <p>monorepo 组件开发测试</p>
+    <!-- <p>monorepo 组件开发测试</p>
     <div style="width: 200px">
       <button style="background-color: var(--snail-color-danger); color: #fff">
         <SIcon>
@@ -8,7 +7,7 @@
         </SIcon>按钮测试
       </button>
       <SClickCopy text="复制内容"></SClickCopy>
-    </div>
+    </div> -->
     <!-- <p>
       <button ref="btn" style="background-color: var(--snail-color-danger); color: #fff" @click="clickHanle">
         <SIcon size="large">
@@ -39,9 +38,9 @@
         </ElIcon>Api调试 -->
       <!-- </ElButton> -->
     <!-- </p> -->
-    <p>
+    <!-- <p> -->
       <!-- <ElButton type="success" @click="handleSse">SSE测试</ElButton> -->
-    </p>
+    <!-- </p> -->
     <!-- <div class="icon-box" v-show="true">
       <span class="icon" v-for="(icon, index) in SIconSvgs" :key="`${icon.name}`">
         <SIcon :icon="icon.name">
@@ -51,19 +50,18 @@
       }}</span>
       </span>
     </div> -->
-    <p>
+    <!-- <p> -->
       <!-- <button @click="menuHandle">点击菜单</button> -->
       <!-- <AliCaptcha :captchaId="captchaId" :handle="handle"></AliCaptcha> -->
       <!-- <SPopupMenu :width="150" v-model="showMenu" :items="menuItems"></SPopupMenu> -->
-    </p>
+    <!-- </p> -->
     <!-- <div>
       <SWordCloud :hotWords="hotWords" :radius="100" :speed="10"></SWordCloud>
     </div> -->
-    <p>
-      <SEditor :tool-bars="{variable:{innerVariable:[innerVariable]}}"></SEditor>
-    </p>
+
+      <SEditor :options="{variable:{innerVariable:[innerVariable]}}" ></SEditor>
+
       
-  </div>
 </template>
 
 <script setup lang="ts">

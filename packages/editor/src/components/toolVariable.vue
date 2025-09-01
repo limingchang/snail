@@ -21,7 +21,8 @@
           <div v-if="attrs.type == VariableType.InnerVariable">
             <Tag color="#ee3f4d">{{ attrs.key }}</Tag>
             <Cascader v-model:value="cascaderValue" :fieldNames="innerVariablefFieldNames"
-              :options="props.innerVariable || []" placeholder="请选择..." changeOnSelect expand-trigger="hover" @change="onInnerVariableChange">
+              :options="props.innerVariable || []" placeholder="请选择..." changeOnSelect expand-trigger="hover"
+              @change="onInnerVariableChange">
               <Button type="primary">选择内置变量</Button>
             </Cascader>
           </div>
@@ -56,6 +57,7 @@
 <script setup lang="ts">
 import { h, reactive, ref, computed, onMounted } from "vue";
 import { Button, Modal, Form, Select, Input, Tag, InputGroup, Cascader, message } from "ant-design-vue";
+import type { Editor } from "@tiptap/core";
 import type { CascaderProps } from 'ant-design-vue';
 import { PlusOutlined } from '@ant-design/icons-vue';
 import { IconVariable } from "@snail-js/vue";
@@ -64,12 +66,12 @@ import { ToolVariableOptions } from "../typing/index"
 import type { VariableAttrs } from "../extensions/variable/typing";
 import { VariableType } from "../extensions/variable/typing";
 
-const props = defineProps<ToolVariableOptions>();
+const props = defineProps<ToolVariableOptions & { editor?: Editor }>();
 
 const open = ref(false);
 
 onMounted(() => {
-  console.log(props)
+  // console.log(props)
 })
 
 // 需要检查 VariableType 中是否有 InnerObject 类型
@@ -99,8 +101,8 @@ const attrs = reactive<VariableAttrs>({
   label: "新变量",
   type: VariableType.Text,
   key: "key",
-  desc: "变量描述",
-  defaultValue: "默认值",
+  desc: "",
+  defaultValue: "",
 });
 
 // 处理变量类型改变
@@ -166,6 +168,7 @@ const onInnerVariableChange: CascaderProps['onChange'] = (value, selectedOptions
       const lastOption = selectedOptions[selectedOptions.length - 1];
       if (lastOption && typeof lastOption === 'object' && 'label' in lastOption) {
         attrs.desc = lastOption.label as string;
+        attrs.label = lastOption.label as string;
       }
     }
   }

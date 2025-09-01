@@ -12,16 +12,21 @@ export interface CustomToolBar {
   tools: VNode;
 }
 
-export interface ToolBarOptions {
-  editor?: Editor;
-  custom?: Array<CustomToolBar>;
-  variable?: ToolVariableOptions;
-}
+
 
 export interface ToolVariableOptions {
-  editor?: Editor;
+  // editor?: Editor;
   exlude?: Array<VariableType>;
   innerVariable?: Array<InnerVariableOptions>;
+}
+
+export interface ToolBarOptions {
+  // editor?: Editor;
+  custom?: Array<CustomToolBar>;
+  tools?: Array<string>;
+  options?: {
+    variable?:ToolVariableOptions
+  };
 }
 
 /**
@@ -34,7 +39,8 @@ export interface ToolVariableOptions {
 export interface EditorOptions {
   mode?: "design" | "view";
   doc?: Content;
-  toolBars?: {
+  tools?:Array<string>
+  options?: {
     variable?: ToolVariableOptions;
   };
 }

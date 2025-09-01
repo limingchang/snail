@@ -1,36 +1,28 @@
 <template>
   <div class="s-editor">
-    <ToolBar :editor="editor" :options="toolBars" :variable="toolBars?.variable"></ToolBar>
-    <EditorContent
-      class="editor-content"
-      :editor="editor"
-      :style="`--layout-line-style:${mode === 'view' ? 'none' : 'dashed'}`"
-    ></EditorContent>
+    <ToolBar :editor="editor" :options="options" :tools="tools" v-if="mode == 'design'"></ToolBar>
+    <EditorContent class="editor-content" :editor="editor"
+      :style="`--layout-line-style:${mode === 'view' ? 'none' : 'dashed'}`"></EditorContent>
   </div>
-  <div @click="testExport">测试导出</div>
+  <!-- <div @click="testExport">测试导出</div> -->
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { Document } from "@tiptap/extension-document";
 import { Paragraph } from "@tiptap/extension-paragraph";
-// import { ParagraphPro } from './extensions/paragraphPro/index'
 import { Text } from "@tiptap/extension-text";
 import { Heading } from "@tiptap/extension-heading";
-// import { HeadingPro } from './extensions/heading'
 import { Bold } from "@tiptap/extension-bold";
 import { Italic } from "@tiptap/extension-italic";
 import { Underline } from "@tiptap/extension-underline";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import { TextAlign } from "@tiptap/extension-text-align";
-// import { TextIndent } from "./extensions/textIndent/index";
 import { TableKit } from "@tiptap/extension-table";
-// import { Table,TableRow,TableHeader,TableCell } from "@tiptap/extension-table";
-// import { TableKit } from "./extensions/table/tableKit";
 
 import { ParagraphStyle } from "./extensions/paragraphStyle/index";
 
-// import { Image } from '@tiptap/extension-image'
 import { QRCode } from "./extensions/QRCode/index";
 import { Variable } from "./extensions/variable/index";
 
@@ -43,15 +35,38 @@ import { defaultContent } from "./contents/default";
 
 import { EditorOptions } from "./typing/index";
 
-const { mode = "design", doc = undefined } = defineProps<EditorOptions>();
+import { VariableType } from './extensions/variable/typing'
+
+const defaultTools = ['style', 'insert', 'page']
+
+const defaultOptions: EditorOptions = {
+  mode: 'design',
+  tools: defaultTools,
+  options: {
+    variable: {
+      exlude: [VariableType.InnerVariable]
+    }
+  }
+}
+
+
+const props = defineProps<EditorOptions>();
+
+const mode = computed(() => props.mode || defaultOptions.mode)
+const tools = computed(() => props.tools || defaultOptions.tools)
+const doc = computed(() => props.doc || defaultContent)
+const options = computed(() => {
+  if (props.options) {
+    return Object.assign({}, defaultOptions.options, props.options)
+  }
+  return defaultOptions.options
+})
+
+
 
 const editor = useEditor({
   extensions: [
-    Document.configure({
-      HTMLAttributes: {
-        style: "padding: 10mm;",
-      },
-    }),
+    Document,
     LayoutMode.configure({
       types: ["tableRow"],
     }),
@@ -79,11 +94,14 @@ const editor = useEditor({
       // mode:'view'
     }),
   ],
-  content: doc || defaultContent,
-  autofocus: true,
+  content: doc.value,
+  // autofocus: true,
   onUpdate({ editor, transaction, appendedTransactions }) {
     fixLayoutTable(editor)
   },
+  onCreate({ editor }) {
+    editor.chain().focus('end').run();
+  }
 });
 
 const testExport = () => {
@@ -96,30 +114,63 @@ $selectedBorderColor: #109968;
 
 .s-editor {
   width: 100%;
-  height: 100%;
+  height: 100vh; /* 设置明确的高度，而不是 100% */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 
   .editor-content {
-    padding: 3mm;
+    flex: 1; /* 使用 flex 属性控制高度 */
+    padding: 5mm;
     background-color: #ccc;
+    min-width: calc(100% - 10mm);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* 确保内容从顶部开始布局 */
+    overflow-y: auto; /* 改为 auto，只在必要时显示滚动条 */
+    overflow-x: hidden;
+
+    /* 自定义滚动条样式 */
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #1677ff;
+      border-radius: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: #0958d9;
+    }
+
+    /* Firefox 滚动条样式 */
+    scrollbar-width: thin;
+    scrollbar-color: #1677ff rgba(0, 0, 0, 0.1);
 
     :deep(.tiptap) {
       outline: none;
       background-color: #fff;
-      min-height: 297mm;
-      /* A4纵向高度 */
-      max-width: 210mm;
-      /* A4宽度 */
-      margin: 0 auto;
-      /* 居中显示 */
+      min-height: 297mm; /* A4纵向高度作为最小高度，移除 !important */
+      height: auto; /* 确保高度能够自动调整，移除 !important */
+      flex-shrink: 0; /* 防止在flex布局中被压缩，移除 !important */
+      overflow: visible; /* 确保内容可以超出容器，移除 !important */
+      width: 210mm;
+      margin: 0;
       padding: 20mm;
-      /* 页边距 */
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      /* 添加阴影效果 */
       border-radius: 4px;
-      /* 轻微圆角 */
       box-sizing: border-box;
-      /* 确保padding不影响总宽度 */
       position: relative;
+      
+      /* 确保内容正常流动 */
+      display: block;
+      word-wrap: break-word;
 
       &.resize-cursor {
         cursor: ew-resize;
@@ -127,16 +178,29 @@ $selectedBorderColor: #109968;
       }
     }
 
+    /* 添加 ProseMirror 特定样式重置 */
+    :deep(.ProseMirror) {
+      height: auto !important;
+      min-height: inherit;
+      overflow: visible !important;
+      display: block;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
     :deep(table) {
       //
       border-collapse: collapse;
+
       tr.layout-mode {
+
         td,
         th {
           width: 80px;
           border-style: var(--layout-line-style);
         }
       }
+
       td,
       th {
         border: 1px solid #000;
@@ -211,13 +275,13 @@ $selectedBorderColor: #109968;
       }
 
       /* 左侧有选中单元格时，去除左边框 */
-      .selectedCell + .selectedCell::after {
+      .selectedCell+.selectedCell::after {
         border-left: none;
         left: 0;
       }
 
       /* 上方有选中单元格时，去除上边框 */
-      tr:has(.selectedCell) + tr .selectedCell::after {
+      tr:has(.selectedCell)+tr .selectedCell::after {
         border-top: none;
         top: 0;
       }
