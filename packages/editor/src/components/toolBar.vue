@@ -67,7 +67,7 @@ const handleTabChange = () => {
   /* 圆角效果 */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   /* 阴影效果 */
-  min-width: 800px;
+  min-width: calc(100vw - 32px);
   /* 最大宽度 */
   margin: 0 auto;
   /* 居中显示 */

@@ -3,12 +3,18 @@
     <ToolBar :editor="editor" :options="options" :tools="tools" v-if="mode == 'design'"></ToolBar>
     <EditorContent class="editor-content" :editor="editor"
       :style="`--layout-line-style:${mode === 'view' ? 'none' : 'dashed'}`"></EditorContent>
+    <div class="editor-footer">
+      <Button type="primary" :icon="h(FileWordOutlined)">导出</Button>
+      <Button type="primary" color="#ccc" :icon="h(PrinterOutlined)">打印</Button>
+    </div>
   </div>
   <!-- <div @click="testExport">测试导出</div> -->
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, h } from 'vue'
+import { Button } from "ant-design-vue"
+import { PrinterOutlined, FileWordOutlined } from '@ant-design/icons-vue'
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { Document } from "@tiptap/extension-document";
 import { Paragraph } from "@tiptap/extension-paragraph";
@@ -114,20 +120,24 @@ $selectedBorderColor: #109968;
 
 .s-editor {
   width: 100%;
-  height: 100vh; /* 设置明确的高度，而不是 100% */
+  height: 100vh;
+  /* 设置明确的高度，而不是 100% */
   display: flex;
   flex-direction: column;
   overflow: hidden;
 
   .editor-content {
-    flex: 1; /* 使用 flex 属性控制高度 */
+    flex: 1;
+    /* 使用 flex 属性控制高度 */
     padding: 5mm;
     background-color: #ccc;
     min-width: calc(100% - 10mm);
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* 确保内容从顶部开始布局 */
-    overflow-y: auto; /* 改为 auto，只在必要时显示滚动条 */
+    align-items: flex-start;
+    /* 确保内容从顶部开始布局 */
+    overflow-y: auto;
+    /* 改为 auto，只在必要时显示滚动条 */
     overflow-x: hidden;
 
     /* 自定义滚动条样式 */
@@ -156,10 +166,14 @@ $selectedBorderColor: #109968;
     :deep(.tiptap) {
       outline: none;
       background-color: #fff;
-      min-height: 297mm; /* A4纵向高度作为最小高度，移除 !important */
-      height: auto; /* 确保高度能够自动调整，移除 !important */
-      flex-shrink: 0; /* 防止在flex布局中被压缩，移除 !important */
-      overflow: visible; /* 确保内容可以超出容器，移除 !important */
+      min-height: 297mm;
+      /* A4纵向高度作为最小高度，移除 !important */
+      height: auto;
+      /* 确保高度能够自动调整，移除 !important */
+      flex-shrink: 0;
+      /* 防止在flex布局中被压缩，移除 !important */
+      overflow: visible;
+      /* 确保内容可以超出容器，移除 !important */
       width: 210mm;
       margin: 0;
       padding: 20mm;
@@ -167,7 +181,7 @@ $selectedBorderColor: #109968;
       border-radius: 4px;
       box-sizing: border-box;
       position: relative;
-      
+
       /* 确保内容正常流动 */
       display: block;
       word-wrap: break-word;
@@ -285,6 +299,16 @@ $selectedBorderColor: #109968;
         border-top: none;
         top: 0;
       }
+    }
+  }
+
+  .editor-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 5px;
+
+    :last-child {
+      margin-left: 10px;
     }
   }
 }
