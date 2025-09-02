@@ -4,11 +4,10 @@
     <EditorContent class="editor-content" :editor="editor"
       :style="`--layout-line-style:${mode === 'view' ? 'none' : 'dashed'}`"></EditorContent>
     <div class="editor-footer">
-      <Button type="primary" :icon="h(FileWordOutlined)">导出</Button>
+      <Button type="primary" :icon="h(FileWordOutlined)" @click="handlerExport">导出</Button>
       <Button type="primary" color="#ccc" :icon="h(PrinterOutlined)">打印</Button>
     </div>
   </div>
-  <!-- <div @click="testExport">测试导出</div> -->
 </template>
 
 <script setup lang="ts">
@@ -16,6 +15,8 @@ import { computed, h } from 'vue'
 import { Button } from "ant-design-vue"
 import { PrinterOutlined, FileWordOutlined } from '@ant-design/icons-vue'
 import { useEditor, EditorContent } from "@tiptap/vue-3";
+
+import { Page } from "./extensions/page/index"
 import { Document } from "@tiptap/extension-document";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Text } from "@tiptap/extension-text";
@@ -73,6 +74,13 @@ const options = computed(() => {
 const editor = useEditor({
   extensions: [
     Document,
+    Page.configure({
+      pageHeaderText: '页眉',
+      pageHeaderHeight: 35,
+      pageHeaderPositon: 'right',
+      pageHeaderLine: true,
+      pageFooterText: (index, total) => `第${index}页，共${total}页`,
+    }),
     LayoutMode.configure({
       types: ["tableRow"],
     }),
@@ -110,7 +118,7 @@ const editor = useEditor({
   }
 });
 
-const testExport = () => {
+const handlerExport = () => {
   console.log(editor.value?.getJSON());
 };
 </script>
@@ -176,7 +184,7 @@ $selectedBorderColor: #109968;
       /* 确保内容可以超出容器，移除 !important */
       width: 210mm;
       margin: 0;
-      padding: 20mm;
+      /* padding: 20mm; */
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       border-radius: 4px;
       box-sizing: border-box;
@@ -190,6 +198,63 @@ $selectedBorderColor: #109968;
         cursor: ew-resize;
         cursor: col-resize;
       }
+
+      .tiptap-page {
+        height: auto;
+        position: relative;
+
+        /* PageContent样式约束 */
+        .tiptap-page-header {
+          position: relative;
+          width: 100%;
+          overflow: hidden;
+
+          /* 在设计模式下的边框提示 */
+          >div:hover {
+            border: 1px dashed #1677ff;
+            // box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+          }
+
+          /* 选中状态样式 */
+          &.ProseMirror-selectednode {
+            border-color: #1677ff;
+            box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+          }
+        }
+
+        .tiptap-page-content {
+          position: relative;
+          width: 100%;
+          min-height: 20mm;
+          overflow: hidden;
+          box-sizing: border-box;
+
+          /* 确保内容不会溢出 */
+          overflow-wrap: break-word;
+          word-wrap: break-word;
+          word-break: break-word;
+
+          /* 防止内容绝对定位溢出 */
+          contain: layout style;
+
+          /* 强制所有子元素保持在容器内 */
+          >* {
+            max-width: 100%;
+            position: relative;
+          }
+
+
+        }
+
+        .tiptap-page-header,
+        .tiptap-page-footer {
+          display: flex;
+          // position: absolute;
+          width: 100%;
+          box-sizing: border-box;
+        }
+      }
+
     }
 
     /* 添加 ProseMirror 特定样式重置 */

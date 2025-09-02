@@ -58,12 +58,12 @@ export const defaultFeatureParagraph = {
     defaultVariable,
     {
       type: "text",
-      text: "、普通表格、布局表格",
+      text: "、普通表格、布局表格、变量",
       marks: [boldMark, defaultTextStyleMark],
     },
     {
       type: "text",
-      text: "，变量在查看模式下，变量将替换为传入的json数据；布局表格在查看模式下，将不会显示边框，仅用作内容分栏布局。",
+      text: "，在查看模式下，变量将替换为传入的json数据；布局表格在查看模式下，将不会显示边框，仅用作内容分栏布局。",
       marks: [defaultTextStyleMark],
     },
   ],

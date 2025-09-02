@@ -1,4 +1,4 @@
-import type { Content, Editor } from "@tiptap/core";
+import type { Content } from "@tiptap/core";
 // import type { Editor } from "@tiptap/vue-3";
 import type { VNode } from "vue";
 
@@ -43,4 +43,28 @@ export interface EditorOptions {
   options?: {
     variable?: ToolVariableOptions;
   };
+}
+
+// 页码管理 Storage 接口
+export interface PageStorage {
+  // 页面索引映射表 - 记录每个页面节点的位置索引
+  pageIndexMap: Map<number, number>;
+  // 总页数
+  totalPages: number;
+  // 更新回调函数集合
+  updateCallbacks: Set<() => void>;
+  // 页面位置缓存
+  pagePositions: Map<number, number>;
+}
+
+// 页眉页脚 Storage 接口
+export interface HeaderFooterStorage {
+  // 当前页码索引
+  currentIndex: number;
+  // 文本生成函数缓存
+  textGenerator: ((index: number, total: number) => string) | null;
+  // DOM 元素引用
+  domElement: HTMLElement | null;
+  // 页面节点引用
+  pageNode: any;
 }
