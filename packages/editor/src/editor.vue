@@ -5,7 +5,7 @@
       :style="`--layout-line-style:${mode === 'view' ? 'none' : 'dashed'}`"></EditorContent>
     <div class="editor-footer">
       <Button type="primary" :icon="h(FileWordOutlined)" @click="handlerExport">导出</Button>
-      <Button type="primary" color="#ccc" :icon="h(PrinterOutlined)">打印</Button>
+      <Button type="primary" style="background-color: #f53f3f;" :icon="h(PrinterOutlined)">打印</Button>
     </div>
   </div>
 </template>
@@ -75,11 +75,15 @@ const editor = useEditor({
   extensions: [
     Document,
     Page.configure({
-      pageHeaderText: '页眉',
-      pageHeaderHeight: 35,
-      pageHeaderPositon: 'right',
-      pageHeaderLine: true,
-      pageFooterText: (index, total) => `第${index}页，共${total}页`,
+      header:{
+        text: '页眉',
+        height: 35,
+        position:'right',
+        underline: true
+      },
+      footer:{
+        text:(index, total) => `第${index}页，共${total}页`
+      }
     }),
     LayoutMode.configure({
       types: ["tableRow"],
@@ -204,13 +208,14 @@ $selectedBorderColor: #109968;
         position: relative;
 
         /* PageContent样式约束 */
-        .tiptap-page-header {
-          position: relative;
-          width: 100%;
-          overflow: hidden;
+        .tiptap-page-header,
+        .tiptap-page-footer {
+          display: flex;
+          // width: 100%;
+          // overflow: hidden;
 
           /* 在设计模式下的边框提示 */
-          >div:hover {
+          &:hover>div {
             border: 1px dashed #1677ff;
             // box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
           }
@@ -246,13 +251,6 @@ $selectedBorderColor: #109968;
 
         }
 
-        .tiptap-page-header,
-        .tiptap-page-footer {
-          display: flex;
-          // position: absolute;
-          width: 100%;
-          box-sizing: border-box;
-        }
       }
 
     }

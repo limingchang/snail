@@ -6,13 +6,21 @@
       <Divider type="vertical" style="height: 100%;"></Divider>
       <ToolParagraph :editor="editor" v-if="tools?.includes('style') || tools?.includes('paragraph')"></ToolParagraph>
     </TabPane>
-    <TabPane key="page" tab="页面" v-if="tools?.includes('page')">页面</TabPane>
+    <TabPane key="page" tab="页面" v-if="tools?.includes('page')">
+      <ToolPage :editor="editor" v-if="tools?.includes('page')"></ToolPage>
+    </TabPane>
     <TabPane key="insert" tab="插入" class="tool-pane"
       v-if="tools?.includes('insert') || insertTools.some(item => tools?.includes(item))">
+      <!-- 分页按钮 -->
+      <Button :icon="h(VerticalAlignMiddleOutlined)" size="small">分页</Button>
+      <Divider type="vertical" style="height: 100%;"></Divider>
+      <!-- 二维码工具 -->
       <ToolQrcode :editor="editor" v-if="tools?.includes('insert') || tools?.includes('qrcode')"></ToolQrcode>
       <Divider type="vertical" style="height: 100%;"></Divider>
+      <!-- 表格工具 -->
       <ToolTable :editor="editor" v-if="tools?.includes('insert') || tools?.includes('table')"></ToolTable>
       <Divider type="vertical" style="height: 100%;"></Divider>
+      <!-- 变量工具 -->
       <ToolVariable :editor="editor" :exlude="options?.variable?.exlude"
         :innerVariable="options?.variable?.innerVariable"
         v-if="tools?.includes('insert') || tools?.includes('variable')"></ToolVariable>
@@ -24,14 +32,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref,h } from "vue";
 import type {  Editor } from "@tiptap/core";
-import { Tabs, TabPane } from "ant-design-vue";
+import { Tabs, TabPane,Button } from "ant-design-vue";
+import {VerticalAlignMiddleOutlined} from '@ant-design/icons-vue'
 // import ToolStylePane from "./toolStylePane.vue";
 
 import { Divider } from 'ant-design-vue'
 import ToolFont from './toolFont.vue'
 import ToolParagraph from './toolParagraph.vue'
+import ToolPage from './toolPage.vue'
 import ToolQrcode from './toolQrcode.vue'
 import ToolVariable from './toolVariable.vue'
 import ToolTable from './toolTable.vue'
