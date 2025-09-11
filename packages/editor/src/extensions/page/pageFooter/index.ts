@@ -37,7 +37,8 @@ export const PageFooter = Node.create<PageFooterOptions>({
         justifyContent: "space-between",
         alignItems: "center",
         fontSize: "9pt",
-        breakAfter: "always",
+        position:"absolute",
+        bottom: `-${this.options.height}px`,
       });
 
       if (this.options.upline) {

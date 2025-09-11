@@ -37,7 +37,8 @@ export const PageHeader = Node.create<PageHeaderOptions>({
         justifyContent: "space-between",
         alignItems: "center",
         fontSize: "9pt",
-        position:"relative",
+        position:"absolute",
+        top: `-${this.options.height}px`,
       });
 
       if (this.options.underline) {

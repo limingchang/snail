@@ -1,10 +1,10 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-import type { Editor } from "@tiptap/core";
-import type { Transaction, EditorState } from "@tiptap/pm/state";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+// import type { Editor } from "@tiptap/core";
+// import type { Transaction, EditorState } from "@tiptap/pm/state";
+// import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 import { PageOptions, PaperSize } from "./typing";
-import { defaultPage } from "../../contents/defaultPage";
+// import { defaultPage } from "../../contents/defaultPage";
 // import { PageStorage } from '../../typing';
 
 import { PageHeader } from "./pageHeader/index";
@@ -190,19 +190,19 @@ export const Page = Node.create<PageOptions>({
       }
       
       // 毫米转像素 (1mm = 3.78px, 基于96DPI)
-      const widthPx = width * 3.78;
-      const heightPx = height * 3.78;
+      // const widthPx = width * 3.78;
+      // const heightPx = height * 3.78;
       
       // 设置页面容器样式
-      pageContiner.style.position = "relative";
-      pageContiner.style.width = `${widthPx}px`;
-      pageContiner.style.height = `${heightPx}px`;
-      pageContiner.style.overflow = "hidden";
+      // pageContiner.style.position = "relative";
+      pageContiner.style.width = `${width}mm`;
+      pageContiner.style.height = `${height}mm`;
+      // pageContiner.style.overflow = "hidden";
       pageContiner.style.margin = "0 auto";
       pageContiner.style.backgroundColor = "#fff";
-      pageContiner.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1)";
-      pageContiner.style.borderRadius = "4px";
-      pageContiner.style.boxSizing = "border-box";
+      // pageContiner.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1)";
+      // pageContiner.style.borderRadius = "4px";
+      // pageContiner.style.boxSizing = "border-box";
 
       // 创建内容容器
       const contentArea = document.createElement("div");
@@ -216,12 +216,20 @@ export const Page = Node.create<PageOptions>({
         left: '21mm'
       };
       
-      contentArea.style.padding = `${margins.top} ${margins.right} ${margins.bottom} ${margins.left}`;
-      contentArea.style.height = "100%";
-      contentArea.style.boxSizing = "border-box";
-      contentArea.style.overflow = "auto";
+      contentArea.style.margin = `${margins.top} ${margins.right} ${margins.bottom} ${margins.left}`;
+      contentArea.style.height = `calc(${height}mm - ${margins.top} - ${margins.bottom})`;
+      // contentArea.style.boxSizing = "border-box";
+      // contentArea.style.overflow = "hidden";
+      contentArea.style.position = "relative";
+      // contentArea.style.display = "flex";
+      // contentArea.style.flexDirection = "column";
+      // contentArea.style.justifyContent = "space-between"
 
       pageContiner.appendChild(contentArea);
+
+      const breakPageDiv = document.createElement("div");
+      breakPageDiv.style.breakAfter = "page";
+      pageContiner.appendChild(breakPageDiv);
 
       return {
         dom: pageContiner,

@@ -178,7 +178,6 @@ $selectedBorderColor: #109968;
     :deep(.tiptap) {
       outline: none;
       background-color: #fff;
-      min-height: 297mm;
       /* A4纵向高度作为最小高度，移除 !important */
       height: auto;
       /* 确保高度能够自动调整，移除 !important */
@@ -186,13 +185,12 @@ $selectedBorderColor: #109968;
       /* 防止在flex布局中被压缩，移除 !important */
       overflow: visible;
       /* 确保内容可以超出容器，移除 !important */
-      width: 210mm;
-      margin: 0;
+      // margin: 0;
       /* padding: 20mm; */
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      border-radius: 4px;
-      box-sizing: border-box;
-      position: relative;
+      // box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      // border-radius: 4px;
+      // box-sizing: border-box;
+      // position: relative;
 
       /* 确保内容正常流动 */
       display: block;
