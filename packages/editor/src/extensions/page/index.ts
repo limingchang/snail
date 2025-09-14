@@ -39,7 +39,7 @@ export const Page = Node.create<PageOptions>({
         line: true,
       },
       footer: {
-        text: (index,total)=>`第${index}页，共${total}页`,
+        text: (index, total) => `第${index}页，共${total}页`,
         position: "center",
         height: 35,
         line: false,
@@ -55,9 +55,7 @@ export const Page = Node.create<PageOptions>({
     console.log("total[page-update]", total);
   },
 
-  onCreate() {
-
-  },
+  onCreate() {},
 
   addExtensions() {
     return [
@@ -70,76 +68,6 @@ export const Page = Node.create<PageOptions>({
     ];
   },
 
-  addCommands() {
-    return {
-      pageSet:
-        (attrs: any) =>
-        ({ commands, tr, editor, state, dispatch }: any): boolean => {
-          const { selection } = state;
-          
-          // 查找当前页面节点
-          let pageNode: any = null;
-          let pagePos = -1;
-          
-          // 从当前位置向上查找页面节点
-          state.doc.descendants((node: any, pos: number) => {
-            if (node.type.name === 'page' && pos <= selection.from && pos + node.nodeSize > selection.from) {
-              pageNode = node;
-              pagePos = pos;
-              return false; // 停止遍历
-            }
-          });
-          
-          if (pageNode && pagePos >= 0) {
-            // 更新页面节点的属性
-            const newAttrs = { ...pageNode.attrs };
-            
-            if (attrs.pageFormat) {
-              newAttrs.pageFormat = attrs.pageFormat;
-            }
-            if (attrs.margins) {
-              newAttrs.margins = { ...newAttrs.margins, ...attrs.margins };
-            }
-            if (attrs.orientation) {
-              newAttrs.orientation = attrs.orientation;
-            }
-            
-            // 执行属性更新
-            tr.setNodeMarkup(pagePos, null, newAttrs);
-            
-            if (dispatch) {
-              dispatch(tr);
-            }
-            
-            return true;
-          }
-          
-          return false;
-        },
-      
-      addNewPage:
-        () =>
-        ({ commands }: any): boolean => {
-          return commands.insertContent({
-            type: "page",
-            content: [
-              { type: "pageHeader" },
-              {
-                type: "pageContent",
-                content: [
-                  {
-                    type: "paragraph",
-                    content: [{ type: "text", text: "新页面内容" }]
-                  }
-                ]
-              },
-              { type: "pageFooter" }
-            ]
-          });
-        }
-    } as any;
-  },
-
   addAttributes() {
     return {
       // 添加自定义属性
@@ -149,18 +77,38 @@ export const Page = Node.create<PageOptions>({
       pageFormat: {
         default: "A4",
       },
-      orientation:{
+      orientation: {
         default: "portrait",
       },
-      margins:{
+      margins: {
         default: {
-          top: '20mm',
-          right: '21mm',
-          bottom: '20mm',
-          left: '21mm',
+          top: "20mm",
+          right: "21mm",
+          bottom: "20mm",
+          left: "21mm",
         },
-      }
-    }
+        parseHTML(element) {
+          return {
+            margins: {
+              top: element.style.marginTop,
+              right: element.style.marginRight,
+              bottom: element.style.marginBottom,
+              left: element.style.marginLeft,
+            },
+          };
+        },
+        renderHTML(attributes) {
+          return {
+            style: `
+            margin-top: ${attributes.margins.top};
+            margin-right: ${attributes.margins.right};
+            margin-bottom: ${attributes.margins.bottom};
+            margin-left: ${attributes.margins.left};
+          `,
+          };
+        },
+      },
+    };
   },
 
   addNodeView() {
@@ -168,62 +116,52 @@ export const Page = Node.create<PageOptions>({
       // 创建页面容器
       const pageContiner = document.createElement("div");
       pageContiner.classList.add("tiptap-page-wrapper");
-      
+
       // 获取页面格式和方向
       const pageFormat = node.attrs.pageFormat || "A4";
       const orientation = node.attrs.orientation || "portrait";
-      
+
       // 计算页面尺寸
       let paperSize = PaperSize[pageFormat as keyof typeof PaperSize];
       if (!paperSize) {
         paperSize = PaperSize.A4; // 默认使用A4
       }
-      
+
       let width: number = paperSize.width;
       let height: number = paperSize.height;
-      
+
       // 如果是横向模式，交换宽高
       if (orientation === "landscape") {
         const temp = width;
         width = height;
         height = temp;
       }
-      
+
       // 毫米转像素 (1mm = 3.78px, 基于96DPI)
       // const widthPx = width * 3.78;
       // const heightPx = height * 3.78;
-      
+
       // 设置页面容器样式
       // pageContiner.style.position = "relative";
       pageContiner.style.width = `${width}mm`;
       pageContiner.style.height = `${height}mm`;
-      // pageContiner.style.overflow = "hidden";
-      pageContiner.style.margin = "0 auto";
       pageContiner.style.backgroundColor = "#fff";
-      // pageContiner.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1)";
-      // pageContiner.style.borderRadius = "4px";
-      // pageContiner.style.boxSizing = "border-box";
 
       // 创建内容容器
       const contentArea = document.createElement("div");
       contentArea.classList.add("tiptap-page");
-      
+
       // 设置边距
       const margins = node.attrs.margins || {
-        top: '20mm',
-        right: '21mm',
-        bottom: '20mm',
-        left: '21mm'
+        top: "20mm",
+        right: "21mm",
+        bottom: "20mm",
+        left: "21mm",
       };
-      
-      contentArea.style.margin = `${margins.top} ${margins.right} ${margins.bottom} ${margins.left}`;
+
+      contentArea.style.padding = `${margins.top} ${margins.right} ${margins.bottom} ${margins.left}`;
       contentArea.style.height = `calc(${height}mm - ${margins.top} - ${margins.bottom})`;
-      // contentArea.style.boxSizing = "border-box";
-      // contentArea.style.overflow = "hidden";
       contentArea.style.position = "relative";
-      // contentArea.style.display = "flex";
-      // contentArea.style.flexDirection = "column";
-      // contentArea.style.justifyContent = "space-between"
 
       pageContiner.appendChild(contentArea);
 
@@ -271,4 +209,10 @@ export const Page = Node.create<PageOptions>({
   //     },
   //   ];
   // },
+
+  addCommands() {
+    return {
+      
+    }
+  },
 });

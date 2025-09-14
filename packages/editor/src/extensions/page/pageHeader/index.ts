@@ -2,7 +2,8 @@ import { Node, mergeAttributes } from "@tiptap/core";
 
 import { PageHeaderOptions } from "../typing";
 // import { HeaderFooterStorage, PageStorage } from "../../../typing";
-import {findPageNode} from '../utils/findPageNode'
+import { findPageNode } from "../utils/findPageNode";
+import { getPageMargins } from "../utils/getPageMargins";
 
 export const PageHeader = Node.create<PageHeaderOptions>({
   name: "pageHeader",
@@ -15,7 +16,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       text: "",
       position: "left",
       height: 50,
-      underline: false,
+      headerLine: false,
       HTMLAttributes: {},
     };
   },
@@ -28,20 +29,25 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       const pageHeader = document.createElement("div");
       pageHeader.classList.add("tiptap-page-header");
 
+      // 获取页面边距信息
+      const margins = getPageMargins(editor, getPos);
+
       // 应用基础样式
       Object.assign(pageHeader.style, {
         height: `${this.options.height}px`,
         lineHeight: `${this.options.height}px`,
         display: "flex",
-        width: "100%",
+        width: "calc(100% - 2px)",
         justifyContent: "space-between",
+        border: "1px solid #fff",
         alignItems: "center",
         fontSize: "9pt",
-        position:"absolute",
-        top: `-${this.options.height}px`,
+        position: "absolute",
+        top: `calc(${margins.top} - ${this.options.height}px - 2px)`,
+        left: "0",
       });
 
-      if (this.options.underline) {
+      if (this.options.headerLine) {
         pageHeader.style.borderBottom = "1px solid #000";
       }
 
@@ -60,7 +66,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
           // 创建左中右三个区域的内容
           const textValue =
             typeof this.options.text === "function"
-              ? this.options.text(index,total)
+              ? this.options.text(index, total)
               : this.options.text;
           const leftContent = this.options.position === "left" ? textValue : "";
           const centerContent =

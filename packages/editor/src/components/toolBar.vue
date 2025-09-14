@@ -1,67 +1,117 @@
 <template>
-  <Tabs v-model:activeKey="tab" animated @change="handleTabChange" class="tool-tabs">
-    <TabPane key="style" tab="格式" class="tool-pane"
-      v-if="tools?.includes('style') || styleTools.some(item => tools?.includes(item))">
-      <ToolFont :editor="editor" v-if="tools?.includes('style') || tools?.includes('font')"></ToolFont>
-      <Divider type="vertical" style="height: 100%;"></Divider>
-      <ToolParagraph :editor="editor" v-if="tools?.includes('style') || tools?.includes('paragraph')"></ToolParagraph>
+  <Tabs
+    v-model:activeKey="tab"
+    animated
+    @change="handleTabChange"
+    class="tool-tabs"
+  >
+    <TabPane
+      key="style"
+      tab="格式"
+      class="tool-pane"
+      v-if="
+        tools?.includes('style') ||
+        styleTools.some((item) => tools?.includes(item))
+      "
+    >
+      <ToolFont
+        :editor="editor"
+        v-if="tools?.includes('style') || tools?.includes('font')"
+      ></ToolFont>
+      <Divider type="vertical" style="height: 100%"></Divider>
+      <ToolParagraph
+        :editor="editor"
+        v-if="tools?.includes('style') || tools?.includes('paragraph')"
+      ></ToolParagraph>
     </TabPane>
     <TabPane key="page" tab="页面" v-if="tools?.includes('page')">
       <ToolPage :editor="editor" v-if="tools?.includes('page')"></ToolPage>
     </TabPane>
-    <TabPane key="insert" tab="插入" class="tool-pane"
-      v-if="tools?.includes('insert') || insertTools.some(item => tools?.includes(item))">
-      <!-- 分页按钮 -->
-      <Button :icon="h(VerticalAlignMiddleOutlined)" size="small">分页</Button>
-      <Divider type="vertical" style="height: 100%;"></Divider>
+    <TabPane
+      key="insert"
+      tab="插入"
+      class="tool-pane"
+      v-if="
+        tools?.includes('insert') ||
+        insertTools.some((item) => tools?.includes(item))
+      "
+    >
+      <div class="tool-inster-page">
+        <Button :icon="h(IconNewPage)" size="small">新页面</Button>
+        <!-- 分页按钮 -->
+        <Button :icon="h(VerticalAlignMiddleOutlined)" size="small"
+          >分页</Button
+        >
+      </div>
+
+      <Divider type="vertical" style="height: 100%"></Divider>
       <!-- 二维码工具 -->
-      <ToolQrcode :editor="editor" v-if="tools?.includes('insert') || tools?.includes('qrcode')"></ToolQrcode>
-      <Divider type="vertical" style="height: 100%;"></Divider>
+      <ToolQrcode
+        :editor="editor"
+        v-if="tools?.includes('insert') || tools?.includes('qrcode')"
+      ></ToolQrcode>
+      <Divider type="vertical" style="height: 100%"></Divider>
       <!-- 表格工具 -->
-      <ToolTable :editor="editor" v-if="tools?.includes('insert') || tools?.includes('table')"></ToolTable>
-      <Divider type="vertical" style="height: 100%;"></Divider>
+      <ToolTable
+        :editor="editor"
+        v-if="tools?.includes('insert') || tools?.includes('table')"
+      ></ToolTable>
+      <Divider type="vertical" style="height: 100%"></Divider>
       <!-- 变量工具 -->
-      <ToolVariable :editor="editor" :exlude="options?.variable?.exlude"
+      <ToolVariable
+        :editor="editor"
+        :exlude="options?.variable?.exlude"
         :innerVariable="options?.variable?.innerVariable"
-        v-if="tools?.includes('insert') || tools?.includes('variable')"></ToolVariable>
+        v-if="tools?.includes('insert') || tools?.includes('variable')"
+      ></ToolVariable>
     </TabPane>
-    <TabPane v-for="(item, index) in custom" :key="index" class="tool-pane" :tab="item.title">
+    <TabPane
+      v-for="(item, index) in custom"
+      :key="index"
+      class="tool-pane"
+      :tab="item.title"
+    >
       <component :is="item.tools" :editor="editor"></component>
     </TabPane>
   </Tabs>
 </template>
 
 <script setup lang="ts">
-import { ref,h } from "vue";
-import type {  Editor } from "@tiptap/core";
-import { Tabs, TabPane,Button } from "ant-design-vue";
-import {VerticalAlignMiddleOutlined} from '@ant-design/icons-vue'
+import { ref, h } from "vue";
+import type { Editor } from "@tiptap/core";
+import { Tabs, TabPane, Button } from "ant-design-vue";
+import { VerticalAlignMiddleOutlined } from "@ant-design/icons-vue";
+import { IconNewPage } from "@snail-js/vue";
 // import ToolStylePane from "./toolStylePane.vue";
 
-import { Divider } from 'ant-design-vue'
-import ToolFont from './toolFont.vue'
-import ToolParagraph from './toolParagraph.vue'
-import ToolPage from './toolPage.vue'
-import ToolQrcode from './toolQrcode.vue'
-import ToolVariable from './toolVariable.vue'
-import ToolTable from './toolTable.vue'
+import { Divider } from "ant-design-vue";
+import ToolFont from "./toolFont.vue";
+import ToolParagraph from "./toolParagraph.vue";
+import ToolPage from "./toolPage.vue";
+import ToolQrcode from "./toolQrcode.vue";
+import ToolVariable from "./toolVariable.vue";
+import ToolTable from "./toolTable.vue";
 
 // import ToolInsertPane from "./toolInsertPane.vue";
 import { ToolBarOptions } from "../typing/index";
 
 const props = defineProps<ToolBarOptions & { editor?: Editor }>();
 
-
 // const tools = ['style', 'page', 'insert']
-const styleTools = ['font', 'paragraph']
-const insertTools = ['qrcode', 'variable', 'table']
+const styleTools = ["font", "paragraph"];
+const insertTools = ["qrcode", "variable", "table"];
 
-const initActiveTab = ()=>{
-  return props.tools?.includes('style')|| styleTools.some(item => props.tools?.includes(item)) ? 
-  'style':props.tools?.includes('insert') || insertTools.some(item => props.tools?.includes(item))?
-  'insert':props.tools?.includes('page')?
-  'page':0
-}
+const initActiveTab = () => {
+  return props.tools?.includes("style") ||
+    styleTools.some((item) => props.tools?.includes(item))
+    ? "style"
+    : props.tools?.includes("insert") ||
+      insertTools.some((item) => props.tools?.includes(item))
+    ? "insert"
+    : props.tools?.includes("page")
+    ? "page"
+    : 0;
+};
 const tab = ref(initActiveTab());
 
 const handleTabChange = () => {
@@ -96,5 +146,10 @@ const handleTabChange = () => {
   justify-content: ‌flex-start‌;
   width: 100%;
   min-height: 130px;
+  .tool-inster-page {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 }
 </style>

@@ -3,6 +3,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import { PageFooterOptions } from "../typing";
 // import { HeaderFooterStorage, PageStorage } from "../../../typing";
 import { findPageNode } from "../utils/findPageNode";
+import { getPageMargins } from "../utils/getPageMargins";
 
 export const PageFooter = Node.create<PageFooterOptions>({
   name: "pageFooter",
@@ -15,7 +16,7 @@ export const PageFooter = Node.create<PageFooterOptions>({
       text: "",
       position: "center",
       height: 50,
-      upline: false,
+      footerLine: false,
       HTMLAttributes: {},
     };
   },
@@ -28,20 +29,26 @@ export const PageFooter = Node.create<PageFooterOptions>({
       const pageFooter = document.createElement("div");
       pageFooter.classList.add("tiptap-page-footer");
 
+      // 获取页面边距信息
+      const margins = getPageMargins(editor, getPos);
+
       // 应用基础样式
       Object.assign(pageFooter.style, {
         height: `${this.options.height}px`,
         lineHeight: `${this.options.height}px`,
         display: "flex",
-        width: "100%",
+        width: "calc(100% - 2px)",
         justifyContent: "space-between",
+        border: "1px solid #fff",
         alignItems: "center",
         fontSize: "9pt",
-        position:"absolute",
-        bottom: `-${this.options.height}px`,
+        position: "absolute",
+        // bottom: `-${this.options.height}px`,
+        bottom: `calc(${margins.bottom} - ${this.options.height}px - 2px)`,
+        left: "0",
       });
 
-      if (this.options.upline) {
+      if (this.options.footerLine) {
         pageFooter.style.borderTop = "1px solid #000";
       }
 
