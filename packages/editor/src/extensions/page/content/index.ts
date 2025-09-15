@@ -1,74 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 
-export const HeaderFooterLeft = Node.create({
-  name: "headerFooterLeft",
-  group: "block",
-  content: "inline*",
-  defining: true,
-
-  addNodeView() {
-    return ({ editor, node, getPos }) => {
-      // 创建左侧页眉
-      const dom = document.createElement("div");
-      dom.classList.add("left");
-      dom.style.flex = "1";
-      dom.style.textAlign = "left";
-
-      return {
-        dom,
-        contentDOM: dom,
-      };
-    };
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: "header-footer-left",
-      },
-    ];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return ["header-footer-left", mergeAttributes(HTMLAttributes)];
-  },
-});
-
-
-export const HeaderFooterCenter = Node.create({
-  name: "headerFooterCenter",
-  group: "block",
-  content: "inline*",
-  defining: true,
-
-  addNodeView() {
-    return ({ editor, node, getPos }) => {
-      // 创建中间页眉
-      const dom = document.createElement("div");
-      dom.classList.add("center");
-      dom.style.flex = "1";
-      dom.style.textAlign = "center";
-      return {
-        dom,
-        contentDOM: dom,
-      };
-    };
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: "header-footer-center",
-      },
-    ];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return ["header-footer-center", mergeAttributes(HTMLAttributes)];
-  },
-});
-
-
-export const HeaderFooterRight = Node.create({
-  name: "headerFooterRight",
+export const HeaderFooterBlock = Node.create({
+  name: "headerFooterBlock",
   group: "block",
   content: "inline*",
   defining: true,
@@ -77,9 +10,10 @@ export const HeaderFooterRight = Node.create({
     return ({ editor, node, getPos }) => {
       // 创建右侧页眉
       const dom = document.createElement("div");
-      dom.classList.add("right");
-      dom.style.flex = "1";
-      dom.style.textAlign = "right";
+      // dom.classList.add("block");
+      dom.style.textAlign = node.attrs.textAlign
+      // dom.style.flex = "1";
+      // dom.style.textAlign = "right";
       return {
         dom,
         contentDOM: dom,
@@ -98,12 +32,12 @@ export const HeaderFooterRight = Node.create({
   parseHTML() {
     return [
       {
-        tag: "header-footer-right",
+        tag: "header-footer-block",
       },
     ];
   },
   renderHTML({ HTMLAttributes }) {
-    return ["header-footer-right", mergeAttributes(HTMLAttributes)];
+    return ["header-footer-block", mergeAttributes(HTMLAttributes)];
   },
 });
 

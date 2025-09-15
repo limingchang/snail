@@ -8,7 +8,7 @@ import { getPageMargins } from "../utils/getPageMargins";
 export const PageFooter = Node.create<PageFooterOptions>({
   name: "pageFooter",
   group: "block",
-  content: "(headerFooterLeft | headerFooterCenter | headerFooterRight)+",
+  content: "headerFooterBlock+",
   defining: true,
 
   addOptions() {
@@ -36,14 +36,13 @@ export const PageFooter = Node.create<PageFooterOptions>({
       Object.assign(pageFooter.style, {
         height: `${this.options.height}px`,
         lineHeight: `${this.options.height}px`,
-        display: "flex",
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
         width: `calc(100% - ${margins.left} - ${margins.right} - 2px)`,
-        justifyContent: "space-between",
+        justifyContent: "center",
         border: "1px solid #fff",
         alignItems: "center",
-        fontSize: "9pt",
         position: "absolute",
-        // bottom: `-${this.options.height}px`,
         bottom: `calc(${margins.bottom} - ${this.options.height}px - 2px)`,
         left: margins.left,
       });
@@ -78,29 +77,34 @@ export const PageFooter = Node.create<PageFooterOptions>({
 
           // 插入子节点
           const schema = editor.schema;
+          const defaultTextMarks = schema.mark("textStyle", {
+            fontSize: "9pt",
+            lineHeight: "1",
+            fontFamily: "KaiTi, serif",
+          });
           const childNodes = [
             {
-              type: "headerFooterLeft",
-              content: leftContent,
+              attrs: { textAlign: "left" },
+              content: leftContent || "",
             },
             {
-              type: "headerFooterCenter",
-              content: centerContent,
+              content: centerContent || "",
+              attrs: { textAlign: "center" },
             },
             {
-              type: "headerFooterRight",
-              content: rightContent,
+              content: rightContent || "",
+              attrs: { textAlign: "right" },
             },
           ];
 
           let insertPos = pos;
           childNodes.forEach((childNode) => {
-            const nodeType = schema.nodes[childNode.type];
+            const nodeType = schema.nodes["headerFooterBlock"];
             if (nodeType) {
               const content = childNode.content
-                ? schema.text(childNode.content)
-                : null;
-              const pmNode = nodeType.create({}, content);
+                ? schema.text(childNode.content,[defaultTextMarks])
+                : undefined;
+              const pmNode = nodeType.create(childNode.attrs, content);
               transaction.insert(insertPos, pmNode);
               insertPos += pmNode.nodeSize;
             }
@@ -111,7 +115,7 @@ export const PageFooter = Node.create<PageFooterOptions>({
           }
         }, 0);
       }
-
+      
       return {
         dom: pageFooter,
         contentDOM: pageFooter,

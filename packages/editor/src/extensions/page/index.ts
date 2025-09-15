@@ -10,9 +10,7 @@ import { PageOptions, PaperSize } from "./typing";
 import { PageHeader } from "./pageHeader/index";
 import { PageFooter } from "./pageFooter/index";
 import {
-  HeaderFooterLeft,
-  HeaderFooterCenter,
-  HeaderFooterRight,
+  HeaderFooterBlock,
   PageContent,
 } from "./content";
 
@@ -61,9 +59,10 @@ export const Page = Node.create<PageOptions>({
     return [
       PageHeader.configure(this.options.header),
       PageFooter.configure(this.options.footer),
-      HeaderFooterLeft,
-      HeaderFooterCenter,
-      HeaderFooterRight,
+      // HeaderFooterLeft,
+      // HeaderFooterCenter,
+      // HeaderFooterRight,
+      HeaderFooterBlock,
       PageContent,
     ];
   },
@@ -106,7 +105,7 @@ export const Page = Node.create<PageOptions>({
         renderHTML(attributes) {
           return {
             style: `
-            padding-top: ${attributes.margins.top};
+            margin-top: ${attributes.margins.top};
             padding-right: ${attributes.margins.right};
             padding-bottom: ${attributes.margins.bottom};
             padding-left: ${attributes.margins.left};
@@ -251,6 +250,18 @@ export const Page = Node.create<PageOptions>({
               dispatch(tr);
             }
           }
+
+          // 查找页头节点
+           state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (
+              node.type.name === "pageHeader" &&
+              pos <= selection.from &&
+              pos + node.nodeSize > selection.from
+            ) {
+              console.log("pageHeader", node);
+              return false; // 停止遍历
+            }
+          });
           return true;
         },
     };

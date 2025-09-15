@@ -97,7 +97,7 @@ const editor = useEditor({
     }),
     TextStyleKit,
     TextAlign.configure({
-      types: ["heading", "paragraph"],
+      types: ["heading", "paragraph","headerFooterBlock"],
     }),
     Bold,
     Italic,
@@ -194,9 +194,6 @@ $selectedBorderColor: #109968;
         .tiptap-page-header,
         .tiptap-page-footer {
           display: flex;
-          // width: 100%;
-          // overflow: hidden;
-
           /* 在设计模式下的边框提示 */
           &:hover>div {
             border: 1px dashed #1677ff;

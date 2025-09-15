@@ -1,14 +1,13 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 
 import { PageHeaderOptions } from "../typing";
-// import { HeaderFooterStorage, PageStorage } from "../../../typing";
 import { findPageNode } from "../utils/findPageNode";
 import { getPageMargins } from "../utils/getPageMargins";
 
 export const PageHeader = Node.create<PageHeaderOptions>({
   name: "pageHeader",
   group: "block",
-  content: "(headerFooterLeft | headerFooterCenter | headerFooterRight)+",
+  content: "headerFooterBlock+",
   defining: true,
 
   addOptions() {
@@ -36,12 +35,14 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       Object.assign(pageHeader.style, {
         height: `${this.options.height}px`,
         lineHeight: `${this.options.height}px`,
-        display: "flex",
-        width: `calc(100% - ${margins.left} - ${margins.right} - 2px)`,
-        justifyContent: "space-between",
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gridTemplateRows: `${this.options.height}px`,
+        width: `calc(100% - ${margins.left} - ${margins.right})`,
+        justifyContent: "center",
         border: "1px solid #fff",
         alignItems: "center",
-        fontSize: "9pt",
+        // fontSize: "9pt",
         position: "absolute",
         top: `calc(${margins.top} - ${this.options.height}px - 2px)`,
         left: margins.left,
@@ -76,29 +77,34 @@ export const PageHeader = Node.create<PageHeaderOptions>({
 
           // 插入子节点
           const schema = editor.schema;
+          const defaultTextMarks = schema.mark("textStyle", {
+            fontSize: "9pt",
+            lineHeight: "1",
+            fontFamily: "KaiTi, serif",
+          });
           const childNodes = [
             {
-              type: "headerFooterLeft",
-              content: leftContent,
+              attrs: { textAlign: "left" },
+              content: leftContent || "",
             },
             {
-              type: "headerFooterCenter",
-              content: centerContent,
+              content: centerContent || "",
+              attrs: { textAlign: "center" },
             },
             {
-              type: "headerFooterRight",
-              content: rightContent,
+              content: rightContent || "",
+              attrs: { textAlign: "right" },
             },
           ];
 
           let insertPos = pos;
           childNodes.forEach((childNode) => {
-            const nodeType = schema.nodes[childNode.type];
+            const nodeType = schema.nodes["headerFooterBlock"];
             if (nodeType) {
-              const content = childNode.content
-                ? schema.text(childNode.content)
-                : null;
-              const pmNode = nodeType.create({}, content);
+              const textNode = childNode.content
+                ? schema.text(childNode.content, [defaultTextMarks])
+                : undefined;
+              const pmNode = nodeType.create(childNode.attrs, textNode);
               transaction.insert(insertPos, pmNode);
               insertPos += pmNode.nodeSize;
             }
