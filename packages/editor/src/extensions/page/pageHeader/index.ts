@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 import { PageHeaderOptions } from "../typing";
 import { findPageNode } from "../utils/findPageNode";
@@ -20,17 +21,32 @@ export const PageHeader = Node.create<PageHeaderOptions>({
     };
   },
 
+  addAttributes() {
+    return {
+      height: {
+        default: this.options.height,
+        parseHTML: (element) => element.getAttribute("height"),
+        renderHTML: (attributes) => ({
+          style: `height: ${attributes.height}px`,
+        }),
+      },
+      _updateTimestamp: {
+        default: Date.now(),
+      },
+    };
+  },
+
   addNodeView() {
     return ({ editor, node, getPos }) => {
       const { view } = editor;
-
+      console.log('render page header')
       // 创建页眉容器
       const pageHeader = document.createElement("div");
       pageHeader.classList.add("tiptap-page-header");
 
       // 获取页面边距信息
       const margins = getPageMargins(editor, getPos);
-
+      console.log('render page header margins', margins)
       // 应用基础样式
       Object.assign(pageHeader.style, {
         height: `${this.options.height}px`,
@@ -47,6 +63,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
         top: `calc(${margins.top} - ${this.options.height}px - 2px)`,
         left: margins.left,
       });
+      console.log('render page header top', pageHeader.style.top)
 
       if (this.options.headerLine) {
         pageHeader.style.borderBottom = "1px solid #000";
@@ -132,5 +149,45 @@ export const PageHeader = Node.create<PageHeaderOptions>({
   },
   renderHTML({ HTMLAttributes }) {
     return ["page-header", mergeAttributes(HTMLAttributes)];
+  },
+  addCommands() {
+    return {
+      _flushHeader:
+        (pageNode, pagePos) =>
+        ({ editor, tr, state, commands, dispatch }) => {
+          // 查找并更新当前页面的页头页脚节点，触发重新渲染
+          let headerNode: any = null;
+          let headerPos = -1;
+
+          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            // 在当前页面范围内查找页头节点
+            if (
+              node.type.name === "pageHeader" &&
+              pos > pagePos &&
+              pos < pagePos + pageNode.nodeSize
+            ) {
+              headerNode = node;
+              headerPos = pos;
+              console.log("head:", headerNode);
+            }
+            // 继续遍历直到找到所有需要的节点
+            return true;
+          });
+          // 更新页头节点，添加时间戳属性以触发重新渲染
+          if (headerNode && headerPos >= 0) {
+            tr.setNodeMarkup(headerPos, null, {
+              ...headerNode.attrs,
+              height: 30,
+              // 添加时间戳属性强制重新渲染，这样页头会重新计算位置
+              _updateTimestamp: Date.now(),
+            });
+          }
+          if (dispatch) {
+            dispatch(tr);
+            return true;
+          }
+          return false;
+        },
+    };
   },
 });

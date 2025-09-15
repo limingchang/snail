@@ -1,3 +1,5 @@
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+
 export enum Units {
   mm = "mm",
   cm = "cm",
@@ -105,6 +107,13 @@ declare module "@tiptap/core" {
       setPageOrientation: (orientation: "portrait" | "landscape") => ReturnType;
       insertPagination: () => ReturnType;
       addNewPage: () => ReturnType;
+    };
+  }
+}
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    pageHeader: {
+      _flushHeader: (pageNode: ProseMirrorNode,pagePos:number) => ReturnType;
     };
   }
 }

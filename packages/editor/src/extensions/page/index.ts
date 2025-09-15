@@ -25,7 +25,7 @@ export const Page = Node.create<PageOptions>({
   // 不是顶级节点，顶级节点仍然是doc
   topNode: false,
   // 优先级高于其他块级元素，确保页面在文档结构中正确排序
-  priority: 10002,
+  // priority: 10002,
 
   addOptions() {
     return {
@@ -49,8 +49,8 @@ export const Page = Node.create<PageOptions>({
 
   // 监听文档变化
   onUpdate({ editor }) {
-    const total = editor.$nodes("page")?.length || 0;
-    console.log("total[page-update]", total);
+    // const total = editor.$nodes("page")?.length || 0;
+    // console.log("total[page-update]", total);
   },
 
   onCreate() {},
@@ -105,7 +105,7 @@ export const Page = Node.create<PageOptions>({
         renderHTML(attributes) {
           return {
             style: `
-            margin-top: ${attributes.margins.top};
+            padding-top: ${attributes.margins.top};
             padding-right: ${attributes.margins.right};
             padding-bottom: ${attributes.margins.bottom};
             padding-left: ${attributes.margins.left};
@@ -121,7 +121,7 @@ export const Page = Node.create<PageOptions>({
       // 创建页面容器
       const pageContiner = document.createElement("div");
       pageContiner.classList.add("tiptap-page-wrapper");
-
+      console.log('render page')
       // 获取页面格式和方向
       const pageFormat = node.attrs.pageFormat || "A4";
       const orientation = node.attrs.orientation || "portrait";
@@ -151,6 +151,7 @@ export const Page = Node.create<PageOptions>({
       pageContiner.style.width = `${width}mm`;
       pageContiner.style.height = `${height}mm`;
       pageContiner.style.backgroundColor = "#fff";
+      pageContiner.style.borderRadius = "15px";
 
       // 创建内容容器
       const contentArea = document.createElement("div");
@@ -198,23 +199,6 @@ export const Page = Node.create<PageOptions>({
     ];
   },
 
-  // addGlobalAttributes() {
-  //   return [
-  //     {
-  //       types: ["page"],
-  //       attributes: {
-  //         padding: {
-  //           default: "20",
-  //           parseHTML: (element) => element.getAttribute("padding"),
-  //           renderHTML: (attributes) => ({
-  //             style: `margin: ${attributes.padding}mm`,
-  //           }),
-  //         },
-  //       },
-  //     },
-  //   ];
-  // },
-
   addCommands() {
     return {
       setPageMargins:
@@ -240,28 +224,60 @@ export const Page = Node.create<PageOptions>({
           // 更新节点属性
           if (pageNode && pagePos >= 0) {
             const newMargins = Object.assign({},(pageNode as ProseMirrorNode).attrs.margins,margins)
-            // const { margins } = (pageNode as ProseMirrorNode).attrs;
             // 执行属性更新
             tr.setNodeMarkup(pagePos, null, {
               ...(pageNode as ProseMirrorNode).attrs,
               margins: newMargins,
             });
+            
+            // // 查找并更新当前页面的页头页脚节点，触发重新渲染
+            // let headerNode: any = null;
+            // let headerPos = -1;
+            // let footerNode: any = null;
+            // let footerPos = -1;
+            
+            // state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            //   // 在当前页面范围内查找页头节点
+            //   if (node.type.name === "pageHeader" && pos > pagePos && pos < pagePos + pageNode.nodeSize) {
+            //     headerNode = node;
+            //     headerPos = pos;
+            //     console.log('head:',headerNode)
+            //   }
+            //   // 在当前页面范围内查找页脚节点
+            //   if (node.type.name === "pageFooter" && pos > pagePos && pos < pagePos + pageNode.nodeSize) {
+            //     footerNode = node;
+            //     footerPos = pos;
+            //     console.log('foot:',footerNode)
+            //   }
+            //   // 继续遍历直到找到所有需要的节点
+            //   return true;
+            // });
+            
+            // // 更新页头节点，添加时间戳属性以触发重新渲染
+            // if (headerNode && headerPos >= 0) {
+            //   tr.setNodeMarkup(headerPos, null, {
+            //     ...headerNode.attrs,
+            //     // 添加时间戳属性强制重新渲染，这样页头会重新计算位置
+            //     _updateTimestamp: Date.now()
+            //   });
+            // }
+            
+            // // 更新页脚节点，添加时间戳属性以触发重新渲染
+            // if (footerNode && footerPos >= 0) {
+            //   tr.setNodeMarkup(footerPos, null, {
+            //     ...footerNode.attrs,
+            //     // 添加时间戳属性强制重新渲染，这样页脚会重新计算位置
+            //     _updateTimestamp: Date.now()
+            //   });
+            // }
+            setTimeout(() => {
+                commands._flushHeader(pageNode,pagePos);
+              }, 500);
             if (dispatch) {
               dispatch(tr);
+              
             }
           }
-
-          // 查找页头节点
-           state.doc.descendants((node: ProseMirrorNode, pos: number) => {
-            if (
-              node.type.name === "pageHeader" &&
-              pos <= selection.from &&
-              pos + node.nodeSize > selection.from
-            ) {
-              console.log("pageHeader", node);
-              return false; // 停止遍历
-            }
-          });
           return true;
         },
     };

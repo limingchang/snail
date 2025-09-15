@@ -165,6 +165,7 @@ const handlePresetMarginSelect: MenuProps['onClick'] = ({ key }) => {
       left: `${preset.margins.left}${Units.cm}`,
       right: `${preset.margins.right}${Units.cm}`
     }
+    console.log('设置页边距:', marginsValue)
     props.editor.commands.setPageMargins(marginsValue)
     applyPageSettings()
   }
