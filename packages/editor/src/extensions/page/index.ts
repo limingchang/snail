@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 // import type { Editor } from "@tiptap/core";
 // import type { Transaction, EditorState } from "@tiptap/pm/state";
-// import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 import { PageOptions, PaperSize } from "./typing";
 // import { defaultPage } from "../../contents/defaultPage";
@@ -78,14 +78,20 @@ export const Page = Node.create<PageOptions>({
         default: "A4",
       },
       orientation: {
-        default: "portrait",
+        default: "portrait",// 默认纵向
+        parseHTML(element) {
+          if(element.style.width > element.style.height){
+            return "landscape"
+          }
+          return "portrait"
+        },
       },
       margins: {
         default: {
           top: "20mm",
-          right: "21mm",
+          right: "20mm",
           bottom: "20mm",
-          left: "21mm",
+          left: "20mm",
         },
         parseHTML(element) {
           return {
@@ -100,10 +106,10 @@ export const Page = Node.create<PageOptions>({
         renderHTML(attributes) {
           return {
             style: `
-            margin-top: ${attributes.margins.top};
-            margin-right: ${attributes.margins.right};
-            margin-bottom: ${attributes.margins.bottom};
-            margin-left: ${attributes.margins.left};
+            padding-top: ${attributes.margins.top};
+            padding-right: ${attributes.margins.right};
+            padding-bottom: ${attributes.margins.bottom};
+            padding-left: ${attributes.margins.left};
           `,
           };
         },
@@ -154,9 +160,9 @@ export const Page = Node.create<PageOptions>({
       // 设置边距
       const margins = node.attrs.margins || {
         top: "20mm",
-        right: "21mm",
+        right: "20mm",
         bottom: "20mm",
-        left: "21mm",
+        left: "20mm",
       };
 
       contentArea.style.padding = `${margins.top} ${margins.right} ${margins.bottom} ${margins.left}`;
@@ -212,7 +218,41 @@ export const Page = Node.create<PageOptions>({
 
   addCommands() {
     return {
-      
-    }
+      setPageMargins:
+        (margins) =>
+        ({ editor, tr, state, commands, dispatch }) => {
+          const { selection } = state;
+          // 查找当前页面节点
+          let pageNode: any = null;
+          let pagePos = -1;
+
+          // 从当前位置向上查找页面节点
+          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (
+              node.type.name === "page" &&
+              pos <= selection.from &&
+              pos + node.nodeSize > selection.from
+            ) {
+              pageNode = node;
+              pagePos = pos;
+              return false; // 停止遍历
+            }
+          });
+          // 更新节点属性
+          if (pageNode && pagePos >= 0) {
+            const newMargins = Object.assign({},(pageNode as ProseMirrorNode).attrs.margins,margins)
+            // const { margins } = (pageNode as ProseMirrorNode).attrs;
+            // 执行属性更新
+            tr.setNodeMarkup(pagePos, null, {
+              ...(pageNode as ProseMirrorNode).attrs,
+              margins: newMargins,
+            });
+            if (dispatch) {
+              dispatch(tr);
+            }
+          }
+          return true;
+        },
+    };
   },
 });

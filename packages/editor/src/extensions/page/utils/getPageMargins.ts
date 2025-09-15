@@ -26,8 +26,8 @@ export const getPageMargins = (
   // 返回默认边距值
   return {
     top: '20mm',
-    right: '21mm',
+    right: '20mm',
     bottom: '20mm',
-    left: '21mm'
+    left: '20mm'
   };
 };

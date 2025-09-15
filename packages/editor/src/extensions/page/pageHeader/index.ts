@@ -37,14 +37,14 @@ export const PageHeader = Node.create<PageHeaderOptions>({
         height: `${this.options.height}px`,
         lineHeight: `${this.options.height}px`,
         display: "flex",
-        width: "calc(100% - 2px)",
+        width: `calc(100% - ${margins.left} - ${margins.right} - 2px)`,
         justifyContent: "space-between",
         border: "1px solid #fff",
         alignItems: "center",
         fontSize: "9pt",
         position: "absolute",
         top: `calc(${margins.top} - ${this.options.height}px - 2px)`,
-        left: "0",
+        left: margins.left,
       });
 
       if (this.options.headerLine) {

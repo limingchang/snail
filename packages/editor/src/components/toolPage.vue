@@ -28,13 +28,13 @@
 
       <!-- 自定义边距输入 -->
       <div class="custom-margins">
-        <InputNumber v-model:value="pageSettings.margins.top" :step="0.1" :min="0" :max="10" :precision="1" size="small"
+        <InputNumber v-model:value="pageSettings.margins.top" :step="0.1" :min="0" :max="10" :precision="2" size="small"
           addon-before="上：" addon-after="cm" @change="handleCustomMarginChange" />
-        <InputNumber v-model:value="pageSettings.margins.bottom" :step="0.1" :min="0" :max="10" :precision="1"
+        <InputNumber v-model:value="pageSettings.margins.bottom" :step="0.1" :min="0" :max="10" :precision="2"
           size="small" addon-before="下：" addon-after="cm" @change="handleCustomMarginChange" />
-        <InputNumber v-model:value="pageSettings.margins.left" :step="0.1" :min="0" :max="10" :precision="1"
+        <InputNumber v-model:value="pageSettings.margins.left" :step="0.1" :min="0" :max="10" :precision="2"
           size="small" addon-before="左：" addon-after="cm" @change="handleCustomMarginChange" />
-        <InputNumber v-model:value="pageSettings.margins.right" :step="0.1" :min="0" :max="10" :precision="1"
+        <InputNumber v-model:value="pageSettings.margins.right" :step="0.1" :min="0" :max="10" :precision="2"
           size="small" addon-before="右：" addon-after="cm" @change="handleCustomMarginChange" />
       </div>
     </div>
@@ -93,7 +93,18 @@ import {
 } from '@ant-design/icons-vue'
 import { IconPageMargin, IconPageOrientation, IconPageSize } from '@snail-js/vue'
 
-import type { MarginPreset, PaperOrientation, PaperSize, PageSettings } from '../typing/page'
+import { Editor } from '@tiptap/core'
+
+import type { MarginPreset, PaperOrientation, PaperSize, PageSettings } from '../extensions/page/typing'
+import { Units } from '../extensions/page/typing'
+
+
+const props = defineProps({
+  editor: {
+    type: Object as () => Editor,
+    default: () => null
+  }
+})
 
 // 页边距预设选项
 const marginPresets: MarginPreset[] = [
@@ -148,6 +159,13 @@ const handlePresetMarginSelect: MenuProps['onClick'] = ({ key }) => {
   const preset = marginPresets.find(p => p.name === key)
   if (preset) {
     pageSettings.value.margins = { ...preset.margins }
+    const marginsValue = {
+      top: `${preset.margins.top}${Units.cm}`,
+      bottom: `${preset.margins.bottom}${Units.cm}`,
+      left: `${preset.margins.left}${Units.cm}`,
+      right: `${preset.margins.right}${Units.cm}`
+    }
+    props.editor.commands.setPageMargins(marginsValue)
     applyPageSettings()
   }
 }
@@ -196,12 +214,12 @@ const applyPageSettings = () => {
   display: flex;
   gap: 5px;
   flex-wrap: wrap;
-  width: 310px;
+  width: 160px;
   height: 100%;
 }
 
 .custom-margins :deep(.ant-input-number) {
-  width: 60px;
+  width: 65px;
 }
 
 .orientation-settings .ant-btn,

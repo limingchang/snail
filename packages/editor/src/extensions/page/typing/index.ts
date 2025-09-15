@@ -1,3 +1,12 @@
+export enum Units {
+  mm = "mm",
+  cm = "cm",
+  inch = "in",
+  pt = "pt",
+  em = "em",
+  px = "px",
+}
+
 interface PageHeaderFooterOptions {
   text?: string | ((index: number, total: number) => string);
   position?: "left" | "center" | "right";
@@ -41,18 +50,59 @@ export interface PageOptions {
 }
 
 type Margins = {
-  top?: number;
-  right?: number;
-  bottom?: number;
-  left?: number;
+  top?: `${number}${Units}`;
+  right?: `${number}${Units}`;
+  bottom?: `${number}${Units}`;
+  left?: `${number}${Units}`;
 };
+
+
+// 页边距预设接口
+export interface MarginPreset {
+  name: string
+  iconClass: string
+  margins: {
+    top: number
+    bottom: number
+    left: number
+    right: number
+  }
+}
+
+// 纸张方向接口
+export interface PaperOrientation {
+  value: 'portrait' | 'landscape'
+  label: string
+  icon: any
+}
+
+// 纸张大小接口
+export interface PaperSize {
+  name: string
+  width: number
+  height: number
+  label: string
+}
+
+// 页面设置状态接口
+export interface PageSettings {
+  margins: {
+    top: number
+    bottom: number
+    left: number
+    right: number
+  }
+  orientation: 'portrait' | 'landscape'
+  paperSize: string
+}
 
 // type 定义命令类型
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     page: {
-      setPageMargins: (attrs: Margins) => ReturnType;
-      setPageFormat: (attrs: PageFormat) => ReturnType;
+      setPageMargins: (margins: Margins) => ReturnType;
+      setPageFormat: (pageFormat: PageFormat) => ReturnType;
+      setPageOrientation: (orientation: "portrait" | "landscape") => ReturnType;
       insertPagination: () => ReturnType;
       addNewPage: () => ReturnType;
     };
