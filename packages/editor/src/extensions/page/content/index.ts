@@ -39,6 +39,14 @@ export const HeaderFooterBlock = Node.create({
   renderHTML({ HTMLAttributes }) {
     return ["header-footer-block", mergeAttributes(HTMLAttributes)];
   },
+
+  addKeyboardShortcuts(){
+    return {
+      'Enter': () => {
+        return true;
+      }
+    };
+  }
 });
 
 
