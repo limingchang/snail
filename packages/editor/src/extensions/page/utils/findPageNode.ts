@@ -19,7 +19,7 @@ export const findPageNode = (
   // 向上查找 Page 节点
   while (currentNode && currentNode.type.name !== "page") {
     const resolvedPos = view.state.doc.resolve(currentPos);
-    const beforePos = resolvedPos.before();
+    const beforePos = resolvedPos.before() || 0;
     if (beforePos <= 0) break;
     currentPos = beforePos;
     currentNode = view.state.doc.nodeAt(currentPos);

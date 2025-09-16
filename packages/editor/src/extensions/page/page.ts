@@ -1,5 +1,5 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import {
   defaultMargins,
   type PageOptions,
@@ -7,8 +7,10 @@ import {
 } from "./typing";
 
 import { defaultHeaderAttributes } from "./typing/header";
+import { defaultFooterAttributes } from "./typing/footer";
 
 import { PageHeader } from "./pageHeader";
+import { PageFooter } from "./pageFooter";
 import { HeaderFooterBlock, PageContent } from "./content";
 
 import { calculatePaperSize } from "./utils/paperSizeCalculator";
@@ -35,11 +37,7 @@ export const Page = Node.create<PageOptions>({
     };
   },
   addExtensions() {
-    return [
-      PageHeader,
-      HeaderFooterBlock,
-      // PageFooter,
-    ];
+    return [HeaderFooterBlock, PageHeader, PageFooter];
   },
   addAttributes() {
     return {
@@ -113,13 +111,13 @@ export const Page = Node.create<PageOptions>({
       const { header, footer } = this.options;
       // 检查节点是否已有内容，避免重复创建
 
-      const contentSize = node.content.size;
-      console.log(node.content);
-      node.content.forEach((child) => {
-        console.log(child.type.name);
-      });
-      
-      if (node.content.size === 0 && typeof getPos === "function") {
+      // const contentSize = node.content.size;
+      // console.log(node.content);
+      // node.content.forEach((child) => {
+      //   console.log(child.type.name);
+      // });
+
+      if (typeof getPos === "function") {
         const currentPos = getPos();
         let insertPos = 0;
         if (currentPos !== null || currentPos !== undefined) {
@@ -130,14 +128,18 @@ export const Page = Node.create<PageOptions>({
           console.log("headerAttrs", headerAttrs);
           const headerNode = schema.node("pageHeader", headerAttrs);
           transaction.insert(pos, headerNode);
+          // editor.commands.insertContentAt(pos,headerNode);
           insertPos += headerNode.nodeSize;
           // 刷新插入点
-          if (transaction.docChanged) {
-            view.dispatch(transaction);
-          }
+          // if (transaction.docChanged) {
+          //   view.dispatch(transaction);
+          // }
+          // 创建页脚容器
+          const footerAttrs = Object.assign(defaultFooterAttributes, footer);
+          const footerNode = schema.node("pageFooter", footerAttrs);
+          transaction.insert(pos + insertPos, footerNode);
         }
       }
-      
 
       // if (header) {
       //   // 创建页头容器
@@ -157,19 +159,19 @@ export const Page = Node.create<PageOptions>({
       //   // contentArea.appendChild(headerContainer);
       //   pageContiner.appendChild(headerContainer);
       // }
-      if (footer) {
-        // 创建页脚容器
-        const footerContainer = document.createElement("div");
-        footerContainer.classList.add("s-editor-page-footer");
-        // 标准化选项
-        const normalizedOptions = normalizeHeaderFooterOptions(
-          "footer",
-          footer
-        );
-        const styles = calculateFooterStyles(margins, normalizedOptions);
-        Object.assign(footerContainer.style, styles);
-        contentArea.appendChild(footerContainer);
-      }
+      // if (footer) {
+      //   // 创建页脚容器
+      //   const footerContainer = document.createElement("div");
+      //   footerContainer.classList.add("s-editor-page-footer");
+      //   // 标准化选项
+      //   const normalizedOptions = normalizeHeaderFooterOptions(
+      //     "footer",
+      //     footer
+      //   );
+      //   const styles = calculateFooterStyles(margins, normalizedOptions);
+      //   Object.assign(footerContainer.style, styles);
+      //   contentArea.appendChild(footerContainer);
+      // }
 
       pageContiner.appendChild(contentArea);
       // 设置分页元素
@@ -199,5 +201,45 @@ export const Page = Node.create<PageOptions>({
         "data-type": "page",
       }),
     ];
+  },
+  // 命令
+  addCommands() {
+    return {
+      setPageMargins:
+        (margins) =>
+        ({ editor, tr, state, commands, dispatch }) => {
+          const { selection } = state;
+          // 查找当前页面节点
+          let pageNode: any = null;
+          let pagePos = -1;
+
+          // 从当前位置向上查找页面节点
+          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (
+              node.type.name === "page" &&
+              pos <= selection.from &&
+              pos + node.nodeSize > selection.from
+            ) {
+              pageNode = node;
+              pagePos = pos;
+              return false; // 停止遍历
+            }
+          });
+          // 更新节点属性
+          if (pageNode && pagePos >= 0) {
+            const newMargins = Object.assign({},(pageNode as ProseMirrorNode).attrs.margins,margins)
+            // 执行属性更新
+            tr.setNodeMarkup(pagePos, null, {
+              ...(pageNode as ProseMirrorNode).attrs,
+              margins: newMargins,
+            });
+            
+            if (dispatch) {
+              dispatch(tr);
+            }
+          }
+          return true;
+        },
+    };
   },
 });

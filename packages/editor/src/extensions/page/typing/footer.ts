@@ -1,17 +1,17 @@
 import { Margins,defaultMargins } from "./index";
-export interface HeaderAttributes {
+export interface FooterAttributes {
   height: string;
   text: string | ((index: number, total: number) => string);
   textPosition: "left" | "center" | "right";
   pageMargins: Margins;
-  headerLine: boolean;
+  footerLine: boolean;
 }
 
 
-export const defaultHeaderAttributes: HeaderAttributes = {
+export const defaultFooterAttributes: FooterAttributes = {
   height: "50px",
-  text: "页眉",
-  textPosition: "right",
+  text: (index: number, total: number)=>`第 ${index} 页 , 共 ${total} 页`,
+  textPosition: "center",
   pageMargins: defaultMargins,
-  headerLine: true,
+  footerLine: false,
 };

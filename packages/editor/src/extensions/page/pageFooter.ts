@@ -7,20 +7,20 @@ import {
   normalizeHeaderFooterOptions,
 } from "./utils/styleCalculator";
 
-export const PageHeader = Node.create({
-  name: "pageHeader",
+export const PageFooter = Node.create({
+  name: "pageFooter",
   group: "block",
   content: "block*",
   defining: true,
   parseHTML() {
     return [
       {
-        tag: "page-header",
+        tag: "page-footer",
       },
     ];
   },
   renderHTML({ HTMLAttributes }) {
-    return ["page-header", mergeAttributes(HTMLAttributes), 0];
+    return ["page-footer", mergeAttributes(HTMLAttributes), 0];
   },
 
   addAttributes() {
@@ -34,7 +34,7 @@ export const PageHeader = Node.create({
       },
       text: {
         default: "",
-        parseHTML: (element) => element.getAttribute("data-head-text"),
+        parseHTML: (element) => element.getAttribute("data-foot-text"),
       },
       textPosition: {
         default: "right",
@@ -52,7 +52,7 @@ export const PageHeader = Node.create({
     return ({ editor, node, getPos, view }) => {
       // 创建页眉容器
       const pageHeader = document.createElement("div");
-      pageHeader.classList.add("s-editor-page-header");
+      pageHeader.classList.add("s-editor-page-footer");
       // 设置容器样式
       // 标准化选项
       // const normalizedOptions = normalizeHeaderFooterOptions("header", header);
