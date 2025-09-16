@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-// import type { Editor } from "@tiptap/core";
-// import type { Transaction, EditorState } from "@tiptap/pm/state";
+import type { Editor } from "@tiptap/core";
+import type { Transaction, EditorState } from "@tiptap/pm/state";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 import { PageOptions, PaperSize } from "./typing";
@@ -13,6 +13,13 @@ import {
   HeaderFooterBlock,
   PageContent,
 } from "./content";
+import { getPageHeaderFooterViews } from "./utils/nodeViewRegistry";
+import { 
+  detectPageAttributeChanges, 
+  hasPageMarginChanges 
+} from "./utils/transactionAnalyzer";
+import { batchUpdatePageHeaderFooterStyles } from "./utils/nodeViewManager";
+import { handleTransactionStyleSync } from "./utils/styleSyncManager";
 
 export const Page = Node.create<PageOptions>({
   name: "page",
@@ -29,7 +36,7 @@ export const Page = Node.create<PageOptions>({
 
   addOptions() {
     return {
-      pageFormat: "A4",
+      paperFormat: "A4",
       header: {
         text: "页眉",
         position: "right",
@@ -53,7 +60,18 @@ export const Page = Node.create<PageOptions>({
     // console.log("total[page-update]", total);
   },
 
+  // 监听事务变化
+  onTransaction({ editor, transaction }: { editor: Editor; transaction: Transaction }) {
+    // 使用统一的样式同步管理器处理事务变化
+    handleTransactionStyleSync(editor, transaction);
+  },
+
   onCreate() {},
+
+  onDestroy() {
+    // 由于无法直接获取editor实例，在NodeView中单独处理清理逻辑
+    // NodeView的destroy方法会在节点被移除时自动调用
+  },
 
   addExtensions() {
     return [
@@ -230,52 +248,22 @@ export const Page = Node.create<PageOptions>({
               margins: newMargins,
             });
             
-            // // 查找并更新当前页面的页头页脚节点，触发重新渲染
-            // let headerNode: any = null;
-            // let headerPos = -1;
-            // let footerNode: any = null;
-            // let footerPos = -1;
+            // 立即更新当前页面的页头页脚NodeView样式
+            const headerFooterViews = getPageHeaderFooterViews(editor, pagePos, pageNode.nodeSize);
+            console.log('Found header/footer views to update:', headerFooterViews.length);
             
-            // state.doc.descendants((node: ProseMirrorNode, pos: number) => {
-            //   // 在当前页面范围内查找页头节点
-            //   if (node.type.name === "pageHeader" && pos > pagePos && pos < pagePos + pageNode.nodeSize) {
-            //     headerNode = node;
-            //     headerPos = pos;
-            //     console.log('head:',headerNode)
-            //   }
-            //   // 在当前页面范围内查找页脚节点
-            //   if (node.type.name === "pageFooter" && pos > pagePos && pos < pagePos + pageNode.nodeSize) {
-            //     footerNode = node;
-            //     footerPos = pos;
-            //     console.log('foot:',footerNode)
-            //   }
-            //   // 继续遍历直到找到所有需要的节点
-            //   return true;
-            // });
+            // 同步更新所有页头页脚的样式
+            headerFooterViews.forEach(nodeView => {
+              try {
+                nodeView.updateStyles(newMargins);
+                console.log('Successfully updated header/footer styles');
+              } catch (error) {
+                console.error('Error updating header/footer styles:', error);
+              }
+            });
             
-            // // 更新页头节点，添加时间戳属性以触发重新渲染
-            // if (headerNode && headerPos >= 0) {
-            //   tr.setNodeMarkup(headerPos, null, {
-            //     ...headerNode.attrs,
-            //     // 添加时间戳属性强制重新渲染，这样页头会重新计算位置
-            //     _updateTimestamp: Date.now()
-            //   });
-            // }
-            
-            // // 更新页脚节点，添加时间戳属性以触发重新渲染
-            // if (footerNode && footerPos >= 0) {
-            //   tr.setNodeMarkup(footerPos, null, {
-            //     ...footerNode.attrs,
-            //     // 添加时间戳属性强制重新渲染，这样页脚会重新计算位置
-            //     _updateTimestamp: Date.now()
-            //   });
-            // }
-            setTimeout(() => {
-                commands._flushHeader(pageNode,pagePos);
-              }, 500);
             if (dispatch) {
               dispatch(tr);
-              
             }
           }
           return true;

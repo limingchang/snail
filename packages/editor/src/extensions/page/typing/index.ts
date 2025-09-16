@@ -1,5 +1,5 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-
+import type { PaperFormat, PaperOrientation } from "./paper";
 export enum Units {
   mm = "mm",
   cm = "cm",
@@ -24,78 +24,72 @@ export interface PageFooterOptions extends PageHeaderFooterOptions {
   footerLine?: boolean;
 }
 
-export type PageFormat =
-  | "A4"
-  | "A3"
-  | "A5"
-  | "Legal"
-  | "Letter"
-  | {
-      name: string;
-      width: number; // Width in pixels
-      height: number; // Height in pixels
-    };
-export const PaperSize = {
-  A4: { name: "A4", width: 210, height: 297 },
-  A3: { name: "A3", width: 297, height: 420 },
-  A5: { name: "A5", width: 148, height: 210 },
-  Letter: { name: "Letter", width: 216, height: 279 },
-  Legal: { name: "Legal", width: 216, height: 356 },
-} as const;
+export interface Margins  {
+  top: number | `${number}${Units}`;
+  right: number | `${number}${Units}`;
+  bottom: number | `${number}${Units}`;
+  left: number | `${number}${Units}`;
+};
+
+export const defaultMargins: Margins = {
+  top: "20mm",
+  right: "20mm",
+  bottom: "20mm",
+  left: "20mm",
+};
+
+export interface PageAttributes {
+  index: number;
+  paperFormat: PaperFormat;
+  orientation: PaperOrientation;
+  margins: Margins;
+}
 
 export interface PageOptions {
-  pageFormat: PageFormat;
+  paperFormat: PaperFormat;
   header?: PageHeaderOptions;
   footer?: PageFooterOptions;
   pageGap?: number; // Page gap in pixels
   HTMLAttributes?: Record<string, any>;
 }
 
-type Margins = {
-  top?: `${number}${Units}`;
-  right?: `${number}${Units}`;
-  bottom?: `${number}${Units}`;
-  left?: `${number}${Units}`;
-};
-
-
 // 页边距预设接口
 export interface MarginPreset {
-  name: string
-  iconClass: string
+  name: string;
+  iconClass: string;
   margins: {
-    top: number
-    bottom: number
-    left: number
-    right: number
-  }
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
 }
 
 // 纸张方向接口
-export interface PaperOrientation {
-  value: 'portrait' | 'landscape'
-  label: string
-  icon: any
-}
+// export interface PaperOrientation {
+//   value: "portrait" | "landscape";
+//   label: string;
+//   icon: any;
+// }
 
 // 纸张大小接口
 export interface PaperSize {
-  name: string
-  width: number
-  height: number
-  label: string
+  name: string;
+  width: number;
+  height: number;
+  label: string;
 }
 
 // 页面设置状态接口
 export interface PageSettings {
   margins: {
-    top: number
-    bottom: number
-    left: number
-    right: number
-  }
-  orientation: 'portrait' | 'landscape'
-  paperSize: string
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  orientation: "portrait" | "landscape";
+  paperSize: string;
 }
 
 // type 定义命令类型
@@ -103,7 +97,7 @@ declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     page: {
       setPageMargins: (margins: Margins) => ReturnType;
-      setPageFormat: (pageFormat: PageFormat) => ReturnType;
+      setPageFormat: (pageFormat: PaperFormat) => ReturnType;
       setPageOrientation: (orientation: "portrait" | "landscape") => ReturnType;
       insertPagination: () => ReturnType;
       addNewPage: () => ReturnType;
@@ -113,7 +107,7 @@ declare module "@tiptap/core" {
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     pageHeader: {
-      _flushHeader: (pageNode: ProseMirrorNode,pagePos:number) => ReturnType;
+      _flushHeader: (pageNode: ProseMirrorNode, pagePos: number) => ReturnType;
     };
   }
 }

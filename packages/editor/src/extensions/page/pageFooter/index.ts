@@ -1,9 +1,27 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import type { Editor } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 import { PageFooterOptions } from "../typing";
 // import { HeaderFooterStorage, PageStorage } from "../../../typing";
 import { findPageNode } from "../utils/findPageNode";
 import { getPageMargins } from "../utils/getPageMargins";
+import { 
+  registerNodeView, 
+  unregisterNodeView, 
+  type HeaderFooterNodeView 
+} from "../utils/nodeViewRegistry";
+import {
+  calculateFooterStyles,
+  applyStylesToElement,
+  normalizeHeaderFooterOptions,
+  type Margins
+} from "../utils/styleCalculator";
+import {
+  registerEnhancedNodeView,
+  unregisterEnhancedNodeView,
+  type EnhancedHeaderFooterNodeView
+} from "../utils/nodeViewManager";
 
 export const PageFooter = Node.create<PageFooterOptions>({
   name: "pageFooter",
@@ -24,31 +42,66 @@ export const PageFooter = Node.create<PageFooterOptions>({
   addNodeView() {
     return ({ editor, node, getPos }) => {
       const { view } = editor;
+      console.log('render page footer with enhanced features');
 
       // 创建页脚容器
       const pageFooter = document.createElement("div");
       pageFooter.classList.add("tiptap-page-footer");
 
-      // 获取页面边距信息
+      // 获取初始位置，用于注册NodeView实例
+      const initialPos = typeof getPos === 'function' ? getPos() : undefined;
+      
+      // 标准化选项
+      const normalizedOptions = normalizeHeaderFooterOptions('footer', this.options);
+      
+      // 应用样式的函数
+      const applyStyles = (margins: Margins) => {
+        console.log('applying footer styles with margins:', margins);
+        
+        // 使用样式计算工具计算样式
+        const styles = calculateFooterStyles(margins, normalizedOptions);
+        
+        // 应用样式到DOM元素
+        applyStylesToElement(pageFooter, styles);
+      };
+      
+      // 获取页面边距信息并初始化样式
       const margins = getPageMargins(editor, getPos);
+      console.log('render page footer margins', margins);
+      applyStyles(margins);
 
-      // 应用基础样式
-      Object.assign(pageFooter.style, {
-        height: `${this.options.height}px`,
-        lineHeight: `${this.options.height}px`,
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        width: `calc(100% - ${margins.left} - ${margins.right} - 2px)`,
-        justifyContent: "center",
-        border: "1px solid #fff",
-        alignItems: "center",
-        position: "absolute",
-        bottom: `calc(${margins.bottom} - ${this.options.height}px - 2px)`,
-        left: margins.left,
-      });
-
-      if (this.options.footerLine) {
-        pageFooter.style.borderTop = "1px solid #000";
+      // 创建增强版NodeView实例对象
+      const enhancedNodeViewInstance: EnhancedHeaderFooterNodeView = {
+        isDestroyed: false,
+        nodeType: 'pageFooter',
+        position: initialPos || 0,
+        dom: pageFooter,
+        updateStyles: (newMargins: Margins) => {
+          if (enhancedNodeViewInstance.isDestroyed) return;
+          console.log('updating footer styles with new margins:', newMargins);
+          applyStyles(newMargins);
+        },
+        destroy: () => {
+          if (enhancedNodeViewInstance.isDestroyed) return;
+          enhancedNodeViewInstance.isDestroyed = true;
+          
+          // 执行DOM清理等必要操作
+          // 不调用 unregisterEnhancedNodeView 避免循环引用
+        }
+      };
+      
+      // 创建兼容的旧版NodeView实例对象
+      const nodeViewInstance: HeaderFooterNodeView = {
+        isDestroyed: false,
+        updateStyles: enhancedNodeViewInstance.updateStyles,
+        destroy: enhancedNodeViewInstance.destroy,
+        dom: pageFooter
+      };
+      
+      // 同时注册到两个注册表以保持兼容性
+      if (typeof initialPos === 'number') {
+        registerNodeView(editor, 'pageFooter', initialPos, nodeViewInstance);
+        registerEnhancedNodeView(editor, enhancedNodeViewInstance);
       }
 
       // 检查节点是否已有内容，避免重复创建
@@ -119,6 +172,31 @@ export const PageFooter = Node.create<PageFooterOptions>({
       return {
         dom: pageFooter,
         contentDOM: pageFooter,
+        
+        // 实现update方法响应属性变化
+        update: (updatedNode: ProseMirrorNode) => {
+          if (updatedNode.type.name !== node.type.name) {
+            return false;
+          }
+          
+          // 检查父页面节点的边距是否发生变化
+          const currentMargins = getPageMargins(editor, getPos);
+          console.log('Footer NodeView update called with margins:', currentMargins);
+          
+          // 应用新样式
+          enhancedNodeViewInstance.updateStyles(currentMargins);
+          
+          return true;
+        },
+        
+        destroy: () => {
+          // TipTap调用此方法时，手动清理
+          enhancedNodeViewInstance.destroy();
+          if (typeof initialPos === 'number') {
+            unregisterNodeView(editor, 'pageFooter', initialPos);
+            unregisterEnhancedNodeView(editor, 'pageFooter', initialPos);
+          }
+        }
       };
     };
   },

@@ -5,7 +5,6 @@ import {
   defaultFeatureParagraph,
 } from "./defaultParagraph";
 
-
 export const defaultPageHeader = {
   type: "pageHeader",
 };
@@ -14,20 +13,30 @@ export const defaultPageFooter = {
   type: "pageFooter",
 };
 
+// export const defaultPage = {
+//   type: "page",
+//   content: [
+//     defaultPageHeader,
+//     {
+//       type: "pageContent",
+//       content: [
+//         defaultH1,
+//         defaultH2,
+//         defaultIntroductionParagraph,
+//         defaultFeatureParagraph,
+//       ],
+//     },
+
+//     defaultPageFooter,
+//   ],
+// };
+
 export const defaultPage = {
   type: "page",
   content: [
-    defaultPageHeader,
-    {
-      type: "pageContent",
-      content: [
-        defaultH1,
-        defaultH2,
-        defaultIntroductionParagraph,
-        defaultFeatureParagraph,
-      ],
-    },
-
-    defaultPageFooter,
+    defaultH1,
+    defaultH2,
+    defaultIntroductionParagraph,
+    defaultFeatureParagraph,
   ],
 };

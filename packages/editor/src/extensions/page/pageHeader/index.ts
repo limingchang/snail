@@ -1,9 +1,26 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 import { PageHeaderOptions } from "../typing";
 import { findPageNode } from "../utils/findPageNode";
 import { getPageMargins } from "../utils/getPageMargins";
+import { 
+  registerNodeView, 
+  unregisterNodeView, 
+  type HeaderFooterNodeView 
+} from "../utils/nodeViewRegistry";
+import {
+  calculateHeaderStyles,
+  applyStylesToElement,
+  normalizeHeaderFooterOptions,
+  type Margins
+} from "../utils/styleCalculator";
+import {
+  registerEnhancedNodeView,
+  unregisterEnhancedNodeView,
+  type EnhancedHeaderFooterNodeView
+} from "../utils/nodeViewManager";
 
 export const PageHeader = Node.create<PageHeaderOptions>({
   name: "pageHeader",
@@ -39,34 +56,67 @@ export const PageHeader = Node.create<PageHeaderOptions>({
   addNodeView() {
     return ({ editor, node, getPos }) => {
       const { view } = editor;
-      console.log('render page header')
+      console.log('render page header with enhanced features');
+      
       // 创建页眉容器
       const pageHeader = document.createElement("div");
       pageHeader.classList.add("tiptap-page-header");
 
-      // 获取页面边距信息
+      // 获取初始位置，用于注册NodeView实例
+      const initialPos = typeof getPos === 'function' ? getPos() : undefined;
+      
+      // 标准化选项
+      const normalizedOptions = normalizeHeaderFooterOptions('header', this.options);
+      
+      // 应用样式的函数
+      const applyStyles = (margins: Margins) => {
+        console.log('applying header styles with margins:', margins);
+        
+        // 使用样式计算工具计算样式
+        const styles = calculateHeaderStyles(margins, normalizedOptions);
+        
+        // 应用样式到DOM元素
+        applyStylesToElement(pageHeader, styles);
+      };
+      
+      // 获取页面边距信息并初始化样式
       const margins = getPageMargins(editor, getPos);
-      console.log('render page header margins', margins)
-      // 应用基础样式
-      Object.assign(pageHeader.style, {
-        height: `${this.options.height}px`,
-        lineHeight: `${this.options.height}px`,
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gridTemplateRows: `${this.options.height}px`,
-        width: `calc(100% - ${margins.left} - ${margins.right})`,
-        justifyContent: "center",
-        border: "1px solid #fff",
-        alignItems: "center",
-        // fontSize: "9pt",
-        position: "absolute",
-        top: `calc(${margins.top} - ${this.options.height}px - 2px)`,
-        left: margins.left,
-      });
-      console.log('render page header top', pageHeader.style.top)
+      console.log('render page header margins', margins);
+      applyStyles(margins);
+      console.log('render page header top', pageHeader.style.top);
 
-      if (this.options.headerLine) {
-        pageHeader.style.borderBottom = "1px solid #000";
+      // 创建增强版NodeView实例对象
+      const enhancedNodeViewInstance: EnhancedHeaderFooterNodeView = {
+        isDestroyed: false,
+        nodeType: 'pageHeader',
+        position: initialPos || 0,
+        dom: pageHeader,
+        updateStyles: (newMargins: Margins) => {
+          if (enhancedNodeViewInstance.isDestroyed) return;
+          console.log('updating header styles with new margins:', newMargins);
+          applyStyles(newMargins);
+        },
+        destroy: () => {
+          if (enhancedNodeViewInstance.isDestroyed) return;
+          enhancedNodeViewInstance.isDestroyed = true;
+          
+          // 执行DOM清理等必要操作
+          // 不调用 unregisterEnhancedNodeView 避免循环引用
+        }
+      };
+      
+      // 创建兼容的旧版NodeView实例对象
+      const nodeViewInstance: HeaderFooterNodeView = {
+        isDestroyed: false,
+        updateStyles: enhancedNodeViewInstance.updateStyles,
+        destroy: enhancedNodeViewInstance.destroy,
+        dom: pageHeader
+      };
+      
+      // 同时注册到两个注册表以保持兼容性
+      if (typeof initialPos === 'number') {
+        registerNodeView(editor, 'pageHeader', initialPos, nodeViewInstance);
+        registerEnhancedNodeView(editor, enhancedNodeViewInstance);
       }
 
       // 检查节点是否已有内容，避免重复创建
@@ -136,6 +186,31 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       return {
         dom: pageHeader,
         contentDOM: pageHeader,
+        
+        // 实现update方法响应属性变化
+        update: (updatedNode: ProseMirrorNode) => {
+          if (updatedNode.type.name !== node.type.name) {
+            return false;
+          }
+          
+          // 检查父页面节点的边距是否发生变化
+          const currentMargins = getPageMargins(editor, getPos);
+          console.log('NodeView update called with margins:', currentMargins);
+          
+          // 应用新样式
+          enhancedNodeViewInstance.updateStyles(currentMargins);
+          
+          return true;
+        },
+        
+        destroy: () => {
+          // TipTap调用此方法时，手动清理
+          enhancedNodeViewInstance.destroy();
+          if (typeof initialPos === 'number') {
+            unregisterNodeView(editor, 'pageHeader', initialPos);
+            unregisterEnhancedNodeView(editor, 'pageHeader', initialPos);
+          }
+        }
       };
     };
   },
@@ -149,45 +224,5 @@ export const PageHeader = Node.create<PageHeaderOptions>({
   },
   renderHTML({ HTMLAttributes }) {
     return ["page-header", mergeAttributes(HTMLAttributes)];
-  },
-  addCommands() {
-    return {
-      _flushHeader:
-        (pageNode, pagePos) =>
-        ({ editor, tr, state, commands, dispatch }) => {
-          // 查找并更新当前页面的页头页脚节点，触发重新渲染
-          let headerNode: any = null;
-          let headerPos = -1;
-
-          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
-            // 在当前页面范围内查找页头节点
-            if (
-              node.type.name === "pageHeader" &&
-              pos > pagePos &&
-              pos < pagePos + pageNode.nodeSize
-            ) {
-              headerNode = node;
-              headerPos = pos;
-              console.log("head:", headerNode);
-            }
-            // 继续遍历直到找到所有需要的节点
-            return true;
-          });
-          // 更新页头节点，添加时间戳属性以触发重新渲染
-          if (headerNode && headerPos >= 0) {
-            tr.setNodeMarkup(headerPos, null, {
-              ...headerNode.attrs,
-              height: 30,
-              // 添加时间戳属性强制重新渲染，这样页头会重新计算位置
-              _updateTimestamp: Date.now(),
-            });
-          }
-          if (dispatch) {
-            dispatch(tr);
-            return true;
-          }
-          return false;
-        },
-    };
   },
 });

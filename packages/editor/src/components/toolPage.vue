@@ -160,10 +160,10 @@ const handlePresetMarginSelect: MenuProps['onClick'] = ({ key }) => {
   if (preset) {
     pageSettings.value.margins = { ...preset.margins }
     const marginsValue = {
-      top: `${preset.margins.top}${Units.cm}`,
-      bottom: `${preset.margins.bottom}${Units.cm}`,
-      left: `${preset.margins.left}${Units.cm}`,
-      right: `${preset.margins.right}${Units.cm}`
+      top: `${preset.margins.top}${Units.cm}` as `${number}${Units}`,
+      bottom: `${preset.margins.bottom}${Units.cm}` as `${number}${Units}`,
+      left: `${preset.margins.left}${Units.cm}` as `${number}${Units}`,
+      right: `${preset.margins.right}${Units.cm}` as `${number}${Units}`
     }
     console.log('设置页边距:', marginsValue)
     props.editor.commands.setPageMargins(marginsValue)

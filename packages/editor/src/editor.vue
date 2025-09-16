@@ -16,7 +16,8 @@ import { Button } from "ant-design-vue"
 import { PrinterOutlined, FileWordOutlined } from '@ant-design/icons-vue'
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 
-import { Page } from "./extensions/page/index"
+// import { Page } from "./extensions/page/index"
+import { Page } from "./extensions/page/page"
 import { Document } from "@tiptap/extension-document";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Text } from "@tiptap/extension-text";
@@ -75,14 +76,14 @@ const editor = useEditor({
   extensions: [
     Document,
     Page.configure({
-      header:{
+      header: {
         text: '页眉',
         height: 35,
-        position:'right',
+        position: 'right',
         headerLine: true
       },
-      footer:{
-        text:(index, total) => `第${index}页，共${total}页`
+      footer: {
+        text: (index, total) => `第${index}页，共${total}页`
       }
     }),
     LayoutMode.configure({
@@ -97,7 +98,7 @@ const editor = useEditor({
     }),
     TextStyleKit,
     TextAlign.configure({
-      types: ["heading", "paragraph","headerFooterBlock"],
+      types: ["heading", "paragraph"],
     }),
     Bold,
     Italic,
@@ -194,6 +195,7 @@ $selectedBorderColor: #109968;
         .tiptap-page-header,
         .tiptap-page-footer {
           display: flex;
+
           /* 在设计模式下的边框提示 */
           &:hover>div {
             border: 1px dashed #1677ff;
