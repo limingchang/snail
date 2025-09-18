@@ -1,23 +1,39 @@
 <template>
   <div class="s-editor">
-    <ToolBar :editor="editor" :options="options" :tools="tools" v-if="design"></ToolBar>
-    <EditorContent class="editor-content" :editor="editor" :style="`--layout-line-style:${design ? 'none' : 'dashed'}`">
+    <ToolBar
+      :editor="editor"
+      :options="options"
+      :tools="tools"
+      v-if="design"
+    ></ToolBar>
+    <EditorContent
+      class="editor-content"
+      :editor="editor"
+      :style="`--layout-line-style:${design ? 'none' : 'dashed'}`"
+    >
     </EditorContent>
     <div class="editor-footer">
-      <Button type="primary" :icon="h(FileWordOutlined)" @click="handlerExport">导出</Button>
-      <Button type="primary" style="background-color: #f53f3f;" :icon="h(PrinterOutlined)">打印</Button>
+      <Button type="primary" :icon="h(FileWordOutlined)" @click="handlerExport"
+        >导出</Button
+      >
+      <Button
+        type="primary"
+        style="background-color: #f53f3f"
+        :icon="h(PrinterOutlined)"
+        >打印</Button
+      >
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue'
-import { Button } from "ant-design-vue"
-import { PrinterOutlined, FileWordOutlined } from '@ant-design/icons-vue'
+import { computed, h } from "vue";
+import { Button } from "ant-design-vue";
+import { PrinterOutlined, FileWordOutlined } from "@ant-design/icons-vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 
 // import { Page } from "./extensions/page/index"
-import { Page } from "./extensions/page/page"
+import { Page } from "./extensions/page/page";
 import { Document } from "@tiptap/extension-document";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Text } from "@tiptap/extension-text";
@@ -43,48 +59,45 @@ import { defaultContent } from "./contents/default";
 
 import { EditorOptions } from "./typing/index";
 
-import { VariableType } from './extensions/variable/typing'
+import { VariableType } from "./extensions/variable/typing";
 
-const defaultTools = ['style', 'insert', 'page']
+const defaultTools = ["style", "insert", "page"];
 
 const defaultOptions: EditorOptions = {
   design: false,
   tools: defaultTools,
   options: {
     variable: {
-      exlude: [VariableType.InnerVariable]
-    }
-  }
-}
-
+      exlude: [VariableType.InnerVariable],
+    },
+  },
+};
 
 const props = defineProps<EditorOptions>();
 
-const design = computed(() => props.design || defaultOptions.design)
-const tools = computed(() => props.tools || defaultOptions.tools)
-const doc = computed(() => props.doc || defaultContent)
+const design = computed(() => props.design || defaultOptions.design);
+const tools = computed(() => props.tools || defaultOptions.tools);
+const doc = computed(() => props.doc || defaultContent);
 const options = computed(() => {
   if (props.options) {
-    return Object.assign({}, defaultOptions.options, props.options)
+    return Object.assign({}, defaultOptions.options, props.options);
   }
-  return defaultOptions.options
-})
-
-
+  return defaultOptions.options;
+});
 
 const editor = useEditor({
   extensions: [
     Document,
     Page.configure({
       header: {
-        text: '页眉',
+        text: "页眉",
         height: 35,
-        position: 'right',
-        headerLine: true
+        align: "right",
+        headerLine: true,
       },
       footer: {
-        text: (index, total) => `第${index}页，共${total}页`
-      }
+        text: (index, total) => `第${index}页，共${total}页`,
+      },
     }),
     LayoutMode.configure({
       types: ["tableRow"],
@@ -117,11 +130,11 @@ const editor = useEditor({
   // autofocus: true,
   editable: props.design,
   onUpdate({ editor, transaction, appendedTransactions }) {
-    fixLayoutTable(editor)
+    fixLayoutTable(editor);
   },
   onCreate({ editor }) {
-    editor.chain().focus('end').run();
-  }
+    editor.chain().focus("end").run();
+  },
 });
 
 const handlerExport = () => {
@@ -198,7 +211,7 @@ $selectedBorderColor: #109968;
           display: flex;
 
           /* 在设计模式下的边框提示 */
-          &:hover>div {
+          &:hover > div {
             border: 1px dashed #1677ff;
             // box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
           }
@@ -226,17 +239,14 @@ $selectedBorderColor: #109968;
           contain: layout style;
 
           /* 强制所有子元素保持在容器内 */
-          >* {
+          > * {
             max-width: 100%;
             position: relative;
           }
-
-
         }
-
       }
-      .s-editor-page{
-        .page-locator{
+      .s-editor-paper {
+        .page-locator {
           width: 8mm;
           height: 8mm;
           position: absolute;
@@ -259,7 +269,6 @@ $selectedBorderColor: #109968;
       border-collapse: collapse;
 
       tr.layout-mode {
-
         td,
         th {
           width: 80px;
@@ -341,13 +350,13 @@ $selectedBorderColor: #109968;
       }
 
       /* 左侧有选中单元格时，去除左边框 */
-      .selectedCell+.selectedCell::after {
+      .selectedCell + .selectedCell::after {
         border-left: none;
         left: 0;
       }
 
       /* 上方有选中单元格时，去除上边框 */
-      tr:has(.selectedCell)+tr .selectedCell::after {
+      tr:has(.selectedCell) + tr .selectedCell::after {
         border-top: none;
         top: 0;
       }

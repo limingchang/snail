@@ -1,16 +1,13 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { SiglePage } from "./singlePage";
+import { Paper } from "./paper";
 
-import {
-  defaultMargins,
-  type PageOptions,
-  type PageAttributes,
-} from "./typing";
+import { PageOptions } from "./typing/page";
+
 export const Page = Node.create<PageOptions>({
   name: "page",
   group: "block",
-  content: "siglePage+",
+  content: "paper+",
   topNode: false,
   addOptions() {
     return {
@@ -22,7 +19,13 @@ export const Page = Node.create<PageOptions>({
     };
   },
   addExtensions() {
-    return [SiglePage];
+    return [
+      Paper.configure({
+        paperFormat: this.options.paperFormat,
+        header: this.options.header,
+        footer: this.options.footer,
+      }),
+    ];
   },
 
   addNodeView() {
@@ -77,7 +80,7 @@ export const Page = Node.create<PageOptions>({
           //   }
           // });
 
-          const pages = editor.$nodes("siglePage");
+          const pages = editor.$nodes("paper");
           pages?.forEach((pageNode) => {
             const pos = pageNode.pos;
             //
@@ -103,7 +106,7 @@ export const Page = Node.create<PageOptions>({
           const { selection } = state;
           state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (
-              node.type.name === "siglePage" &&
+              node.type.name === "paper" &&
               pos <= selection.from &&
               pos + node.nodeSize > selection.from
             ) {
@@ -122,7 +125,7 @@ export const Page = Node.create<PageOptions>({
           const { selection } = state;
           state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (
-              node.type.name === "siglePage" &&
+              node.type.name === "paper" &&
               pos <= selection.from &&
               pos + node.nodeSize > selection.from
             ) {
@@ -139,16 +142,16 @@ export const Page = Node.create<PageOptions>({
         () =>
         ({ editor, tr, state, commands, dispatch }) => {
           const { selection } = state;
-          const total = editor.$nodes("siglePage")?.length || 0;
-          console.log(editor.$doc)
+          const total = editor.$nodes("paper")?.length || 0;
+          console.log(editor.$doc);
           state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (
-              node.type.name === "siglePage" &&
+              node.type.name === "paper" &&
               pos <= selection.from &&
               pos + node.nodeSize > selection.from
             ) {
-              const insertPos = pos + node.nodeSize+2;
-              console.log(pos,insertPos, node);
+              const insertPos = pos + node.nodeSize + 2;
+              console.log(pos, insertPos, node);
               commands.insertContentAt(
                 insertPos,
                 editor.schema.nodes.siglePage.create({

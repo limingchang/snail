@@ -45,7 +45,7 @@ export const defaultPages = {
   type: "page",
   content: [
     {
-      type: "siglePage",
+      type: "paper",
       attrs: { index: 1 },
       content: [
         defaultH1,
@@ -55,7 +55,7 @@ export const defaultPages = {
       ],
     },
     {
-      type: "siglePage",
+      type: "paper",
       attrs: { index: 2 },
       content: [
         defaultH1,

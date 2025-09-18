@@ -1,3 +1,5 @@
+import { Margins } from "./index";
+import { PageHeaderOptions, PageFooterOptions } from "./page";
 export type PaperOrientation = "portrait" | "landscape";
 
 export type PaperFormat =
@@ -19,3 +21,18 @@ export const PaperSize = {
   Letter: { name: "Letter", width: 216, height: 279 },
   Legal: { name: "Legal", width: 216, height: 356 },
 } as const;
+
+export interface PaperOptions {
+  header?: PageHeaderOptions;
+  footer?: PageFooterOptions;
+  paperFormat?: PaperFormat;
+}
+
+export interface PaperAttributes {
+  index: number;
+  paperFormat: PaperFormat;
+  orientation: PaperOrientation;
+  margins: Margins;
+  header: PageHeaderOptions;
+  footer: PageFooterOptions;
+}

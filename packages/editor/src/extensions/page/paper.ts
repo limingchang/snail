@@ -3,20 +3,28 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import {
   defaultMargins,
   // type PageOptions,
-  type PageAttributes,
+  // type PageAttributes,
 } from "./typing";
+import { PaperAttributes, PaperOptions } from "./typing/paper";
 import { calculatePaperSize } from "./utils/paperSizeCalculator";
 
 import { createLocator } from "./utils/createLocator";
 import { createFooter, createHeader } from "./utils/createHeaderFooter";
 
-export const SiglePage = Node.create({
-  name: "siglePage",
+export const Paper = Node.create<PaperOptions>({
+  name: "paper",
   group: "block",
-  // content: "(pageHeader | block | pageFooter)+",
   content: "block+",
   addOptions() {
     return {
+      header: { text: "", height: 50, align: "right", headerLine: false },
+      footer: {
+        text: (index: number, total: number) =>
+          `第 ${index} 页 , 共 ${total} 页`,
+        height: 50,
+        align: "center",
+        footerLine: false,
+      },
       HTMLAttributes: {},
     };
   },
@@ -32,7 +40,7 @@ export const SiglePage = Node.create({
         }),
       },
       paperFormat: {
-        default: "A4",
+        default: this.options.paperFormat,
       },
       orientation: {
         default: "portrait", // 默认纵向
@@ -47,53 +55,47 @@ export const SiglePage = Node.create({
         default: defaultMargins,
       },
       header: {
-        default: { text: "", height: 50, align: "right", line: false },
+        default: this.options.header,
       },
       footer: {
-        default: {
-          text: (index: number, total: number) =>
-            `第 ${index} 页 , 共 ${total} 页`,
-          height: 50,
-          align: "center",
-          line: false,
-        },
+        default: this.options.footer,
       },
     };
   },
   addNodeView() {
     return ({ node, view, editor }) => {
       // 创建每一页的容器
-      const page = document.createElement("section");
-      page.classList.add("s-editor-page");
-      const total = editor.$nodes("siglePage")?.length || 0;
+      const paper = document.createElement("section");
+      paper.classList.add("s-editor-paper");
+      const total = editor.$nodes("paper")?.length || 0;
       // const index = total + 1;
-      page.setAttribute("data-index", node.attrs.index);
+      paper.setAttribute("data-index", node.attrs.index);
       // 设置页面样式
       const { paperFormat, orientation, margins } =
-        node.attrs as PageAttributes;
+        node.attrs as PaperAttributes;
       // 获取页面格式和方向
       const { width, height } = calculatePaperSize(paperFormat, orientation);
       // 设置页面容器样式
       // page.style.flex = "1";
-      page.style.flexGrow = "1";
-      page.style.flexShrink = "0";
-      page.style.position = "relative";
-      page.style.width = `${width}mm`;
-      page.style.height = `${height}mm`;
-      page.style.backgroundColor = "#fff";
-      page.style.borderRadius = "5px";
+      paper.style.flexGrow = "1";
+      paper.style.flexShrink = "0";
+      paper.style.position = "relative";
+      paper.style.width = `${width}mm`;
+      paper.style.height = `${height}mm`;
+      paper.style.backgroundColor = "#fff";
+      paper.style.borderRadius = "5px";
       // 创建定位器
       if (editor.isEditable) {
         // 设计模式下添加定位器
-        page.appendChild(createLocator("top-left", margins));
-        page.appendChild(createLocator("top-right", margins));
-        page.appendChild(createLocator("bottom-left", margins));
-        page.appendChild(createLocator("bottom-right", margins));
+        paper.appendChild(createLocator("top-left", margins));
+        paper.appendChild(createLocator("top-right", margins));
+        paper.appendChild(createLocator("bottom-left", margins));
+        paper.appendChild(createLocator("bottom-right", margins));
       }
 
       // 创建页面内容
       const content = document.createElement("div");
-      content.classList.add("s-editor-page-content");
+      content.classList.add("s-editor-paper-content");
       content.style.position = "relative";
       content.style.padding = `${margins.top} ${margins.right} ${margins.bottom} ${margins.left}`;
       content.style.height = `calc(${height}mm - ${margins.top} - ${margins.bottom})`;
@@ -111,16 +113,16 @@ export const SiglePage = Node.create({
         node.attrs.index,
         total
       );
-      page.appendChild(header);
-      page.appendChild(content);
-      page.appendChild(footer);
+      paper.appendChild(header);
+      paper.appendChild(content);
+      paper.appendChild(footer);
 
       // 设置分页元素
       const breakPageDiv = document.createElement("div");
       breakPageDiv.style.breakAfter = "page";
-      page.appendChild(breakPageDiv);
+      paper.appendChild(breakPageDiv);
       return {
-        dom: page,
+        dom: paper,
         contentDOM: content,
       };
     };

@@ -1,4 +1,4 @@
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+// import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { PaperFormat, PaperOrientation } from "./paper";
 export enum Units {
   mm = "mm",
@@ -9,20 +9,6 @@ export enum Units {
   px = "px",
 }
 
-interface PageHeaderFooterOptions {
-  text?: string | ((index: number, total: number) => string);
-  position?: "left" | "center" | "right";
-  height?: number;
-  HTMLAttributes?: Record<string, any>;
-}
-
-export interface PageHeaderOptions extends PageHeaderFooterOptions {
-  headerLine?: boolean;
-}
-
-export interface PageFooterOptions extends PageHeaderFooterOptions {
-  footerLine?: boolean;
-}
 
 export interface Margins  {
   top: number | `${number}${Units}`;
@@ -38,20 +24,6 @@ export const defaultMargins: Margins = {
   left: "20mm",
 };
 
-export interface PageAttributes {
-  index: number;
-  paperFormat: PaperFormat;
-  orientation: PaperOrientation;
-  margins: Margins;
-}
-
-export interface PageOptions {
-  paperFormat: PaperFormat;
-  header?: PageHeaderOptions;
-  footer?: PageFooterOptions;
-  pageGap?: number; // Page gap in pixels
-  HTMLAttributes?: Record<string, any>;
-}
 
 // 页边距预设接口
 export interface MarginPreset {
@@ -104,10 +76,10 @@ declare module "@tiptap/core" {
     };
   }
 }
-declare module "@tiptap/core" {
-  interface Commands<ReturnType> {
-    pageHeader: {
-      _flushHeader: (pageNode: ProseMirrorNode, pagePos: number) => ReturnType;
-    };
-  }
-}
+// declare module "@tiptap/core" {
+//   interface Commands<ReturnType> {
+//     pageHeader: {
+//       _flushHeader: (pageNode: ProseMirrorNode, pagePos: number) => ReturnType;
+//     };
+//   }
+// }
