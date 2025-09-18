@@ -11,7 +11,8 @@ import type { Content } from "@tiptap/core";
 
 // import { defaultTable } from "./defaultTable";
 
-import { defaultPage } from "./defaultPage";
+// import { defaultPage } from "./defaultPage";
+import { defaultPages } from "./defaultPage";
 
 // export const defaultContent = {
 //   type: "doc",
@@ -26,5 +27,5 @@ import { defaultPage } from "./defaultPage";
 
 export const defaultContent = {
   type: "doc",
-  content: [defaultPage],
+  content: [defaultPages],
 } as Content;

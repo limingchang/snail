@@ -59,7 +59,7 @@
       <SWordCloud :hotWords="hotWords" :radius="100" :speed="10"></SWordCloud>
     </div> -->
 
-      <SEditor :options="{variable:{innerVariable:[innerVariable]}}" ></SEditor>
+      <SEditor design :options="{variable:{innerVariable:[innerVariable]}}" ></SEditor>
 
       
 </template>

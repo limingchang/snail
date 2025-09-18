@@ -37,7 +37,7 @@ export interface ToolBarOptions {
  * @return {*}
  */
 export interface EditorOptions {
-  mode?: "design" | "view";
+  design?: boolean;
   doc?: Content;
   tools?:Array<string>
   options?: {

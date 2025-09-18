@@ -95,8 +95,9 @@ import { IconPageMargin, IconPageOrientation, IconPageSize } from '@snail-js/vue
 
 import { Editor } from '@tiptap/core'
 
-import type { MarginPreset, PaperOrientation, PaperSize, PageSettings } from '../extensions/page/typing'
+import type { MarginPreset, PaperSize, PageSettings } from '../extensions/page/typing'
 import { Units } from '../extensions/page/typing'
+import { PaperFormat } from '../extensions/page/typing/paper'
 
 
 const props = defineProps({
@@ -126,7 +127,7 @@ const marginPresets: MarginPreset[] = [
 ]
 
 // 纸张方向选项
-const orientationOptions: PaperOrientation[] = [
+const orientationOptions = [
   {
     value: 'portrait',
     label: '纵向',
@@ -150,7 +151,7 @@ const paperSizes: PaperSize[] = [
 const pageSettings = ref<PageSettings>({
   margins: { top: 2.54, bottom: 2.54, left: 3.18, right: 3.18 },
   orientation: 'portrait',
-  paperSize: 'A4'
+  paperFormat: 'A4'
 })
 
 
@@ -178,13 +179,18 @@ const handleCustomMarginChange = () => {
 
 // 纸张方向变更处理
 const handleOrientationChange: MenuProps['onClick'] = ({ key }) => {
-  pageSettings.value.orientation = key as 'portrait' | 'landscape'
+
+  const orientationValue = key as 'portrait' | 'landscape'
+  pageSettings.value.orientation = orientationValue
+  props.editor.commands.setPageOrientation(orientationValue)
   applyPageSettings()
 }
 
 // 纸张大小变更处理
 const handlePaperSizeChange: MenuProps['onClick'] = ({ key }) => {
-  pageSettings.value.paperSize = key as string
+  const paperFormat = key as PaperFormat
+  pageSettings.value.paperFormat = paperFormat
+  props.editor.commands.setPageFormat(paperFormat as PaperFormat)
   applyPageSettings()
 }
 

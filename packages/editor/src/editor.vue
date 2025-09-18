@@ -1,8 +1,8 @@
 <template>
   <div class="s-editor">
-    <ToolBar :editor="editor" :options="options" :tools="tools" v-if="mode == 'design'"></ToolBar>
-    <EditorContent class="editor-content" :editor="editor"
-      :style="`--layout-line-style:${mode === 'view' ? 'none' : 'dashed'}`"></EditorContent>
+    <ToolBar :editor="editor" :options="options" :tools="tools" v-if="design"></ToolBar>
+    <EditorContent class="editor-content" :editor="editor" :style="`--layout-line-style:${design ? 'none' : 'dashed'}`">
+    </EditorContent>
     <div class="editor-footer">
       <Button type="primary" :icon="h(FileWordOutlined)" @click="handlerExport">导出</Button>
       <Button type="primary" style="background-color: #f53f3f;" :icon="h(PrinterOutlined)">打印</Button>
@@ -48,7 +48,7 @@ import { VariableType } from './extensions/variable/typing'
 const defaultTools = ['style', 'insert', 'page']
 
 const defaultOptions: EditorOptions = {
-  mode: 'design',
+  design: false,
   tools: defaultTools,
   options: {
     variable: {
@@ -60,7 +60,7 @@ const defaultOptions: EditorOptions = {
 
 const props = defineProps<EditorOptions>();
 
-const mode = computed(() => props.mode || defaultOptions.mode)
+const design = computed(() => props.design || defaultOptions.design)
 const tools = computed(() => props.tools || defaultOptions.tools)
 const doc = computed(() => props.doc || defaultContent)
 const options = computed(() => {
@@ -115,6 +115,7 @@ const editor = useEditor({
   ],
   content: doc.value,
   // autofocus: true,
+  editable: props.design,
   onUpdate({ editor, transaction, appendedTransactions }) {
     fixLayoutTable(editor)
   },
@@ -234,7 +235,13 @@ $selectedBorderColor: #109968;
         }
 
       }
-
+      .s-editor-page{
+        .page-locator{
+          width: 8mm;
+          height: 8mm;
+          position: absolute;
+        }
+      }
     }
 
     /* 添加 ProseMirror 特定样式重置 */

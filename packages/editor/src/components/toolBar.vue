@@ -37,7 +37,7 @@
       "
     >
       <div class="tool-inster-page">
-        <Button :icon="h(IconNewPage)" size="small">新页面</Button>
+        <Button :icon="h(IconNewPage)" size="small" @click="editor?.chain().focus().addNewPage()">新页面</Button>
         <!-- 分页按钮 -->
         <Button :icon="h(VerticalAlignMiddleOutlined)" size="small"
           >分页</Button

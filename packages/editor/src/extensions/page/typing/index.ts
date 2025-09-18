@@ -89,7 +89,7 @@ export interface PageSettings {
     right: number;
   };
   orientation: "portrait" | "landscape";
-  paperSize: string;
+  paperFormat: PaperFormat;
 }
 
 // type 定义命令类型

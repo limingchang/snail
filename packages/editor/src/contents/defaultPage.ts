@@ -31,12 +31,38 @@ export const defaultPageFooter = {
 //   ],
 // };
 
-export const defaultPage = {
+// export const defaultPage = {
+//   type: "page",
+//   content: [
+//     defaultH1,
+//     defaultH2,
+//     defaultIntroductionParagraph,
+//     defaultFeatureParagraph,
+//   ],
+// };
+
+export const defaultPages = {
   type: "page",
   content: [
-    defaultH1,
-    defaultH2,
-    defaultIntroductionParagraph,
-    defaultFeatureParagraph,
+    {
+      type: "siglePage",
+      attrs: { index: 1 },
+      content: [
+        defaultH1,
+        defaultH2,
+        defaultIntroductionParagraph,
+        defaultFeatureParagraph,
+      ],
+    },
+    {
+      type: "siglePage",
+      attrs: { index: 2 },
+      content: [
+        defaultH1,
+        defaultH2,
+        defaultIntroductionParagraph,
+        defaultFeatureParagraph,
+      ],
+    },
   ],
 };
