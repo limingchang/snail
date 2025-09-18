@@ -1,6 +1,9 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 import { Paper } from "./paper";
+
+import {defaultQRCode} from '../../contents/deafultQRCode'
 
 import { PageOptions } from "./typing/page";
 
@@ -140,32 +143,63 @@ export const Page = Node.create<PageOptions>({
         },
       addNewPage:
         () =>
-        ({ editor, tr, state, commands, dispatch }) => {
-          const { selection } = state;
+        ({ editor, commands }) => {
+          // 验证编辑器状态
+          if (!editor?.state?.doc) {
+            console.error("编辑器状态无效");
+            return false;
+          }
+
+          const { selection } = editor.state;
           const total = editor.$nodes("paper")?.length || 0;
-          console.log(editor.$doc);
-          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+          let insertPos = null;
+
+          // 查找当前paper节点并计算插入位置
+          editor.state.doc.descendants((node, pos) => {
             if (
               node.type.name === "paper" &&
               pos <= selection.from &&
               pos + node.nodeSize > selection.from
             ) {
-              const insertPos = pos + node.nodeSize + 2;
-              console.log(pos, insertPos, node);
-              commands.insertContentAt(
-                insertPos,
-                editor.schema.nodes.siglePage.create({
-                  ...node.attrs,
-                  index: total + 1,
-                })
-              );
-              if (dispatch) {
-                dispatch(tr);
-              }
-              return false; // 停止遍历
+              insertPos = pos + node.nodeSize;
+              return false;
             }
           });
-          return true;
+
+          if (insertPos === null) {
+            // 如果没找到paper节点，插入到文档末尾
+            insertPos = editor.state.doc.content.size;
+          }
+
+          // 使用insertContentAt创建新页面
+          // return commands.insertContentAt(insertPos, {
+          //   type: "paper",
+          //   attrs: {
+          //     index: total + 1
+          //   },
+          //   content: [
+          //     {
+          //       type: "paragraph",
+          //       content: [] // 让Tiptap自动处理空段落状态
+          //     }
+          //   ]
+          // });
+          // commands.insertContentAt(2,{type:"paragraph",content:[{type:'text',text:'测试12313123'}]},{updateSelection:true})
+          // commands.insertContentAt(3, 'Example Text',{updateSelection:true})
+
+          // const attrs = {
+          //   src: options.src || "",
+          //   size: options.size,
+          //   position: options.position,
+          // };
+          // const qrcodeContent = {
+          //   type: this.name,
+          //   attrs,
+          // };
+          // 有page扩展时，pos为2则在第一页插入，pos为0，在doc插入
+          console.log("insertPos", defaultQRCode);
+          const result = commands.insertContent( defaultQRCode)
+          return result
         },
     };
   },

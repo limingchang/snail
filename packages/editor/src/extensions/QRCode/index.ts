@@ -150,7 +150,7 @@ export const QRCode = Node.create({
 
     // 添加位置样式
     if (position) {
-      const positionStyle = `position: absolute; top: ${position.y}${position.unit}; left: ${position.x}${position.unit};`;
+      const positionStyle = `position: absolute; z-index:999; top: ${position.y}${position.unit}; left: ${position.x}${position.unit};`;
       styleString = mergeStyles(styleString, positionStyle);
     }
 
@@ -194,7 +194,8 @@ export const QRCode = Node.create({
             type: this.name,
             attrs,
           };
-          const result = commands.insertContentAt(0, qrcodeContent)
+          // 有page扩展时，pos为2则在第一页插入，pos为0，在doc插入
+          const result = commands.insertContentAt(2, qrcodeContent)
           if (result) {
             this.storage.hasQRCode = true;
           }

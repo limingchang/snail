@@ -14,7 +14,7 @@ import { createFooter, createHeader } from "./utils/createHeaderFooter";
 export const Paper = Node.create<PaperOptions>({
   name: "paper",
   group: "block",
-  content: "block+",
+  content: "block*",
   addOptions() {
     return {
       header: { text: "", height: 50, align: "right", headerLine: false },
