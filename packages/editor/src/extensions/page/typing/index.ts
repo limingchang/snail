@@ -73,6 +73,8 @@ declare module "@tiptap/core" {
       setPageOrientation: (orientation: "portrait" | "landscape") => ReturnType;
       insertPagination: () => ReturnType;
       addNewPage: () => ReturnType;
+      autoPageBreak: () => ReturnType;
+      setAutoPageBreak: (enabled: boolean) => ReturnType;
     };
   }
 }

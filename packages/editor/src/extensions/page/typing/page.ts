@@ -19,5 +19,6 @@ export interface PageOptions {
   header?: PageHeaderOptions;
   footer?: PageFooterOptions;
   pageGap?: number; // Page gap in pixels
+  autoPageBreak?: boolean; // 新增：自动分页开关
   HTMLAttributes?: Record<string, any>;
 }

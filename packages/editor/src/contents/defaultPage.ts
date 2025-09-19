@@ -5,6 +5,8 @@ import {
   defaultFeatureParagraph,
 } from "./defaultParagraph";
 
+import {defaultQRCode} from "./deafultQRCode"
+
 export const defaultPageHeader = {
   type: "pageHeader",
 };
@@ -48,6 +50,7 @@ export const defaultPages = {
       type: "paper",
       attrs: { index: 1 },
       content: [
+        // defaultQRCode,
         defaultH1,
         defaultH2,
         defaultIntroductionParagraph,
@@ -58,10 +61,7 @@ export const defaultPages = {
       type: "paper",
       attrs: { index: 2 },
       content: [
-        defaultH1,
-        defaultH2,
-        defaultIntroductionParagraph,
-        defaultFeatureParagraph,
+        {type: "paragraph",content:[]}
       ],
     },
   ],
