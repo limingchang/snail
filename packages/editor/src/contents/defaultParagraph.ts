@@ -58,7 +58,7 @@ export const defaultFeatureParagraph = {
     defaultVariable,
     {
       type: "text",
-      text: "、普通表格、布局表格、变量",
+      text: "、普通表格、布局表格、二维码",
       marks: [boldMark, defaultTextStyleMark],
     },
     {

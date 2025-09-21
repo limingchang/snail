@@ -1,7 +1,6 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { IQRCodeOptions } from "./typing";
 
-
 /**
  * 合并样式字符串
  * @param existingStyle 现有样式
@@ -190,12 +189,15 @@ export const QRCode = Node.create({
             size: options.size,
             position: options.position,
           };
-          const qrcodeContent = {
-            type: this.name,
-            attrs,
-          };
-          // 有page扩展时，pos为2则在第一页插入，pos为0，在doc插入
-          const result = commands.insertContentAt(2, qrcodeContent)
+          // const qrcodeContent = {
+          //   type: this.name,
+          //   attrs,
+          // };
+          const qrcode = editor.schema.nodes.qrcode.create(attrs);
+          // 
+          const pages = editor.$nodes("pageContent");
+          const insertPos = pages ? pages[0].pos : 1;
+          const result = commands.insertContentAt(insertPos, qrcode);
           if (result) {
             this.storage.hasQRCode = true;
           }

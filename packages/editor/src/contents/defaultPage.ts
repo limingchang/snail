@@ -5,7 +5,7 @@ import {
   defaultFeatureParagraph,
 } from "./defaultParagraph";
 
-import {defaultQRCode} from "./deafultQRCode"
+import { defaultQRCode } from "./deafultQRCode";
 
 export const defaultPageHeader = {
   type: "pageHeader",
@@ -43,25 +43,41 @@ export const defaultPageFooter = {
 //   ],
 // };
 
+// export const defaultPages = {
+//   type: "page",
+//   content: [
+//     {
+//       type: "paper",
+//       attrs: { index: 1 },
+//       content: [
+//         // defaultQRCode,
+//         defaultH1,
+//         defaultH2,
+//         defaultIntroductionParagraph,
+//         defaultFeatureParagraph,
+//       ],
+//     },
+//     {
+//       type: "paper",
+//       attrs: { index: 2 },
+//       content: [
+//         {type: "paragraph",content:[]}
+//       ],
+//     },
+//   ],
+// };
+
 export const defaultPages = {
   type: "page",
   content: [
+    { type: "pageHeader", content: [] },
     {
-      type: "paper",
-      attrs: { index: 1 },
+      type: "pageContent",
       content: [
-        // defaultQRCode,
         defaultH1,
         defaultH2,
         defaultIntroductionParagraph,
         defaultFeatureParagraph,
-      ],
-    },
-    {
-      type: "paper",
-      attrs: { index: 2 },
-      content: [
-        {type: "paragraph",content:[]}
       ],
     },
   ],

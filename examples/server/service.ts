@@ -33,7 +33,7 @@ export class ShanheResponse {
     type: CacheType.IndexDB,
     ttl: 500,
   },
-  enableLog:true
+  enableLog:false
 })
 @Versioning({
   type: VersioningType.Query,

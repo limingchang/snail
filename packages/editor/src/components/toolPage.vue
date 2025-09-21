@@ -95,9 +95,9 @@ import { IconPageMargin, IconPageOrientation, IconPageSize } from '@snail-js/vue
 
 import { Editor } from '@tiptap/core'
 
-import type { MarginPreset, PaperSize, PageSettings } from '../extensions/page/typing'
-import { Units } from '../extensions/page/typing'
-import { PaperFormat } from '../extensions/page/typing/paper'
+import type { MarginPreset, PaperSize, PageSettings } from '../extensions/page.bak/typing'
+import { Units } from '../extensions/page.bak/typing'
+import { PaperFormat } from '../extensions/page.bak/typing/paper'
 
 
 const props = defineProps({

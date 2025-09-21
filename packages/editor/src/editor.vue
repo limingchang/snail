@@ -9,7 +9,7 @@
     <EditorContent
       class="editor-content"
       :editor="editor"
-      :style="`--layout-line-style:${design ? 'none' : 'dashed'}`"
+      :style="`--layout-line-style:${design ? 'dashed' : 'none'}`"
     >
     </EditorContent>
     <div class="editor-footer">
@@ -33,8 +33,9 @@ import { PrinterOutlined, FileWordOutlined } from "@ant-design/icons-vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 
 // import { Page } from "./extensions/page/index"
-import { Page } from "./extensions/page/page";
-import { Document } from "@tiptap/extension-document";
+import { Page } from "./extensions/page";
+// import { Document } from "@tiptap/extension-document";
+import { Document } from "./extensions/document";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Text } from "@tiptap/extension-text";
 import { Heading } from "@tiptap/extension-heading";
@@ -192,10 +193,18 @@ $selectedBorderColor: #109968;
 
     :deep(.tiptap) {
       outline: none;
-      background-color: #fff;
+      background-color: #ccc;
       margin: 0;
       padding: 0;
-
+      display:flex !important;
+      align-items: center;
+      flex-direction: column;
+      gap: 8px;
+      .s-editor-page {
+        background-color: #fff;
+        border-radius: 8px;
+      }
+      
       &.resize-cursor {
         cursor: ew-resize;
         cursor: col-resize;
