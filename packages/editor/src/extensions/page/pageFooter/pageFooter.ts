@@ -1,12 +1,14 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { PageHeaderOptions } from "../typing/pageHeader";
 // import { PageHeaderView } from "./pageHeaderView";
 import { defaultMargins } from "../constant/defaultMargins";
 import { headerFooterTextCalculator } from "../utils/calculator";
+import { createTextMark } from "../utils/createTextMark";
+import { createParagraph } from "../utils/createParagraph";
 
-export const PageHeader = Node.create<PageHeaderOptions>({
-  name: "pageHeader",
+export const PageFooter = Node.create<PageHeaderOptions>({
+  name: "pageFooter",
   group: "page",
   content: "block*",
   isolating: true,
@@ -14,11 +16,11 @@ export const PageHeader = Node.create<PageHeaderOptions>({
   addOptions() {
     return {
       textFormat: "",
-      align: "right",
+      align: "center",
       height: 50,
       headerLine: false,
       HTMLAttributes: {
-        class: "page-header",
+        class: "page-footer",
       },
     };
   },
@@ -30,7 +32,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       height: {
         default: this.options.height,
       },
-      headerLing: {
+      footerLing: {
         default: this.options.headerLine,
       },
       _updateTimestamp: {
@@ -41,13 +43,13 @@ export const PageHeader = Node.create<PageHeaderOptions>({
   parseHTML() {
     return [
       {
-        tag: "page-header",
+        tag: "page-footer",
       },
     ];
   },
   renderHTML({ HTMLAttributes }) {
     return [
-      "page-header",
+      "page-footer",
       mergeAttributes(this.options.HTMLAttributes!, HTMLAttributes),
       0,
     ];
@@ -56,7 +58,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
     return ({ node, getPos, editor, view }) => {
       // 创建页眉容器
       const pageHeader = document.createElement("div");
-      pageHeader.classList.add("page-header");
+      pageHeader.classList.add("page-footer");
       pageHeader.style.position = "absolute";
       pageHeader.style.height = `${this.options.height}px`;
       pageHeader.style.lineHeight = `${this.options.height}px`;
@@ -68,8 +70,10 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       } - ${
         typeof margins.right === "number" ? `${margins.right}px` : margins.right
       } - 2px)`;
-      pageHeader.style.top = `calc(${
-        typeof margins.top === "number" ? `${margins.top}px` : margins.top
+      pageHeader.style.bottom = `calc(${
+        typeof margins.bottom === "number"
+          ? `${margins.bottom}px`
+          : margins.bottom
       } - ${this.options.height}px - 10px)`;
       pageHeader.style.left = `calc(${
         typeof margins.left === "number" ? `${margins.left}px` : margins.left
@@ -84,29 +88,26 @@ export const PageHeader = Node.create<PageHeaderOptions>({
         if (node.content.size !== 0) return;
         const transaction = view.state.tr;
         const insertPos = currentPos + 1; // 插入位置
-        const pages = editor.$nodes("page");
+        // const pages = editor.$nodes("page");
         const index = pageNodePos.attributes.index || 1;
-        const total = pages === null ? 1 : pages.length;
+        const total = editor.storage.page.total;
+        console.log("index", index, "total", total);
         const text = headerFooterTextCalculator(
           index,
           total,
           this.options.textFormat || ""
         );
-        const defaultTextMarks = editor.schema.mark("textStyle", {
-          fontSize: "9pt",
-          lineHeight: "1",
-          fontFamily: "KaiTi, serif",
-        });
-        const textNode = editor.schema.text(text, [defaultTextMarks]);
-        const paragraphNodeType = editor.schema.nodes["paragraph"];
-        const paragraphNode = paragraphNodeType.create(
+        const marks = createTextMark(editor.schema);
+        const textNode = editor.schema.text(text, [marks]);
+        const paragraphNode = createParagraph(
+          editor.schema,
           {
             textIndent: "0",
             paragraphStart: "0",
             paragraphEnd: "0",
-            textAlign: this.options.align || "right",
+            textAlign: this.options.align || "center",
           },
-          [textNode]
+          textNode
         );
         transaction.insert(insertPos, paragraphNode);
         if (transaction.docChanged) {
@@ -129,15 +130,31 @@ export const PageHeader = Node.create<PageHeaderOptions>({
   },
   addCommands() {
     return {
-      __flushHeader() {
-        return ({ editor, tr, dispatch }) => {
-          const pageHeaders = editor.$nodes("pageHeader");
-          pageHeaders?.forEach((node) => {
-            tr.setNodeAttribute(node.pos - 1, "_updateTimestamp", Date.now());
-            if (dispatch) {
-              dispatch(tr);
+      __flushFooter() {
+        return ({ editor, tr, state, dispatch }) => {
+          const pageFooters = editor.$nodes("pageFooter")
+          console.log('pageFooters:',pageFooters)
+          const pages = editor.$nodes("page");
+          pages?.forEach((pageNode) => { 
+            console.log('pageNode:',pageNode)
+          });
+          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (node.type.name === "pageFooter") {
+              tr.setNodeAttribute(pos, "_updateTimestamp", Date.now());
+              console.log("flush footer",node);
+              if (dispatch) {
+                dispatch(tr);
+              }
             }
           });
+          // const pageHeaders = editor.$nodes("pageFooter");
+          // console.log("page-footer-flush", pageHeaders);
+          // pageHeaders?.forEach((node) => {
+          //   tr.setNodeAttribute(node.pos - 1, "_updateTimestamp", Date.now());
+          //   if (dispatch) {
+          //     dispatch(tr);
+          //   }
+          // });
           return true;
         };
       },

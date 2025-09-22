@@ -2,16 +2,16 @@ import { Schema } from "@tiptap/pm/model";
 
 import { createTextMark } from "./createTextMark";
 import { createParagraph } from "./createParagraph";
-import { PageHeaderAttributes } from "../typing/pageHeader";
+import { PageFooterAttributes } from "../typing/pageFooter";
 import { headerFooterTextCalculator } from "../utils/calculator";
 
-export const createPageHeader = (
+export const createPageFooter = (
   schema: Schema,
-  attrs: PageHeaderAttributes,
+  attrs: PageFooterAttributes,
   index: number,
   total: number
 ) => {
-  const pageHeaderNodeType = schema.nodes["pageHeader"];
+  const pageHeaderNodeType = schema.nodes["pageFooter"];
   const marks = createTextMark(schema);
   const text = headerFooterTextCalculator(index, total, attrs.textFormat);
   const textNode = schema.text(text, [marks]);

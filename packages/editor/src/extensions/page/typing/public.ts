@@ -1,6 +1,8 @@
+export type TextAlign = "left" | "center" | "right" | "justify";
+
 export interface PageHeaderFooterOptions {
-  text?: string | ((index: number, total: number) => string);
-  align?: "left" | "center" | "right";
+  textFormat?: string;
+  align?: TextAlign;
   height?: number;
   HTMLAttributes?: Record<string, any>;
 }

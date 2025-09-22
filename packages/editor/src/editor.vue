@@ -91,13 +91,13 @@ const editor = useEditor({
     Document,
     Page.configure({
       header: {
-        text: "页眉",
+        textFormat: "页眉",
         height: 35,
         align: "right",
         headerLine: true,
       },
       footer: {
-        text: (index, total) => `第${index}页，共${total}页`,
+        textFormat: `第$index页，共$total页`,
       },
     }),
     LayoutMode.configure({

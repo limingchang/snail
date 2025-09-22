@@ -70,7 +70,7 @@ export const defaultPageFooter = {
 export const defaultPages = {
   type: "page",
   content: [
-    { type: "pageHeader", content: [] },
+    { type: "pageHeader" },
     {
       type: "pageContent",
       content: [
@@ -80,5 +80,6 @@ export const defaultPages = {
         defaultFeatureParagraph,
       ],
     },
+    { type: "pageFooter" },
   ],
 };

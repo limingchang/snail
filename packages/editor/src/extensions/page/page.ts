@@ -1,20 +1,23 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 
-import { PageOptions } from "./typing/page";
+import { PageOptions,PageStorage } from "./typing/page";
 
 import { PageHeader } from "./pageHeader/pageHeader";
+import { PageFooter } from "./pageFooter";
 import { PageContent } from "./pageContent/pageContent";
 
 import { defaultMargins } from "./constant/defaultMargins";
 import { paperSizeCalculator } from "./utils/calculator";
+import { createPage } from "./utils/createPage";
 import { createPageContent } from "./utils/createPageContent";
 import { createPageHeader } from "./utils/createPageHeader";
+import {} from "./utils/createPageFooter";
 
-export const Page = Node.create<PageOptions>({
+export const Page = Node.create<PageOptions,PageStorage>({
   name: "page",
   group: "page",
   priority: 1001,
-  content: "(pageHeader | pageContent )*",
+  content: "(pageHeader | pageContent | pageFooter)*",
 
   addOptions() {
     return {
@@ -27,7 +30,16 @@ export const Page = Node.create<PageOptions>({
     };
   },
   addExtensions() {
-    return [PageHeader.configure(this.options.header), PageContent];
+    return [
+      PageHeader.configure(this.options.header),
+      PageContent,
+      PageFooter.configure(this.options.footer),
+    ];
+  },
+  addStorage() {
+    return {
+      total: 0,
+    };
   },
 
   addAttributes() {
@@ -82,6 +94,8 @@ export const Page = Node.create<PageOptions>({
       );
       page.style.width = `${width}mm`;
       page.style.height = `${height}mm`;
+      this.storage.total += 1;
+      console.log('page view rendered')
       return {
         dom: page,
         contentDOM: page,
@@ -110,71 +124,31 @@ export const Page = Node.create<PageOptions>({
           });
           commands.__flushContentPadding();
           commands.__flushHeader();
+          commands.__flushFooter();
           return true;
         },
       addNewPage() {
-        return ({ editor, tr, dispatch, commands, chain }) => {
-          const nodeType = editor.schema.nodes["page"];
-          const total = editor.$nodes("page")?.length || 0;
+        return ({ editor, tr, dispatch, commands }) => {
+          // const nodeType = editor.schema.nodes["page"];
+          const total = editor.storage.page.total;
           const doc = editor.$doc;
-          console.log("doc", " pos", doc.pos, " size", doc.size);
-          const pageHeaderNodes = editor.$nodes("pageHeader");
-          const pageHeaderAttrs =
-            pageHeaderNodes === null ? null : pageHeaderNodes[0].attributes;
-          const pageHeader = createPageHeader(editor.schema, pageHeaderAttrs);
-          const pageContentNodes = editor.$nodes("pageContent");
-          console.log(
-            "page",
-            " pos",
-            editor.$nodes("page")[0].pos,
-            " size",
-            editor.$nodes("page")[0].size
-          );
-          const pageContenAttrs =
-            pageContentNodes === null ? null : pageContentNodes[0].attributes;
-          const pageContent = createPageContent(editor.schema, pageContenAttrs);
-          const newPageNode = nodeType.create({ index: total + 1 }, [
-            pageHeader,
-            pageContent,
-          ]);
-          console.log("newPageNode", newPageNode);
-          const insertPos = editor.$doc.size - 2;
-          const selection = editor.state.selection;
-
-          const json = editor.getJSON();
-          const newJson = {
-            ...json,
-            content: [...json.content, newPageNode.toJSON()],
-          };
-          console.log("newJson", newJson);
-          const result = commands.setContent(newJson, {
-            errorOnInvalidContent: true,
+          const insertPos = doc.size - 2;
+          // const pageExtension = editor.extensionManager.extensions.find(
+          //   (extension) => extension.name === "page"
+          // );
+          // const { paperFormat, orientation } =
+          //   pageExtension?.options as PageOptions;
+          const newPageNode = createPage(editor, {
+            index: total,
           });
-          console.log("result", result);
+
+          commands.insertContentAt(insertPos, newPageNode);
           if (dispatch) {
             dispatch(tr);
           }
-          // return chain().insertContentAt(insertPos, newPageNode).run();
-          // return chain()
-          //   .insertContent({
-          //     type: "variable",
-          //     attrs: {
-          //       label: "测试",
-          //     },
-          //   })
-          //   .run();
-
-          // return commands.insertContentAt(
-          //   // insertPos,
-          //   1,
-          //   nodeType.create({ index: total + 1 }, [pageContent])
-          // );
-          // if (dispatch) {
-          //   tr.insert(
-          //     tr.selection.from,
-          //     nodeType.create({ index: total + 1 }, [pageContent])
-          //   );
-          // }
+          commands.__flushHeader();
+          commands.__flushFooter();
+          
           return true;
         };
       },
