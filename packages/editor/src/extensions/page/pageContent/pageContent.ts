@@ -1,7 +1,6 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { PageContentOptions } from "../typing/pageContent";
 import { PageContentView } from "./pageContentView";
-import { createAutoPageBreakManager, AutoPageBreakManager } from "../utils/autoPageBreakManager";
 
 export const PageContent = Node.create<PageContentOptions>({
   name: "pageContent",
@@ -39,37 +38,29 @@ export const PageContent = Node.create<PageContentOptions>({
       }),
     ];
   },
-  addStorage() {
-    return {
-      autoPageBreakManager: null as AutoPageBreakManager | null,
-    };
-  },
-
-  onCreate() {
-    // 初始化自动换页管理器
-    this.storage.autoPageBreakManager = createAutoPageBreakManager(this.editor, {
-      enabled: true,
-      breakThreshold: 0.95,
-      preserveWords: true,
-      preserveParagraphs: false,
-      debounceDelay: 100,
-      maxRetries: 3
-    });
-  },
-
   onUpdate({ editor, transaction, appendedTransactions }) {
-    // 触发自动换页检查
-    if (this.storage.autoPageBreakManager) {
-      this.storage.autoPageBreakManager.handleUpdate(transaction);
-    }
-  },
-
-  onDestroy() {
-    // 清理自动换页管理器资源
-    if (this.storage.autoPageBreakManager) {
-      this.storage.autoPageBreakManager.dispose();
-      this.storage.autoPageBreakManager = null;
-    }
+    const state = editor.state;
+    console.log("doc->from:",editor.$doc.from,"to:",editor.$doc.to)
+    const { selection } = transaction;
+    const { from, to } = selection;
+    console.log("selection->from:",from,"to:",to)
+    const pageContents = editor.$nodes("pageContent");
+    if (pageContents == null) return;
+    pageContents.forEach((pageContent) => {
+      console.log("pageContent->from:", pageContent.from, "to:", pageContent.to);
+      if (pageContent.from >= from && pageContent.to <= to) {
+        console.log(pageContent);
+      }
+    });
+    // state.doc.descendants((node, pos) => {
+    //   if (
+    //     node.type.name === "pageContent" &&
+    //     pos <= selection.from &&
+    //     pos + node.nodeSize > selection.from
+    //   ) {
+    //     console.log("pageContent:", node);
+    //   }
+    // });
   },
   addNodeView: PageContentView,
 
@@ -87,7 +78,7 @@ export const PageContent = Node.create<PageContentOptions>({
           });
           return true;
         },
-      
+
       enableAutoPageBreak:
         () =>
         ({ editor }) => {

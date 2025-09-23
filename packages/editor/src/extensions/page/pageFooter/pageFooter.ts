@@ -135,7 +135,7 @@ export const PageFooter = Node.create<PageFooterOptions>({
           pageFooters?.forEach((node) => {
             const index = node.attributes.index || 1;
             const total = editor.storage.page.total;
-            console.log("footer->attributes", node.attributes);
+            // console.log("footer->attributes", node.attributes);
             const footer = createPageFooter(
               editor.schema,
               node.attributes as PageFooterAttributes,
