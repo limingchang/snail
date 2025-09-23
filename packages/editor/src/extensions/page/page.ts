@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
-import { PageOptions,PageStorage } from "./typing/page";
+import { PageOptions, PageStorage } from "./typing/page";
 
 import { PageHeader } from "./pageHeader/pageHeader";
 import { PageFooter } from "./pageFooter";
@@ -9,11 +10,9 @@ import { PageContent } from "./pageContent/pageContent";
 import { defaultMargins } from "./constant/defaultMargins";
 import { paperSizeCalculator } from "./utils/calculator";
 import { createPage } from "./utils/createPage";
-import { createPageContent } from "./utils/createPageContent";
-import { createPageHeader } from "./utils/createPageHeader";
-import {} from "./utils/createPageFooter";
 
-export const Page = Node.create<PageOptions,PageStorage>({
+
+export const Page = Node.create<PageOptions, PageStorage>({
   name: "page",
   group: "page",
   priority: 1001,
@@ -82,7 +81,12 @@ export const Page = Node.create<PageOptions,PageStorage>({
       0,
     ];
   },
-
+  onCreate() {
+    // console.log("create:", this.editor.$nodes("page"));
+    const pages = this.editor.$nodes("page");
+    this.storage.total = pages == null ? 0 : pages.length;
+  },
+  
   addNodeView() {
     return () => {
       const page = document.createElement("section");
@@ -94,8 +98,8 @@ export const Page = Node.create<PageOptions,PageStorage>({
       );
       page.style.width = `${width}mm`;
       page.style.height = `${height}mm`;
-      this.storage.total += 1;
-      console.log('page view rendered')
+      page.style.breakAfter = "page";
+
       return {
         dom: page,
         contentDOM: page,
@@ -130,7 +134,7 @@ export const Page = Node.create<PageOptions,PageStorage>({
       addNewPage() {
         return ({ editor, tr, dispatch, commands }) => {
           // const nodeType = editor.schema.nodes["page"];
-          const total = editor.storage.page.total;
+          const total = (editor.storage.page.total += 1);
           const doc = editor.$doc;
           const insertPos = doc.size - 2;
           // const pageExtension = editor.extensionManager.extensions.find(
@@ -148,10 +152,48 @@ export const Page = Node.create<PageOptions,PageStorage>({
           }
           commands.__flushHeader();
           commands.__flushFooter();
-          
+
           return true;
         };
       },
+      setPageOrientation:
+        (orientation) =>
+        ({ editor, tr, state, commands, dispatch }) => {
+          const { selection } = state;
+          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (
+              node.type.name === "page" &&
+              pos <= selection.from &&
+              pos + node.nodeSize > selection.from
+            ) {
+              tr.setNodeAttribute(pos, "orientation", orientation);
+              if (dispatch) {
+                dispatch(tr);
+              }
+              return false; // 停止遍历
+            }
+          });
+          return true;
+        },
+      setPageFormat:
+        (paperFormat) =>
+        ({ editor, tr, state, commands, dispatch }) => {
+          const { selection } = state;
+          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (
+              node.type.name === "page" &&
+              pos <= selection.from &&
+              pos + node.nodeSize > selection.from
+            ) {
+              tr.setNodeAttribute(pos, "paperFormat", paperFormat);
+              if (dispatch) {
+                dispatch(tr);
+              }
+              return false; // 停止遍历
+            }
+          });
+          return true;
+        },
     };
   },
 });

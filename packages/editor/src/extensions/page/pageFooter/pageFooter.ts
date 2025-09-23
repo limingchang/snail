@@ -1,13 +1,13 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { PageHeaderOptions } from "../typing/pageHeader";
-// import { PageHeaderView } from "./pageHeaderView";
+import { PageFooterOptions, PageFooterAttributes } from "../typing/pageFooter";
+
 import { defaultMargins } from "../constant/defaultMargins";
 import { headerFooterTextCalculator } from "../utils/calculator";
 import { createTextMark } from "../utils/createTextMark";
 import { createParagraph } from "../utils/createParagraph";
+import { createPageFooter } from "../utils/createPageFooter";
 
-export const PageFooter = Node.create<PageHeaderOptions>({
+export const PageFooter = Node.create<PageFooterOptions>({
   name: "pageFooter",
   group: "page",
   content: "block*",
@@ -18,7 +18,7 @@ export const PageFooter = Node.create<PageHeaderOptions>({
       textFormat: "",
       align: "center",
       height: 50,
-      headerLine: false,
+      footerLine: false,
       HTMLAttributes: {
         class: "page-footer",
       },
@@ -32,11 +32,11 @@ export const PageFooter = Node.create<PageHeaderOptions>({
       height: {
         default: this.options.height,
       },
-      footerLing: {
-        default: this.options.headerLine,
+      align: {
+        default: this.options.align,
       },
-      _updateTimestamp: {
-        default: Date.now(),
+      footerLing: {
+        default: this.options.footerLine,
       },
     };
   },
@@ -56,7 +56,7 @@ export const PageFooter = Node.create<PageHeaderOptions>({
   },
   addNodeView() {
     return ({ node, getPos, editor, view }) => {
-      // 创建页眉容器
+      // 创建页脚容器
       const pageHeader = document.createElement("div");
       pageHeader.classList.add("page-footer");
       pageHeader.style.position = "absolute";
@@ -78,10 +78,7 @@ export const PageFooter = Node.create<PageHeaderOptions>({
       pageHeader.style.left = `calc(${
         typeof margins.left === "number" ? `${margins.left}px` : margins.left
       } + 1px)`;
-      // pageHeader.style.textAlign = this.options.align || "right";
-      // pageHeader.style.fontFamily = "KaiTi, serif";
-      // pageHeader.style.fontSize = "9pt";
-      // pageHeader.style.border = "1px solid #fff";
+
       setTimeout(() => {
         const currentPos = getPos();
         if (currentPos === undefined) return;
@@ -91,7 +88,7 @@ export const PageFooter = Node.create<PageHeaderOptions>({
         // const pages = editor.$nodes("page");
         const index = pageNodePos.attributes.index || 1;
         const total = editor.storage.page.total;
-        console.log("index", index, "total", total);
+        console.log("footer->index", index, "total", total);
         const text = headerFooterTextCalculator(
           index,
           total,
@@ -119,7 +116,7 @@ export const PageFooter = Node.create<PageHeaderOptions>({
       // const insertPos = (getPos() || 1) + 1;
 
       // pageHeader.innerText = text;
-      if (this.options.headerLine) {
+      if (this.options.footerLine) {
         pageHeader.style.borderBottom = "1px solid #000";
       }
       return {
@@ -131,30 +128,27 @@ export const PageFooter = Node.create<PageHeaderOptions>({
   addCommands() {
     return {
       __flushFooter() {
-        return ({ editor, tr, state, dispatch }) => {
-          const pageFooters = editor.$nodes("pageFooter")
-          console.log('pageFooters:',pageFooters)
-          const pages = editor.$nodes("page");
-          pages?.forEach((pageNode) => { 
-            console.log('pageNode:',pageNode)
-          });
-          state.doc.descendants((node: ProseMirrorNode, pos: number) => {
-            if (node.type.name === "pageFooter") {
-              tr.setNodeAttribute(pos, "_updateTimestamp", Date.now());
-              console.log("flush footer",node);
-              if (dispatch) {
-                dispatch(tr);
-              }
+        return ({ editor, tr, state, dispatch, commands }) => {
+          const pageFooters = editor.$nodes("pageFooter");
+          // console.log("pageFooters:", pageFooters);
+          // const pages = editor.$nodes("page");
+          pageFooters?.forEach((node) => {
+            const index = node.attributes.index || 1;
+            const total = editor.storage.page.total;
+            console.log("footer->attributes", node.attributes);
+            const footer = createPageFooter(
+              editor.schema,
+              node.attributes as PageFooterAttributes,
+              index,
+              total
+            );
+            tr.delete(node.pos - 1, node.pos + node.size - 1);
+            tr.insert(node.pos - 1, footer);
+            console.log("flush footer:", `${index}-${total}`);
+            if (dispatch) {
+              dispatch(tr);
             }
           });
-          // const pageHeaders = editor.$nodes("pageFooter");
-          // console.log("page-footer-flush", pageHeaders);
-          // pageHeaders?.forEach((node) => {
-          //   tr.setNodeAttribute(node.pos - 1, "_updateTimestamp", Date.now());
-          //   if (dispatch) {
-          //     dispatch(tr);
-          //   }
-          // });
           return true;
         };
       },

@@ -1,9 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { PageContentOptions } from "../typing/pageContent";
-
 import { PageContentView } from "./pageContentView";
-
-import {defaultMargins} from '../constant/defaultMargins'
+import { createAutoPageBreakManager, AutoPageBreakManager } from "../utils/autoPageBreakManager";
 
 export const PageContent = Node.create<PageContentOptions>({
   name: "pageContent",
@@ -18,7 +16,6 @@ export const PageContent = Node.create<PageContentOptions>({
   },
   addAttributes() {
     return {
-      
       // margins:{
       //   default: defaultMargins,
       // }
@@ -42,12 +39,45 @@ export const PageContent = Node.create<PageContentOptions>({
       }),
     ];
   },
+  addStorage() {
+    return {
+      autoPageBreakManager: null as AutoPageBreakManager | null,
+    };
+  },
+
+  onCreate() {
+    // 初始化自动换页管理器
+    this.storage.autoPageBreakManager = createAutoPageBreakManager(this.editor, {
+      enabled: true,
+      breakThreshold: 0.95,
+      preserveWords: true,
+      preserveParagraphs: false,
+      debounceDelay: 100,
+      maxRetries: 3
+    });
+  },
+
+  onUpdate({ editor, transaction, appendedTransactions }) {
+    // 触发自动换页检查
+    if (this.storage.autoPageBreakManager) {
+      this.storage.autoPageBreakManager.handleUpdate(transaction);
+    }
+  },
+
+  onDestroy() {
+    // 清理自动换页管理器资源
+    if (this.storage.autoPageBreakManager) {
+      this.storage.autoPageBreakManager.dispose();
+      this.storage.autoPageBreakManager = null;
+    }
+  },
   addNodeView: PageContentView,
 
-  addCommands(){
+  addCommands() {
     return {
-      __flushContentPadding:()=>
-        ({editor,tr,dispatch})=>{
+      __flushContentPadding:
+        () =>
+        ({ editor, tr, dispatch }) => {
           const pageContents = editor.$nodes("pageContent");
           pageContents?.forEach((node) => {
             tr.setNodeAttribute(node.pos - 1, "_updateTimestamp", Date.now());
@@ -56,31 +86,58 @@ export const PageContent = Node.create<PageContentOptions>({
             }
           });
           return true;
-        }
-    }
-  }
+        },
+      
+      enableAutoPageBreak:
+        () =>
+        ({ editor }) => {
+          const manager = this.storage.autoPageBreakManager;
+          if (manager) {
+            manager.enable();
+            return true;
+          }
+          return false;
+        },
 
-  // addCommands() {
-  //   return {
-  //     setPageMargins:
-  //       (margins) =>
-  //       ({editor, tr, dispatch }) => { 
-  //         const pages = editor.$nodes("pageContent");
-  //         pages?.forEach((pageNode) => {
-  //           const pos = pageNode.pos;
-  //           const newMargins = Object.assign(
-  //             {},
-  //             pageNode.attributes.margins,
-  //             margins
-  //           );
-  //           tr.setNodeAttribute(pos - 1, "margins", newMargins);
-  //           if (dispatch) {
-  //             dispatch(tr);
-  //           }
-  //           console.log(pos, newMargins);
-  //         });
-  //         return true;
-  //       },
-  //   }
-  // },
+      disableAutoPageBreak:
+        () =>
+        ({ editor }) => {
+          const manager = this.storage.autoPageBreakManager;
+          if (manager) {
+            manager.disable();
+            return true;
+          }
+          return false;
+        },
+
+      triggerAutoPageBreak:
+        () =>
+        ({ editor }) => {
+          const manager = this.storage.autoPageBreakManager;
+          if (manager) {
+            manager.triggerManualCheck();
+            return true;
+          }
+          return false;
+        },
+
+      configureAutoPageBreak:
+        (options) =>
+        ({ editor }) => {
+          const manager = this.storage.autoPageBreakManager;
+          if (manager) {
+            manager.updateOptions(options);
+            return true;
+          }
+          return false;
+        },
+
+      getAutoPageBreakStatus:
+        () =>
+        ({ editor }) => {
+          const manager = this.storage.autoPageBreakManager;
+          return manager ? manager.getStatus() : null;
+        },
+    };
+  },
 });
