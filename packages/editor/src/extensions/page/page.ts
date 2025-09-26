@@ -152,7 +152,7 @@ export const Page = Node.create<PageOptions, PageStorage>({
           }
           commands.__flushHeader();
           commands.__flushFooter();
-
+          tr.scrollIntoView()
           return true;
         };
       },

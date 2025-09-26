@@ -134,7 +134,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
           pageHeaders?.forEach((node) => {
             const index = node.attributes.index || 1;
             const total = editor.storage.page.total;
-            console.log("footer->attributes", node.attributes);
+            // console.log("Header->attributes", node.attributes);
             const footer = createPageHeader(
               editor.schema,
               node.attributes as PageHeaderAttributes,

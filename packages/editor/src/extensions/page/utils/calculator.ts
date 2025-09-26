@@ -1,8 +1,6 @@
 import { defaultPaper } from "../constant/defaultPaper";
 import type { PaperOrientation, PaperFormat } from "../typing/public";
 
-
-
 /**
  * 纸张尺寸计算器，根据纸张类型和方向返回尺寸
  * @param {PaperFormat} paperFormat 格式化纸张类型
@@ -48,4 +46,37 @@ export const headerFooterTextCalculator = (
     .replace(/#/g, index.toString())
     .replace(/\$total/g, total.toString())
     .replace(/&/g, total.toString());
+};
+
+/**
+ * 计算子元素高度
+ * @param element
+ * @returns
+ */
+export const childrenHeightCalculator = (element: HTMLElement) => {
+  const children = element.children;
+  let childrenHeight = 0;
+  for (const child of children) {
+    // console.log(child.tagName)
+    if(child.tagName === 'IMG') continue;
+    const style = window.getComputedStyle(child);
+    const marginTop = parseFloat(style.marginTop);
+    const marginBottom = parseFloat(style.marginBottom);
+    const height = (child as HTMLElement).offsetHeight;
+    const completeHeight = height + marginTop + marginBottom;
+    childrenHeight += completeHeight;
+  }
+  return childrenHeight;
+};
+
+/**
+ * 计算页面content可用高度
+ * @param element 
+ * @returns 
+ */
+export const availableHeightCalculator = (element: HTMLElement) => {
+  const styles = window.getComputedStyle(element);
+  const paddingTop = parseFloat(styles.paddingTop);
+  const paddingBottom = parseFloat(styles.paddingBottom);
+  return element.clientHeight - paddingTop - paddingBottom;
 };
