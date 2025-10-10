@@ -10,6 +10,9 @@ import {
   availableHeightCalculator,
 } from "../utils/calculator";
 
+// import {getPageContentNodePos} from "../utils/getPageContentNodePos"
+import { checkNextPage } from "../utils/checkNextPage";
+
 export const PageContent = Node.create<PageContentOptions>({
   name: "pageContent",
   group: "page",
@@ -68,41 +71,56 @@ export const PageContent = Node.create<PageContentOptions>({
       // 获取最后一个子元素
       const lastChild = pageContent.lastChild;
       if (!lastChild) return;
-
+      // 检查是否有下一页,获取下一个页面的pageContent
+      const nextPageContent = checkNextPage(pageContent, editor);
       // 获取下一个页面的pageContent
-      let nextPageContent: { node: ProseMirrorNode; pos: number } | null = null;
-      const currentPageNode =
-        pageContent.node.type.name === "pageContent"
-          ? editor.state.doc.nodeAt(pageContent.pos - 1)
-          : null;
+      // let nextPageContent: { node: ProseMirrorNode; pos: number } | null = null;
+      // const currentPageNode =
+      //   pageContent.node.type.name === "pageContent"
+      //     ? editor.state.doc.nodeAt(pageContent.pos - 1)
+      //     : null;
 
-      if (currentPageNode) {
-        const currentPagePos = pageContent.pos - 1;
-        const nextPagePos = currentPagePos + currentPageNode.nodeSize;
+      // if (currentPageNode) {
+      //   const currentPagePos = pageContent.pos - 1;
+      //   const nextPagePos = currentPagePos + currentPageNode.nodeSize;
 
-        // 检查是否有下一页
-        if (nextPagePos < editor.state.doc.content.size) {
-          const nextPageNode = editor.state.doc.nodeAt(nextPagePos);
-          if (nextPageNode && nextPageNode.type.name === "page") {
-            // 找到下一页的pageContent
-            editor.state.doc.nodesBetween(
-              nextPagePos,
-              nextPagePos + nextPageNode.nodeSize,
-              (node, pos) => {
-                if (node.type.name === "pageContent") {
-                  nextPageContent = { node, pos };
-                  return false;
-                }
-                return true;
-              }
-            );
+      // if (nextPagePos < editor.state.doc.content.size) {
+      //   const nextPageNode = editor.state.doc.nodeAt(nextPagePos);
+      //   if (nextPageNode && nextPageNode.type.name === "page") {
+      //     // 找到下一页的pageContent
+      //     editor.state.doc.nodesBetween(
+      //       nextPagePos,
+      //       nextPagePos + nextPageNode.nodeSize,
+      //       (node, pos) => {
+      //         if (node.type.name === "pageContent") {
+      //           nextPageContent = { node, pos };
+      //           return false;
+      //         }
+      //         return true;
+      //       }
+      //     );
+      //   }
+      // }
+      // }
+      if (lastChild.textContent.length === 0) {
+        console.log("空行溢出处理！");
+        // 删除空段落，插入新页面或跳转下一页在开头插入空行
+        // transaction.delete(lastChild.pos, lastChild.pos + lastChild.size);
+        if (nextPageContent === null) {
+          editor.chain().addNewPage().run();
+          selection.replaceWith(transaction, lastChild.node);
+          editor.chain().deleteCurrentNode().run();
+          const newPage = editor.$doc.lastChild;
+          console.log("newPage:", newPage);
+          if (newPage && newPage.node.type.name === "page") {
+            const newPageContent = newPage.children[1]
+            editor.chain().setTextSelection(newPageContent.pos+1).run();
           }
         }
-      }
-      if(lastChild.textContent.length === 0){
-        console.log("空行溢出处理！")
-        // 删除空段落，插入新页面或跳转下一页在开头插入空行
-        return
+
+        // 刷新当前页面
+        console.log("doc:", editor.getJSON());
+        return;
       }
       // 处理溢出内容
       const lastChildElement = lastChild.element;
@@ -123,7 +141,10 @@ export const PageContent = Node.create<PageContentOptions>({
 
       // 获取最后一个元素的文本内容
       const lastChildContent = lastChild.node.textContent;
-      console.log("最后一个元素的文本内容lastChildContentLength:", lastChildContent.length);
+      console.log(
+        "最后一个元素的文本内容lastChildContentLength:",
+        lastChildContent.length
+      );
 
       // 如果是段落元素，需要处理文本分割
       if (lastChild.node.type.name === "paragraph") {
@@ -138,7 +159,6 @@ export const PageContent = Node.create<PageContentOptions>({
           lastChildContent.length
         );
         console.log("需要移动的字符数charsToMove:", charsToMove);
-
 
         // 分割文本
         const keepText = lastChildContent.slice(
@@ -173,7 +193,6 @@ export const PageContent = Node.create<PageContentOptions>({
           //   slice
           // );
           // editor.view.dispatch(tr);
-
           // 如果有下一页，将溢出内容移到下一页
           // if (nextPageContent) {
           //   const insertPos =
@@ -188,7 +207,6 @@ export const PageContent = Node.create<PageContentOptions>({
           // } else {
           //   // 没有下一页，创建新页面
           //   editor.chain().addNewPage().run();
-
           //   // 获取新创建的页面的pageContent
           //   const newPageContent = editor.$doc.lastChild;
           //   console.log("newPageContent:", newPageContent);
@@ -221,8 +239,7 @@ export const PageContent = Node.create<PageContentOptions>({
         // 对于非段落元素，直接移动整个节点
         if (nextPageContent) {
           // 有下一页，移动到下一页
-          const insertPos =
-            (nextPageContent as { node: ProseMirrorNode; pos: number }).pos + 1;
+          const insertPos = nextPageContent.pos + 1;
           editor
             .chain()
             .setTextSelection(insertPos)
