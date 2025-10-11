@@ -77,7 +77,7 @@ export const PageContent = Node.create<PageContentOptions>({
         console.log("空行溢出处理！");
         // 删除空段落，插入新页面或跳转下一页在开头插入空行
         // transaction.delete(lastChild.pos, lastChild.pos + lastChild.size);
-        console.log("nextPageNodeAndPos:", nextPageNodePos);
+        // console.log("nextPageNodeAndPos:", nextPageNodePos);
         if (nextPageNodePos === null) {
           selection.replaceWith(transaction, lastChild.node);
           editor.chain().deleteCurrentNode().run();
@@ -106,16 +106,17 @@ export const PageContent = Node.create<PageContentOptions>({
                 textIndent: "2em",
               },
             })
-            .setTextSelection(nextPageNodePos.children[1].pos-1)
+            .setTextSelection(nextPageNodePos.children[1].pos - 1)
             .run();
         }
-
-        // 刷新当前页面
-        console.log("doc:", editor.getJSON());
+        // console.log("doc:", editor.getJSON());
         return;
       }
       // 处理溢出内容
-      const lastChildElement = lastChild.element;
+      const lastChildElement =
+        lastChild.element.querySelector("span") || lastChild.element;
+      console.log("lastChild:", lastChild);
+      console.log("lastChildElement:", lastChildElement);
       const style = window.getComputedStyle(lastChildElement);
       const fontSize = parseFloat(style.fontSize);
       const lineHeight =
@@ -124,11 +125,20 @@ export const PageContent = Node.create<PageContentOptions>({
           : parseFloat(style.lineHeight);
       console.log("字体大小fontSize:", fontSize);
       console.log("行高lineHeight:", lineHeight);
+      console.log("字符间距：", style.wordSpacing);
       // 计算溢出的高度
       const overflowHeight = contentHeight - availableHeight;
       console.log("溢出高度overflowHeight:", overflowHeight);
+      // 计算行数
+      const lines = Math.floor(lastChild.element.clientHeight / lineHeight);
+      console.log(
+        "lastChildElement clientHeight:",
+        lastChild.element.clientHeight,
+        "行数lines:",
+        lines
+      );
       // 计算溢出的行数（向上取整）
-      const overflowLines = Math.floor(overflowHeight / lineHeight);
+      const overflowLines = Math.ceil(overflowHeight / lineHeight);
       console.log("溢出行数overflowLines:", overflowLines);
 
       // 获取最后一个元素的文本内容
@@ -141,17 +151,18 @@ export const PageContent = Node.create<PageContentOptions>({
       // 如果是段落元素，需要处理文本分割
       if (lastChild.node.type.name === "paragraph") {
         // 估算每行的平均字符数
-        const avgCharsPerLine = Math.ceil(
-          lastChildElement.clientWidth / fontSize
-        );
+        const avgCharsPerLine =
+          Math.ceil(lastChild.element.clientWidth / fontSize) - 1;
         console.log("平均字符数avgCharsPerLine:", avgCharsPerLine);
+        // 统计有多少个英文字符
+        const englishChars = lastChildContent.match(/[a-zA-Z]/g)?.length || 0;
+        console.log("英文字符数englishChars:", englishChars);
         // 估算需要移动的字符数
-        const charsToMove = Math.min(
-          overflowLines * avgCharsPerLine,
-          lastChildContent.length
-        );
+        const charsToMove = lastChildContent.length - (lines - overflowLines) * avgCharsPerLine;
+
         console.log("需要移动的字符数charsToMove:", charsToMove);
 
+        console.log("英文字符数englishChars:", englishChars);
         // 分割文本
         const keepText = lastChildContent.slice(
           0,
@@ -160,78 +171,55 @@ export const PageContent = Node.create<PageContentOptions>({
         const moveText = lastChildContent.slice(
           lastChildContent.length - charsToMove
         );
-
+        console.log("keepText:", keepText, "len:", keepText.length);
+        console.log("moveText:", moveText, "len:", moveText.length);
         if (moveText) {
           // 更新当前段落
-          // const tr = editor.state.tr;
-          // const schema = editor.schema;
-          // tr.setNodeMarkup(
-          //   lastChild.pos - 1,
-          //   null,
-          //   lastChild.node.attrs
-          // );
-          // tr.insertText(
-          //   keepText,
-          //   lastChild.pos - 1,
-          //   lastChild.pos - 1 + lastChildContent.length
-          // );
-          // console.log("keepText:", keepText, "len:", keepText.length);
-          // console.log("moveText:", moveText, "len:", moveText.length);
-          // const slice = lastChild.node.slice(1, keepText.length);
-          // console.log("slice:", slice);
-          // tr.replace(
-          //   lastChild.pos - 1,
-          //   lastChild.pos - 1 + lastChildContent.length,
-          //   slice
-          // );
-          // editor.view.dispatch(tr);
+          const schema = editor.schema;
+          const tr = editor.state.tr;
+          // console.log("text-marks:", lastChild.node.lastChild?.marks);
+          const textMarks = lastChild.node.lastChild?.marks || [];
+          const slice = lastChild.node.slice(0, keepText.length, true);
+          // const slice = pageContent.node.slice()
+          console.log("slice:", slice);
+          tr.replace(
+            lastChild.pos,
+            lastChild.pos + lastChildContent.length,
+            slice
+          );
+          editor.view.dispatch(tr);
           // 如果有下一页，将溢出内容移到下一页
-          // if (nextPageContent) {
-          //   const insertPos =
-          //     (nextPageContent as { node: ProseMirrorNode; pos: number }).pos +
-          //     1; // +1 是为了进入pageContent的内容
-          //   editor
-          //     .chain()
-          //     .setParagraph()
-          //     .setTextSelection(insertPos)
-          //     .insertContent(moveText)
-          //     .run();
-          // } else {
-          //   // 没有下一页，创建新页面
-          //   editor.chain().addNewPage().run();
-          //   // 获取新创建的页面的pageContent
-          //   const newPageContent = editor.$doc.lastChild;
-          //   console.log("newPageContent:", newPageContent);
-          //   if (newPageContent && newPageContent.node.type.name === "page") {
-          //     editor.state.doc.nodesBetween(
-          //       newPageContent.pos,
-          //       newPageContent.pos + newPageContent.size,
-          //       (node, pos) => {
-          //         if (node.type.name === "pageContent") {
-          //           // 在新页面的pageContent中插入溢出内容
-          //           editor
-          //             .chain()
-          //             .insertContentAt(
-          //               pos + 1,
-          //               editor.schema.nodes.paragraph.create(null,editor.schema.text(moveText))
-          //             )
-          //             // .setParagraph()
-          //             // .setTextSelection(pos + 1)
-          //             // .insertContent(moveText)
-          //             .run();
-          //           return false;
-          //         }
-          //         return true;
-          //       }
-          //     );
-          //   }
-          // }
+          if (nextPageNodePos) {
+            const insertPos = nextPageNodePos.children[1].pos - 1;
+            editor
+              .chain()
+              .insertContentAt(insertPos, schema.text(moveText, textMarks))
+              .run();
+          } else {
+            // 没有下一页，创建新页面
+            editor.chain().addNewPage().run();
+            const newPage = editor.$doc.lastChild;
+            console.log("newPage:", newPage);
+            if (newPage && newPage.node.type.name === "page") {
+              const newPageContent = newPage.children[1];
+              const insertPos = newPageContent.pos + 1;
+              editor
+                .chain()
+                .setTextSelection(newPageContent.pos + 1)
+                .run();
+              editor
+                .chain()
+                .insertContentAt(insertPos, schema.text(moveText, textMarks))
+                .run();
+            }
+          }
+         
         }
       } else {
         // 对于非段落元素，直接移动整个节点
-        if (nextPageContent) {
+        if (nextPageNodePos) {
           // 有下一页，移动到下一页
-          const insertPos = nextPageContent.pos + 1;
+          const insertPos = nextPageNodePos.pos + 1;
           editor
             .chain()
             .setTextSelection(insertPos)
