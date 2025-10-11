@@ -71,51 +71,43 @@ export const PageContent = Node.create<PageContentOptions>({
       // 获取最后一个子元素
       const lastChild = pageContent.lastChild;
       if (!lastChild) return;
-      // 检查是否有下一页,获取下一个页面的pageContent
-      const nextPageContent = checkNextPage(pageContent, editor);
-      // 获取下一个页面的pageContent
-      // let nextPageContent: { node: ProseMirrorNode; pos: number } | null = null;
-      // const currentPageNode =
-      //   pageContent.node.type.name === "pageContent"
-      //     ? editor.state.doc.nodeAt(pageContent.pos - 1)
-      //     : null;
-
-      // if (currentPageNode) {
-      //   const currentPagePos = pageContent.pos - 1;
-      //   const nextPagePos = currentPagePos + currentPageNode.nodeSize;
-
-      // if (nextPagePos < editor.state.doc.content.size) {
-      //   const nextPageNode = editor.state.doc.nodeAt(nextPagePos);
-      //   if (nextPageNode && nextPageNode.type.name === "page") {
-      //     // 找到下一页的pageContent
-      //     editor.state.doc.nodesBetween(
-      //       nextPagePos,
-      //       nextPagePos + nextPageNode.nodeSize,
-      //       (node, pos) => {
-      //         if (node.type.name === "pageContent") {
-      //           nextPageContent = { node, pos };
-      //           return false;
-      //         }
-      //         return true;
-      //       }
-      //     );
-      //   }
-      // }
-      // }
+      // 检查是否有下一页,获取下一个页面的PageNodePos
+      const nextPageNodePos = checkNextPage(editor, selection);
       if (lastChild.textContent.length === 0) {
         console.log("空行溢出处理！");
         // 删除空段落，插入新页面或跳转下一页在开头插入空行
         // transaction.delete(lastChild.pos, lastChild.pos + lastChild.size);
-        if (nextPageContent === null) {
-          editor.chain().addNewPage().run();
+        console.log("nextPageNodeAndPos:", nextPageNodePos);
+        if (nextPageNodePos === null) {
           selection.replaceWith(transaction, lastChild.node);
           editor.chain().deleteCurrentNode().run();
+          editor.chain().addNewPage().run();
           const newPage = editor.$doc.lastChild;
           console.log("newPage:", newPage);
           if (newPage && newPage.node.type.name === "page") {
-            const newPageContent = newPage.children[1]
-            editor.chain().setTextSelection(newPageContent.pos+1).run();
+            const newPageContent = newPage.children[1];
+            editor
+              .chain()
+              .setTextSelection(newPageContent.pos + 1)
+              .setParagraphStyle({ textIndent: "2em" })
+              .run();
           }
+        } else {
+          // 跳转下一页在开头插入空行
+          selection.replaceWith(transaction, lastChild.node);
+          editor.chain().deleteCurrentNode().run();
+          // 跳转下一页,插入新段落
+          editor
+            .chain()
+            .insertContentAt(nextPageNodePos.children[1].pos - 1, {
+              type: "paragraph",
+              text: "",
+              attrs: {
+                textIndent: "2em",
+              },
+            })
+            .setTextSelection(nextPageNodePos.children[1].pos-1)
+            .run();
         }
 
         // 刷新当前页面
