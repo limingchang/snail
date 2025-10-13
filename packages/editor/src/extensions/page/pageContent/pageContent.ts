@@ -13,6 +13,8 @@ import {
 // import {getPageContentNodePos} from "../utils/getPageContentNodePos"
 import { checkNextPage } from "../utils/checkNextPage";
 
+import { measureParagraphLines } from "../utils/measuror";
+
 export const PageContent = Node.create<PageContentOptions>({
   name: "pageContent",
   group: "page",
@@ -141,56 +143,38 @@ export const PageContent = Node.create<PageContentOptions>({
       const overflowLines = Math.ceil(overflowHeight / lineHeight);
       console.log("溢出行数overflowLines:", overflowLines);
 
-      // 获取最后一个元素的文本内容
-      const lastChildContent = lastChild.node.textContent;
-      console.log(
-        "最后一个元素的文本内容lastChildContentLength:",
-        lastChildContent.length
-      );
-
       // 如果是段落元素，需要处理文本分割
       if (lastChild.node.type.name === "paragraph") {
-        // 估算每行的平均字符数
-        const avgCharsPerLine =
-          Math.ceil(lastChild.element.clientWidth / fontSize) - 1;
-        console.log("平均字符数avgCharsPerLine:", avgCharsPerLine);
-        // 统计有多少个英文字符
-        const englishChars = lastChildContent.match(/[a-zA-Z]/g)?.length || 0;
-        console.log("英文字符数englishChars:", englishChars);
-        // 估算需要移动的字符数
-        const charsToMove = lastChildContent.length - (lines - overflowLines) * avgCharsPerLine;
-
-        console.log("需要移动的字符数charsToMove:", charsToMove);
-
-        console.log("英文字符数englishChars:", englishChars);
+        // canvas 测量每行字符数
+        const measurelines = measureParagraphLines(
+          lastChild.element as HTMLParagraphElement
+        );
+        console.log("measurelines:", measurelines);
         // 分割文本
-        const keepText = lastChildContent.slice(
-          0,
-          lastChildContent.length - charsToMove
-        );
-        const moveText = lastChildContent.slice(
-          lastChildContent.length - charsToMove
-        );
-        console.log("keepText:", keepText, "len:", keepText.length);
-        console.log("moveText:", moveText, "len:", moveText.length);
-        if (moveText) {
+        const keepLines = measurelines.slice(0, -overflowLines)
+        const moveLines = measurelines.slice(-overflowLines)
+        console.log("keepLines:", keepLines.length, "len:", keepLines.reduce((acc, cur) => acc + cur.text.length, 0));
+        console.log("moveLines:", moveLines.length, "len:", moveLines.reduce((acc, cur) => acc + cur.text.length, 0));
+        if (moveLines.length > 0) {
           // 更新当前段落
           const schema = editor.schema;
           const tr = editor.state.tr;
           // console.log("text-marks:", lastChild.node.lastChild?.marks);
           const textMarks = lastChild.node.lastChild?.marks || [];
-          const slice = lastChild.node.slice(0, keepText.length, true);
+          const len = keepLines.reduce((acc, cur) => acc + cur.text.length, 0)
+          const slice = lastChild.node.slice(0, len, true);
           // const slice = pageContent.node.slice()
           console.log("slice:", slice);
           tr.replace(
             lastChild.pos,
-            lastChild.pos + lastChildContent.length,
+            lastChild.pos + lastChild.size,
             slice
           );
           editor.view.dispatch(tr);
           // 如果有下一页，将溢出内容移到下一页
           if (nextPageNodePos) {
             const insertPos = nextPageNodePos.children[1].pos - 1;
+            const moveText = moveLines.map((item) => item.text).join("");
             editor
               .chain()
               .insertContentAt(insertPos, schema.text(moveText, textMarks))
@@ -203,6 +187,7 @@ export const PageContent = Node.create<PageContentOptions>({
             if (newPage && newPage.node.type.name === "page") {
               const newPageContent = newPage.children[1];
               const insertPos = newPageContent.pos + 1;
+              const moveText = moveLines.map((item) => item.text).join("");
               editor
                 .chain()
                 .setTextSelection(newPageContent.pos + 1)
@@ -213,7 +198,6 @@ export const PageContent = Node.create<PageContentOptions>({
                 .run();
             }
           }
-         
         }
       } else {
         // 对于非段落元素，直接移动整个节点
