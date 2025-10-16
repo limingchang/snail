@@ -66,12 +66,19 @@ import { ToolVariableOptions } from "../typing/index"
 import type { VariableAttrs } from "../extensions/variable/typing";
 import { VariableType } from "../extensions/variable/typing";
 
+import { eventEmitter } from "../eventEmitter";
+eventEmitter.on('variable:update', (attrs: VariableAttrs) => {
+    console.log(eventEmitter.events)
+    console.log(attrs)
+  })
+
 const props = defineProps<ToolVariableOptions & { editor?: Editor }>();
 
 const open = ref(false);
 
 onMounted(() => {
   // console.log(props)
+  
 })
 
 // 需要检查 VariableType 中是否有 InnerObject 类型

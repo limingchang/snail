@@ -10,12 +10,6 @@ export enum VariableType {
   Date = "date",
 }
 
-export interface InnerVariableOptions {
-  label: string;
-  key: string;
-  children?: Array<InnerVariableOptions>;
-}
-
 export type VariableAttrs = {
   label: string;
   type: VariableType;
@@ -24,7 +18,3 @@ export type VariableAttrs = {
   defaultValue?: any;
   value?: any;
 };
-
-export interface VariableOptions {
-  mode: "design" | "view";
-}

@@ -1,66 +1,88 @@
-import { mergeAttributes, Node } from '@tiptap/core'
-import { VueNodeViewRenderer } from '@tiptap/vue-3'
+import { mergeAttributes, Node } from "@tiptap/core";
+import { eventEmitter } from "../../eventEmitter";
 
-import TipTapVariable from './Variable.vue'
+// const { emit } = eventEmitter;
+// console.log(eventEmitter)
 
-import {VariableOptions,VariableAttrs} from './typing'
-
-// type 定义命令类型
-declare module '@tiptap/core' {
-  interface Commands<ReturnType> {
-    variable: {
-      insertVariable: (attrs:VariableAttrs) => ReturnType
-    }
-  }
-}
-
-export const Variable = Node.create<VariableOptions>({
-  name: 'variable',
+export const Variable = Node.create({
+  name: "variable",
   inline: true,
   group: "inline",
-  content: "text*",
   isolating: true,
+  content: "text*",
 
-  addOptions() {
-    return {
-      mode:"design",
-      HTMLAttributes: {},
-    }
-  },
-
-  addAttributes(){
+  addAttributes() {
     return {
       label: {
         default: "新变量",
       },
       type: {
         default: "text",
+        renderHTML(attributes) {
+          return {
+            "data-variable-type": attributes.type,
+          };
+        },
       },
       key: {
         default: "key",
+        renderHTML() {
+          return {};
+        },
       },
       desc: {
         default: "变量描述",
+        renderHTML() {
+          return {};
+        },
       },
       defaultValue: {
         default: "默认值",
+        renderHTML() {
+          return {};
+        },
       },
-    }
+      data: {
+        // 用于存储一些可以选择的值
+        default: undefined,
+        renderHTML() {
+          return {};
+        },
+      },
+    };
   },
-   parseHTML() {
+  parseHTML() {
+    return [{ tag: "span", "data-type": this.name }];
+  },
+  renderHTML({ HTMLAttributes, node }) {
     return [
-      {
-        tag: 'Variable',
-      },
-    ]
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": this.name,
+        "data-variable-type": node.attrs.type,
+      }),
+      0,
+    ];
   },
-  renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes), 0]
-  },
+
   addNodeView() {
-    return VueNodeViewRenderer(TipTapVariable)
+    return ({ node, getPos }) => {
+      const variable = document.createElement("span");
+      variable.classList.add("tiptap-variable");
+      variable.classList.add(`type-${node.attrs.type}`);
+      variable.textContent = `{${node.attrs.label}}`;
+      const clickHandle = (e: MouseEvent) => {
+        console.log(getPos());
+        eventEmitter.emit("variable:update", getPos(), node);
+      };
+      variable.addEventListener("click", clickHandle);
+      return {
+        dom: variable,
+      };
+    };
   },
-  addCommands(){
+
+  addCommands() {
     return {
       insertVariable:
         (attrs) =>
@@ -68,11 +90,10 @@ export const Variable = Node.create<VariableOptions>({
           return chain()
             .insertContent({
               type: this.name,
-              attrs
+              attrs,
             })
-            .selectNodeBackward()
-            .run()
+            .run();
         },
-    }
-  }
-})
+    };
+  },
+});

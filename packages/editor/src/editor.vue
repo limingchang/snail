@@ -1,27 +1,11 @@
 <template>
   <div class="s-editor">
-    <ToolBar
-      :editor="editor"
-      :options="options"
-      :tools="tools"
-      v-if="design"
-    ></ToolBar>
-    <EditorContent
-      class="editor-content"
-      :editor="editor"
-      :style="`--layout-line-style:${design ? 'dashed' : 'none'}`"
-    >
+    <ToolBar :editor="editor" :options="options" :tools="tools" v-if="design"></ToolBar>
+    <EditorContent class="editor-content" :editor="editor" :style="`--layout-line-style:${design ? 'dashed' : 'none'}`">
     </EditorContent>
     <div class="editor-footer">
-      <Button type="primary" :icon="h(FileWordOutlined)" @click="handlerExport"
-        >导出</Button
-      >
-      <Button
-        type="primary"
-        style="background-color: #f53f3f"
-        :icon="h(PrinterOutlined)"
-        >打印</Button
-      >
+      <Button type="primary" :icon="h(FileWordOutlined)" @click="handlerExport">导出</Button>
+      <Button type="primary" style="background-color: #f53f3f" :icon="h(PrinterOutlined)">打印</Button>
     </div>
   </div>
 </template>
@@ -196,15 +180,16 @@ $selectedBorderColor: #109968;
       background-color: #ccc;
       margin: 0;
       padding: 0;
-      display:flex !important;
+      display: flex !important;
       align-items: center;
       flex-direction: column;
       gap: 8px;
+
       .s-editor-page {
         background-color: #fff;
         border-radius: 8px;
       }
-      
+
       &.resize-cursor {
         cursor: ew-resize;
         cursor: col-resize;
@@ -220,7 +205,7 @@ $selectedBorderColor: #109968;
           display: flex;
 
           /* 在设计模式下的边框提示 */
-          &:hover > div {
+          &:hover>div {
             border: 1px dashed #1677ff;
             // box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
           }
@@ -248,17 +233,58 @@ $selectedBorderColor: #109968;
           contain: layout style;
 
           /* 强制所有子元素保持在容器内 */
-          > * {
+          >* {
             max-width: 100%;
             position: relative;
           }
         }
       }
+
       .s-editor-paper {
         .page-locator {
           width: 8mm;
           height: 8mm;
           position: absolute;
+        }
+      }
+
+      .tiptap-variable {
+        padding: 2px 6px;
+        border-radius: 4px;
+        background-color: #e6f7ff;
+        font-size: 0.8em;
+        
+        cursor: pointer;
+        margin-left: 5px;
+        margin-right: 5px;
+
+        &.type-text {
+          background-color: #333;
+          color: #fff;
+        }
+        &.type-number {
+          background-color: #1e80ff;
+          color: #fff;
+        }
+        &.type-boolean {
+          background-color: #55bb8a;
+          color: #fff;
+        }
+        &.type-innerVariable {
+          background-color: #ee3f4d;
+          color: #fff;
+        }
+        &.type-object {
+          background-color: #ee3f4d;
+          color: #fff;
+        }
+        &.type-list {
+          background-color: #a83279;
+          color: #fff;
+        }
+        &.type-date {
+          background-color: #f28e16;
+          color: #fff;
         }
       }
     }
@@ -278,6 +304,7 @@ $selectedBorderColor: #109968;
       border-collapse: collapse;
 
       tr.layout-mode {
+
         td,
         th {
           width: 80px;
@@ -359,13 +386,13 @@ $selectedBorderColor: #109968;
       }
 
       /* 左侧有选中单元格时，去除左边框 */
-      .selectedCell + .selectedCell::after {
+      .selectedCell+.selectedCell::after {
         border-left: none;
         left: 0;
       }
 
       /* 上方有选中单元格时，去除上边框 */
-      tr:has(.selectedCell) + tr .selectedCell::after {
+      tr:has(.selectedCell)+tr .selectedCell::after {
         border-top: none;
         top: 0;
       }
