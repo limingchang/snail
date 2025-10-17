@@ -1,88 +1,56 @@
 <template>
-  <Tabs
-    v-model:activeKey="tab"
-    animated
-    @change="handleTabChange"
-    class="tool-tabs"
-  >
-    <TabPane
-      key="style"
-      tab="格式"
-      class="tool-pane"
-      v-if="
-        tools?.includes('style') ||
-        styleTools.some((item) => tools?.includes(item))
-      "
-    >
-      <ToolFont
-        :editor="editor"
-        v-if="tools?.includes('style') || tools?.includes('font')"
-      ></ToolFont>
+  <Tabs v-model:activeKey="tab" animated @change="handleTabChange" class="tool-tabs">
+    <TabPane key="style" tab="格式" class="tool-pane" v-if="
+      tools?.includes('style') ||
+      styleTools.some((item) => tools?.includes(item))
+    ">
+      <ToolFont :editor="editor" v-if="tools?.includes('style') || tools?.includes('font')"></ToolFont>
       <Divider type="vertical" style="height: 100%"></Divider>
-      <ToolParagraph
-        :editor="editor"
-        v-if="tools?.includes('style') || tools?.includes('paragraph')"
-      ></ToolParagraph>
+      <ToolParagraph :editor="editor" v-if="tools?.includes('style') || tools?.includes('paragraph')"></ToolParagraph>
     </TabPane>
     <TabPane key="page" tab="页面" v-if="tools?.includes('page')">
       <ToolPage :editor="editor" v-if="tools?.includes('page')"></ToolPage>
     </TabPane>
-    <TabPane
-      key="insert"
-      tab="插入"
-      class="tool-pane"
-      v-if="
-        tools?.includes('insert') ||
-        insertTools.some((item) => tools?.includes(item))
-      "
-    >
+    <TabPane key="insert" tab="插入" class="tool-pane" v-if="
+      tools?.includes('insert') ||
+      insertTools.some((item) => tools?.includes(item))
+    ">
       <div class="tool-inster-page">
         <Button :icon="h(IconNewPage)" size="small" @click="editor?.chain().focus().addNewPage().run()">新页面</Button>
         <!-- 分页按钮 -->
-        <Button :icon="h(VerticalAlignMiddleOutlined)" size="small"
-          >分页</Button
-        >
+        <Button :icon="h(VerticalAlignMiddleOutlined)" size="small">分页</Button>
       </div>
 
       <Divider type="vertical" style="height: 100%"></Divider>
       <!-- 二维码工具 -->
-      <ToolQrcode
-        :editor="editor"
-        v-if="tools?.includes('insert') || tools?.includes('qrcode')"
-      ></ToolQrcode>
+      <ToolQrcode :editor="editor" v-if="tools?.includes('insert') || tools?.includes('qrcode')"></ToolQrcode>
       <Divider type="vertical" style="height: 100%"></Divider>
       <!-- 表格工具 -->
-      <ToolTable
-        :editor="editor"
-        v-if="tools?.includes('insert') || tools?.includes('table')"
-      ></ToolTable>
+      <ToolTable :editor="editor" v-if="tools?.includes('insert') || tools?.includes('table')"></ToolTable>
       <Divider type="vertical" style="height: 100%"></Divider>
       <!-- 变量工具 -->
-      <ToolVariable
-        :editor="editor"
-        :exlude="options?.variable?.exlude"
-        :innerVariable="options?.variable?.innerVariable"
-        v-if="tools?.includes('insert') || tools?.includes('variable')"
-      ></ToolVariable>
+      <ToolVariable v-if="tools?.includes('insert') || tools?.includes('variable')" @insert="handlerInsertVariable">
+      </ToolVariable>
     </TabPane>
-    <TabPane
-      v-for="(item, index) in custom"
-      :key="index"
-      class="tool-pane"
-      :tab="item.title"
-    >
+    <TabPane v-for="(item, index) in custom" :key="index" class="tool-pane" :tab="item.title">
       <component :is="item.tools" :editor="editor"></component>
     </TabPane>
   </Tabs>
+  <SetVariableDialog v-model:open="open" v-if="tools?.includes('insert') || tools?.includes('variable')"
+    :exlude="options?.variable?.exlude" :innerVariable="options?.variable?.innerVariable"
+    :currentVariableAttrs="currentVariableNode?.attrs" @save="handleSave">
+  </SetVariableDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, h } from "vue";
+import { ref, h, onMounted } from "vue";
 import type { Editor } from "@tiptap/core";
 import { Tabs, TabPane, Button } from "ant-design-vue";
 import { VerticalAlignMiddleOutlined } from "@ant-design/icons-vue";
 import { IconNewPage } from "@snail-js/vue";
 // import ToolStylePane from "./toolStylePane.vue";
+
+import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 
 import { Divider } from "ant-design-vue";
 import ToolFont from "./toolFont.vue";
@@ -91,6 +59,10 @@ import ToolPage from "./toolPage.vue";
 import ToolQrcode from "./toolQrcode.vue";
 import ToolVariable from "./toolVariable.vue";
 import ToolTable from "./toolTable.vue";
+import SetVariableDialog from "./setVariableDialog.vue";
+
+import { type VariableAttrs } from "../extensions/variable/typing";
+import { eventEmitter } from "../eventEmitter";
 
 // import ToolInsertPane from "./toolInsertPane.vue";
 import { ToolBarOptions } from "../typing/index";
@@ -107,16 +79,48 @@ const initActiveTab = () => {
     ? "style"
     : props.tools?.includes("insert") ||
       insertTools.some((item) => props.tools?.includes(item))
-    ? "insert"
-    : props.tools?.includes("page")
-    ? "page"
-    : 0;
+      ? "insert"
+      : props.tools?.includes("page")
+        ? "page"
+        : 0;
 };
 const tab = ref(initActiveTab());
 
 const handleTabChange = () => {
   props.editor?.chain().focus().run();
 };
+
+const currentVariableNode = ref<ProseMirrorNode | undefined>(undefined)
+const currentVariablePos = ref<number>(-1)
+
+onMounted(() => {
+  eventEmitter.on('variable:get', (pos: number, node: ProseMirrorNode) => {
+    // console.log(eventEmitter.events)
+    open.value = true;
+    currentVariableNode.value = node;
+    currentVariablePos.value = pos;
+  })
+})
+
+
+
+// 变量工具对话框
+const open = ref(false);
+const handlerInsertVariable = () => {
+  currentVariableNode.value = undefined;
+  currentVariablePos.value = -1;
+  open.value = true;
+}
+
+const handleSave = (attrs: VariableAttrs) => {
+  if (currentVariablePos.value !== -1) {
+    // 更新变量
+    props.editor?.chain().focus().updateAttributes('variable', attrs).run()
+  } else {
+    // 插入变量
+    props.editor?.chain().focus().insertVariable(attrs).run()
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -146,6 +150,7 @@ const handleTabChange = () => {
   justify-content: ‌flex-start‌;
   width: 100%;
   min-height: 130px;
+
   .tool-inster-page {
     display: flex;
     flex-direction: column;

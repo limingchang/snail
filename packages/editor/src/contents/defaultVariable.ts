@@ -3,7 +3,7 @@ export const defaultVariable = {
   attrs: {
     label: "新变量",
     type: "text",
-    key: "key",
+    key: "key1",
     desc: "变量描述",
     defaultValue: "默认值",
   },

@@ -14,7 +14,7 @@ export interface CustomToolBar {
 
 
 
-export interface ToolVariableOptions {
+export interface SetVariableOptions {
   // editor?: Editor;
   exlude?: Array<VariableType>;
   innerVariable?: Array<InnerVariableOptions>;
@@ -25,7 +25,7 @@ export interface ToolBarOptions {
   custom?: Array<CustomToolBar>;
   tools?: Array<string>;
   options?: {
-    variable?:ToolVariableOptions
+    variable?:SetVariableOptions
   };
 }
 
@@ -41,7 +41,7 @@ export interface EditorOptions {
   doc?: Content;
   tools?:Array<string>
   options?: {
-    variable?: ToolVariableOptions;
+    variable?: SetVariableOptions;
   };
 }
 

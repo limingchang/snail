@@ -17,4 +17,11 @@ export type VariableAttrs = {
   desc?: string;
   defaultValue?: any;
   value?: any;
+  data?: any;
 };
+
+export interface InnerVariableOptions {
+  label: string;
+  key: string;
+  children?: Array<InnerVariableOptions>;
+}

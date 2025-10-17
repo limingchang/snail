@@ -72,8 +72,7 @@ export const Variable = Node.create({
       variable.classList.add(`type-${node.attrs.type}`);
       variable.textContent = `{${node.attrs.label}}`;
       const clickHandle = (e: MouseEvent) => {
-        console.log(getPos());
-        eventEmitter.emit("variable:update", getPos(), node);
+        eventEmitter.emit("variable:get", getPos(), node);
       };
       variable.addEventListener("click", clickHandle);
       return {
