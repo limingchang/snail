@@ -1,0 +1,23 @@
+
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    // 模块解析策略
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "types": ["reflect-metadata"],
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    
+
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    
+  },
+  "exclude": ["node_modules"]
+}

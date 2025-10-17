@@ -1,10 +1,10 @@
 // packages/shared/vite.config.ts
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
+import vuePlugin from "@vitejs/plugin-vue";
 import { join } from 'node:path'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vuePlugin()],
   build: {
     // 产物输出目录
     outDir: "dist",
@@ -37,11 +37,6 @@ export default defineConfig({
     },
   },
 
-  css: {
-    preprocessorOptions: {
-      scss: { api: "modern-compiler" },
-    },
-  },
   resolve: {
     alias: [
       {
