@@ -31,7 +31,7 @@
   "compilerOptions": {
     "module": "ESNext",
     // 模块解析策略
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "baseUrl": ".",
     "target": "ESNext",
     "lib": ["ESNext", "DOM"],

@@ -38,12 +38,8 @@ export default defineConfig({
   },
 
   resolve: {
-    alias: [
-      {
-        find: /^@snail-js\/(.+)$/,
-        // replacement: join(__dirname, "..", "packages", "$1", "src"),
-        replacement: join(__dirname, "..", "$1", "src"),
-      },
-    ],
+    alias: {
+      '@':'/src' // 配置@指向src目录
+    },
   },
 });

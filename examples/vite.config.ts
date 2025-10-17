@@ -34,11 +34,6 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
     }),
   ],
-  css: {
-    preprocessorOptions: {
-      sass: { api: "modern-compiler" },
-    },
-  },
   resolve: {
     alias: [
       {
