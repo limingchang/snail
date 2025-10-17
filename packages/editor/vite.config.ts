@@ -1,7 +1,7 @@
 // packages/shared/vite.config.ts
 import { defineConfig } from "vite";
 import vuePlugin from "@vitejs/plugin-vue";
-import { join } from 'node:path'
+import { join,resolve } from 'node:path'
 
 export default defineConfig({
   plugins: [vuePlugin()],
@@ -39,7 +39,7 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      '@':'/src' // 配置@指向src目录
+      '@/':resolve(__dirname, './src/') // 配置@指向src目录
     },
   },
 });

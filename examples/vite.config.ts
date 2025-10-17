@@ -51,6 +51,10 @@ export default defineConfig({
         // replacement: join(__dirname, "..", "$1", "src"),
         replacement: join(__dirname, "../", "packages", "$1", "src"),
       },
+      {
+        find: /^@\/(.*)/,
+        replacement: join(__dirname, "./src/$1"),
+      }
     ],
     // alias:{
     //   "@snail-js/*": join(__dirname, "..", "packages/*")
