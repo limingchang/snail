@@ -1,10 +1,10 @@
 // packages/shared/vite.config.ts
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
-import { join } from 'node:path'
+import vuePlugin from "@vitejs/plugin-vue";
+import { join,resolve } from 'node:path'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vuePlugin()],
   build: {
     // 产物输出目录
     outDir: "dist",
@@ -37,18 +37,9 @@ export default defineConfig({
     },
   },
 
-  css: {
-    preprocessorOptions: {
-      scss: { api: "modern-compiler" },
-    },
-  },
   resolve: {
-    alias: [
-      {
-        find: /^@snail-js\/(.+)$/,
-        // replacement: join(__dirname, "..", "packages", "$1", "src"),
-        replacement: join(__dirname, "..", "$1", "src"),
-      },
-    ],
+    alias: {
+      '@/':resolve(__dirname, './src/') // 配置@指向src目录
+    },
   },
 });

@@ -6,7 +6,7 @@ export enum VariableType {
   Object = "object",
   InnerVariable = "innerVariable",
   List = "list",
-  Radio = "radio",
+  CheckBox = "checkbox",
   Date = "date",
 }
 
@@ -24,4 +24,13 @@ export interface InnerVariableOptions {
   label: string;
   key: string;
   children?: Array<InnerVariableOptions>;
+}
+
+// type 定义命令类型
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    variable: {
+      insertVariable: (attrs:VariableAttrs) => ReturnType
+    }
+  }
 }

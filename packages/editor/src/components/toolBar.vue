@@ -29,7 +29,7 @@
       <ToolTable :editor="editor" v-if="tools?.includes('insert') || tools?.includes('table')"></ToolTable>
       <Divider type="vertical" style="height: 100%"></Divider>
       <!-- 变量工具 -->
-      <ToolVariable v-if="tools?.includes('insert') || tools?.includes('variable')" @insert="handlerInsertVariable">
+      <ToolVariable v-if="tools?.includes('insert') || tools?.includes('variable')" :attrs="showVariableAttrs" @insert="handlerInsertVariable">
       </ToolVariable>
     </TabPane>
     <TabPane v-for="(item, index) in custom" :key="index" class="tool-pane" :tab="item.title">
@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, onMounted } from "vue";
+import { ref, h, onMounted,computed } from "vue";
 import type { Editor } from "@tiptap/core";
 import { Tabs, TabPane, Button } from "ant-design-vue";
 import { VerticalAlignMiddleOutlined } from "@ant-design/icons-vue";
@@ -91,35 +91,36 @@ const handleTabChange = () => {
 };
 
 const currentVariableNode = ref<ProseMirrorNode | undefined>(undefined)
-const currentVariablePos = ref<number>(-1)
-
+const showVariableAttrs = ref<VariableAttrs | undefined>(undefined)
 onMounted(() => {
-  eventEmitter.on('variable:get', (pos: number, node: ProseMirrorNode) => {
+  eventEmitter.on('variable:get', (node: ProseMirrorNode) => {
     // console.log(eventEmitter.events)
     open.value = true;
     currentVariableNode.value = node;
-    currentVariablePos.value = pos;
+    showVariableAttrs.value = node.attrs as VariableAttrs
+    tab.value = 'insert'
   })
 })
 
 
+// computed(() => currentVariableNode.value?.attrs as VariableAttrs | undefined)
 
 // 变量工具对话框
 const open = ref(false);
 const handlerInsertVariable = () => {
   currentVariableNode.value = undefined;
-  currentVariablePos.value = -1;
   open.value = true;
 }
 
 const handleSave = (attrs: VariableAttrs) => {
-  if (currentVariablePos.value !== -1) {
+  if (currentVariableNode.value !== undefined) {
     // 更新变量
     props.editor?.chain().focus().updateAttributes('variable', attrs).run()
   } else {
     // 插入变量
     props.editor?.chain().focus().insertVariable(attrs).run()
   }
+  showVariableAttrs.value = Object.assign({}, showVariableAttrs.value, attrs)
 }
 </script>
 

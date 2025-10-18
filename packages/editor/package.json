@@ -17,9 +17,8 @@
   "main": "src/index.ts",
   "scripts": {
     "clean:dist": "rimraf ./dist",
-    "build": "pnpm run clean:dist && vite build && pnpm run build:type && pnpm run build:css",
+    "build": "pnpm run clean:dist && vite build && pnpm run build:type",
     "build:type": "vue-tsc -p tsconfig.build.json --composite false --declaration --emitDeclarationOnly",
-    "build:css": "sass ./src/index.scss ./dist/index.css --no-source-map",
     "publish": "npm publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -64,7 +63,7 @@
     "@types/qrcode": "^1.5.5",
     "sass": "^1.83.1",
     "typescript": "^5.2.2",
-    "vite": "^5.3.3",
-    "vue-tsc": "^2.0.21"
+    "vite": "^7.1.10",
+    "vue-tsc": "^3.1.1"
   }
 }
