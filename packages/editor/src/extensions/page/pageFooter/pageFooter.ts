@@ -92,7 +92,7 @@ export const PageFooter = Node.create<PageFooterOptions>({
         const text = headerFooterTextCalculator(
           index,
           total,
-          this.options.textFormat || ""
+          node.attrs.textFormat || ""
         );
         const marks = createTextMark(editor.schema);
         const textNode = editor.schema.text(text, [marks]);
@@ -102,7 +102,7 @@ export const PageFooter = Node.create<PageFooterOptions>({
             textIndent: "0",
             paragraphStart: "0",
             paragraphEnd: "0",
-            textAlign: this.options.align || "center",
+            textAlign: node.attrs.align || "center",
           },
           textNode
         );

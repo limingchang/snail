@@ -24,6 +24,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    fs: {
+      allow: ['../packages','../examples'],
+    }
   },
   plugins: [
     vue(),
@@ -60,8 +63,14 @@ export default defineConfig({
     //   "@snail-js/*": join(__dirname, "..", "packages/*")
     // }
     alias: {
-      '@/': resolve(__dirname, './src/'),
-      '@snail-js/': resolve(__dirname, '../packages/'),
+      '@snail-js/vue/index.css': resolve(__dirname, '../packages/vue/src/theme/index.scss'),
+      '@snail-js/vue': resolve(__dirname, '../packages/vue/src/index.ts'),
+      '@snail-js/editor/index.css': resolve(__dirname, '../packages/editor/dist/index.css'),
+      '@snail-js/editor': resolve(__dirname, '../packages/editor/src/index.ts'),
+      '@snail-js/api': resolve(__dirname, '../packages/api/src/index.ts'),
+      '~vue': resolve(__dirname, '../packages/vue/src'),
+      '~editor': resolve(__dirname, '../packages/editor/src'),
+      '~api': resolve(__dirname, '../packages/api/src'),
     }
   },
 });

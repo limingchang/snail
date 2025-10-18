@@ -48,7 +48,7 @@
     "noUnusedParameters": false, // 控制未使用的函数参数
     // 路径别名设置
     "paths": {
-      "@/*": ["./src/*"]
+      "~editor/*": ["./src/*"]
     },
   },
   // "include": ["typings/env.d.ts", "packages/**/src"]

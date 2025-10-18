@@ -19,7 +19,7 @@ import { Button,Descriptions  } from "ant-design-vue";
 import { IconVariable } from "@snail-js/vue";
 // import { ToolVariableOptions } from "../typing/index"
 import { VariableAttrs } from "../extensions/variable/typing";
-import { typeLabels } from '@/typing/variable'
+import { typeLabels } from '~editor/typing/variable'
 
 const props = defineProps<{
   attrs?: VariableAttrs

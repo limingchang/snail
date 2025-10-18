@@ -156,8 +156,8 @@ import {
   type VariableAttrs,
   VariableType,
   InnerVariableOptions,
-} from "@/extensions/variable/typing";
-import { typeLabels } from '@/typing/variable'
+} from "~editor/extensions/variable/typing";
+import { typeLabels } from '~editor/typing/variable'
 
 import type { SetVariableOptions } from "../typing/index";
 

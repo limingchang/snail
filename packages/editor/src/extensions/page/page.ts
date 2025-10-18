@@ -88,13 +88,13 @@ export const Page = Node.create<PageOptions, PageStorage>({
   },
   
   addNodeView() {
-    return () => {
+    return ({node}) => {
       const page = document.createElement("section");
       page.classList.add("s-editor-page");
       page.style.position = "relative";
       const { width, height } = paperSizeCalculator(
-        this.options.paperFormat,
-        this.options.orientation
+        node.attrs.paperFormat,
+        node.attrs.orientation
       );
       page.style.width = `${width}mm`;
       page.style.height = `${height}mm`;

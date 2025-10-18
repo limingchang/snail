@@ -26,7 +26,7 @@ import { defaultPages } from "./defaultPage";
 // } as Content;
 
 export const defaultContent = {
-  type: "document",
+  type: "doc",
   content: [
     defaultPages,
     // { type: "page", content: [{ type: "pageHeader", content: [] }] },

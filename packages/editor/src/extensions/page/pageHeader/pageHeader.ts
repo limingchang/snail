@@ -13,7 +13,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
   group: "page",
   content: "block*",
   isolating: true,
-  
+
   addOptions() {
     return {
       textFormat: "",
@@ -93,7 +93,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
         const text = headerFooterTextCalculator(
           index,
           total,
-          this.options.textFormat || ""
+          node.attrs.textFormat || ""
         );
         const marks = createTextMark(editor.schema);
         const textNode = editor.schema.text(text, [marks]);
@@ -103,7 +103,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
             textIndent: "0",
             paragraphStart: "0",
             paragraphEnd: "0",
-            textAlign: this.options.align || "right",
+            textAlign: node.attrs.align || "right",
           },
           textNode
         );
@@ -120,6 +120,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       if (this.options.headerLine) {
         pageHeader.style.borderBottom = "1px solid #000";
       }
+      pageHeader.contentEditable = "false";
       return {
         dom: pageHeader,
         // contentDOM: pageHeader,

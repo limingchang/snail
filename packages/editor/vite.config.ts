@@ -39,7 +39,7 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src') // 配置@指向src目录
+      '~editor': resolve(__dirname, './src') // 配置@指向src目录
     },
   },
 });

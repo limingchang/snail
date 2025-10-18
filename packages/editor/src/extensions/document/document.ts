@@ -5,7 +5,7 @@ import { Node } from "@tiptap/core";
  * @see https://tiptap.dev/api/nodes/document
  */
 export const Document = Node.create({
-  name: "document",
+  name: "doc",
   topNode: true,
   group: "doc",
   content: "page+",

@@ -60,7 +60,7 @@
 
     <!-- 纸张大小设置 -->
     <div class="paper-size-settings">
-      <Dropdown placement="bottom" :trigger="['click']">
+      <!-- <Dropdown placement="bottom" :trigger="['click']">
         <Button :icon="h(IconPageSize)" size="small">纸张大小
           <DownOutlined />
         </Button>
@@ -76,14 +76,51 @@
             </MenuItem>
           </Menu>
         </template>
-      </Dropdown>
+      </Dropdown> -->
+      <DropdownButton placement="bottom" :trigger="['click']">
+        <IconPageSize />{{ typeof pageSettings.paperFormat === 'string' ? pageSettings.paperFormat : pageSettings.paperFormat.name }}
+        <template #overlay>
+          <Menu @click="handlePaperSizeChange">
+            <MenuItem v-for="size in paperSizes" :key="size.name">
+            <div class="paper-size-item">
+              <div class="paper-size-info">
+                <div class="size-name">{{ size.name }}</div>
+                <div class="size-dimensions">{{ size.label }}</div>
+              </div>
+            </div>
+            </MenuItem>
+          </Menu>
+        </template>
+        <template #icon><DownOutlined /></template>
+      </DropdownButton>
+    </div>
+    <!-- 页头页脚设置区域 -->
+    <div>
+      <Input v-model:value="pageHeaderText" addon-before="页头文本：" placeholder="请输入页头内容"></Input>
+      <DropdownButton placement="bottom" :trigger="['click']">
+        {{ pageFooterText }}
+        <template #overlay>
+          <Menu @click="handlePageFooterChange">
+            <MenuItem  key="- # -">
+            <div class="">-&nbsp;1&nbsp;-</div>
+            </MenuItem>
+            <MenuItem  key="#/&">
+            <div class="">1/1</div>
+            </MenuItem>
+            <MenuItem  key="第#页，共&页">
+            <div class="">第1页，共1页</div>
+            </MenuItem>
+          </Menu>
+        </template>
+        <template #icon><DownOutlined /></template>
+      </DropdownButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { h, ref } from 'vue'
-import { Button, Dropdown, Menu, MenuItem, InputNumber, Divider } from 'ant-design-vue'
+import { Button, Dropdown,DropdownButton, Menu, MenuItem, InputNumber, Divider,Input,Select } from 'ant-design-vue'
 import type { MenuProps } from 'ant-design-vue'
 import {
   VerticalAlignMiddleOutlined,
@@ -96,11 +133,11 @@ import { IconPageMargin, IconPageOrientation, IconPageSize } from '@snail-js/vue
 import { Editor } from '@tiptap/core'
 
 // import type { MarginPreset, PageSettings } from '../extensions/page/typing'
-import type { MarginPreset, PageSettings } from '@/extensions/page/typing/page'
-import type { PaperFormat } from '@/extensions/page/typing/public'
-import  { PaperSize } from '@/extensions/page/constant/paper'
+import type { MarginPreset, PageSettings } from '~editor/extensions/page/typing/page'
+import type { PaperFormat } from '~editor/extensions/page/typing/public'
+import  { PaperSize } from '~editor/extensions/page/constant/paper'
 // import { Units } from '../extensions/page/typing'
-import { Units } from '@/extensions/page/typing/unit'
+import { Units } from '~editor/extensions/page/typing/unit'
 // import { PaperFormat } from '../extensions/page/typing/paper'
 
 
@@ -204,6 +241,17 @@ const applyPageSettings = () => {
   console.log('应用页面设置:', pageSettings.value)
   // TODO: 与编辑器集成
 }
+
+// 页头内容
+const pageHeaderText = ref('')
+// 页脚内容
+const pageFooterText = ref('')
+
+const handlePageFooterChange: MenuProps['onClick'] = ({ key }) => {
+  pageFooterText.value = key as string
+}
+
+
 </script>
 
 <style scoped>
