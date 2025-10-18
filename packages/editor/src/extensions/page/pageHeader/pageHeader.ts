@@ -13,7 +13,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
   group: "page",
   content: "block*",
   isolating: true,
-
+  
   addOptions() {
     return {
       textFormat: "",
@@ -122,7 +122,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       }
       return {
         dom: pageHeader,
-        contentDOM: pageHeader,
+        // contentDOM: pageHeader,
       };
     };
   },
