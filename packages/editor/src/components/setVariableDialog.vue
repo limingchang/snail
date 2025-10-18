@@ -58,11 +58,7 @@ import type { CascaderProps } from 'ant-design-vue';
 import { PlusOutlined } from '@ant-design/icons-vue';
 
 import { type VariableAttrs, VariableType, InnerVariableOptions } from "../extensions/variable/typing";
-import type { SetVariableOptions } from "../typing/index";
-import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 
-// const props = defineProps<SetVariableOptions & { currentVariableNode?: number }>();
-// const props = defineProps<SetVariableOptions>();
 const props = defineProps<{
   exlude?: Array<VariableType>;
   innerVariable?: Array<InnerVariableOptions>;
