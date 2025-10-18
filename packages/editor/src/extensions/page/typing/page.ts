@@ -22,6 +22,30 @@ export interface PageAttributes {
   margins: Margins;
 }
 
+// 页边距预设接口
+export interface MarginPreset {
+  name: string;
+  iconClass: string;
+  margins: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+}
+
+// 页面设置状态接口
+export interface PageSettings {
+  margins: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  orientation: "portrait" | "landscape";
+  paperFormat: PaperFormat;
+}
+
 // type 定义命令类型
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {

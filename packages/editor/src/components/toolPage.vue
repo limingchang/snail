@@ -95,9 +95,13 @@ import { IconPageMargin, IconPageOrientation, IconPageSize } from '@snail-js/vue
 
 import { Editor } from '@tiptap/core'
 
-import type { MarginPreset, PaperSize, PageSettings } from '../extensions/page.bak/typing'
-import { Units } from '../extensions/page.bak/typing'
-import { PaperFormat } from '../extensions/page.bak/typing/paper'
+// import type { MarginPreset, PageSettings } from '../extensions/page/typing'
+import type { MarginPreset, PageSettings } from '@/extensions/page/typing/page'
+import type { PaperFormat } from '@/extensions/page/typing/public'
+import  { PaperSize } from '@/extensions/page/constant/paper'
+// import { Units } from '../extensions/page/typing'
+import { Units } from '@/extensions/page/typing/unit'
+// import { PaperFormat } from '../extensions/page/typing/paper'
 
 
 const props = defineProps({
@@ -141,7 +145,7 @@ const orientationOptions = [
 ]
 
 // 纸张大小选项
-const paperSizes: PaperSize[] = [
+const paperSizes = [
   { name: 'A3', width: 297, height: 420, label: 'A3 (297×420 mm)' },
   { name: 'A4', width: 210, height: 297, label: 'A4 (210×297 mm)' },
   { name: 'A5', width: 148, height: 210, label: 'A5 (148×210 mm)' }

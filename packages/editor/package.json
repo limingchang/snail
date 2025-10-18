@@ -1,20 +1,20 @@
 {
-  "name": "@snail-js/editor-vue",
+  "name": "@snail-js/editor",
   "version": "0.1.0",
   "type": "module",
-  "module": "dist/snail-editor-vue.js",
+  "module": "./dist/snail-editor.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/snail-editor-vue.js",
-      "require": "./dist/snail-editor-vue.umd.cjs",
+      "import": "./dist/snail-editor.js",
+      "require": "./dist/snail-editor.umd.cjs",
       "types": "./dist/index.d.ts"
     },
     "./index.css": "./dist/index.css",
     "./*": "./*"
   },
   "description": "vue editor component lib, base on ant-design-vue and tiptap",
-  "main": "src/index.ts",
+  "main": "./dist/snail-editor.umd.cjs",
   "scripts": {
     "clean:dist": "rimraf ./dist",
     "build": "pnpm run clean:dist && vite build && pnpm run build:type",

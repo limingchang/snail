@@ -20,9 +20,9 @@ export default defineConfig({
       // formats: ['es', 'umd'],
 
       // 当产物为 umd、iife 格式时，该模块暴露的全局变量名称
-      name: "SnailEditorVue",
+      name: "SnailEditor",
       // 产物文件名称
-      fileName: "snail-editor-vue",
+      fileName: "snail-editor",
     },
     // 为了方便学习，查看构建产物，将此置为 false，不要混淆产物代码
     minify: false,
@@ -39,7 +39,7 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      '@/':resolve(__dirname, './src/') // 配置@指向src目录
+      '@': resolve(__dirname, './src') // 配置@指向src目录
     },
   },
 });

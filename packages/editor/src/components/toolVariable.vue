@@ -3,7 +3,7 @@
     <Button :icon="h(IconVariable)" @click="emits('insert')">插入新变量</Button>
     <Descriptions title="当前变量信息" bordered :column="2" size="small">
       <Descriptions.Item label="变量名称">{{ props.attrs?.label }}</Descriptions.Item>
-      <Descriptions.Item label="变量类型">{{ typeLabels[props.attrs?.type] }}</Descriptions.Item>
+      <Descriptions.Item label="变量类型">{{ props.attrs?.type ? typeLabels[props.attrs?.type] : '' }}</Descriptions.Item>
       <Descriptions.Item label="key">{{ props.attrs?.key }}</Descriptions.Item>
       <Descriptions.Item label="默认值">{{ props.attrs?.value }}</Descriptions.Item>
       <Descriptions.Item label="描述">{{ props.attrs?.desc }}</Descriptions.Item>

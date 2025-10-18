@@ -12,23 +12,23 @@ export type TextIndentOptions = {
   types: string[];
 };
 
-// declare module "@tiptap/core" {
-//   interface Commands<ReturnType> {
-//     textIndent: {
-//       /**
-//        * 设置文本缩进
-//        * @param textIndent 文本缩进值
-//        * @example editor.commands.setTextIndent('2em')
-//        */
-//       setTextIndent: (textIndent: string) => ReturnType;
-//       /**
-//        * 取消文本缩进
-//        * @example editor.commands.unsetTextIndent()
-//        */
-//       unsetTextIndent: () => ReturnType;
-//     };
-//   }
-// }
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    textIndent: {
+      /**
+       * 设置文本缩进
+       * @param textIndent 文本缩进值
+       * @example editor.commands.setTextIndent('2em')
+       */
+      setTextIndent: (textIndent: string) => ReturnType;
+      /**
+       * 取消文本缩进
+       * @example editor.commands.unsetTextIndent()
+       */
+      // unsetTextIndent: () => ReturnType;
+    };
+  }
+}
 
 /**
  * 此扩展允许您设置段落的缩进

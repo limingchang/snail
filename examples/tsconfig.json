@@ -43,7 +43,8 @@
     "skipLibCheck": true,
     "strictNullChecks": false,
     "paths": {
-      "@snail-js/*": ["../packages/*/src"]
+      "@snail-js/*": ["../packages/*/src"],
+      "@/*": ["src/*"]
     },
     
   },

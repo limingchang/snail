@@ -8,7 +8,7 @@
     // 项目的根目录
     "rootDir": "./src",
     // 项目基础目录
-    "baseUrl": "./src",
+    "baseUrl": "./",
     // tsc 编译产物输出目录
     "outDir": "./dist",
     // 编译目标 js 的版本
@@ -24,7 +24,7 @@
     // 严格模式类型检查，建议开启
     "strict": true,
     // 不允许有未使用的变量
-    "noUnusedLocals": true,
+    // "noUnusedLocals": true,
     // 允许引入 .json 模块
     "resolveJsonModule": true,
 
@@ -38,11 +38,18 @@
     "skipLibCheck": true,
 
     /*关闭ts的检测class初始化的配置 */
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
     // 路径别名设置
     // "paths": {
     //   "@snail-js/*": ["packages/*/src"],
     // }
+    /* 关闭未使用变量/参数的 TS 检查 */
+    "noUnusedLocals": false,    // 控制未使用的局部变量
+    "noUnusedParameters": false, // 控制未使用的函数参数
+    // 路径别名设置
+    "paths": {
+      "@/*": ["./src/*"]
+    },
   },
   // "include": ["typings/env.d.ts", "packages/**/src"]
   "include": ["src"]
