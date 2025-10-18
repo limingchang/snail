@@ -57,25 +57,25 @@ export const PageFooter = Node.create<PageFooterOptions>({
   addNodeView() {
     return ({ node, getPos, editor, view }) => {
       // 创建页脚容器
-      const pageHeader = document.createElement("div");
-      pageHeader.classList.add("page-footer");
-      pageHeader.style.position = "absolute";
-      pageHeader.style.height = `${this.options.height}px`;
-      pageHeader.style.lineHeight = `${this.options.height}px`;
+      const pageFooter = document.createElement("div");
+      pageFooter.classList.add("page-footer");
+      pageFooter.style.position = "absolute";
+      pageFooter.style.height = `${this.options.height}px`;
+      pageFooter.style.lineHeight = `${this.options.height}px`;
       const pageNodePos = editor.$pos(getPos() || 1);
       const margins = pageNodePos.attributes.margins || defaultMargins;
 
-      pageHeader.style.width = `calc(100% - ${
+      pageFooter.style.width = `calc(100% - ${
         typeof margins.left === "number" ? `${margins.left}px` : margins.left
       } - ${
         typeof margins.right === "number" ? `${margins.right}px` : margins.right
       } - 2px)`;
-      pageHeader.style.bottom = `calc(${
+      pageFooter.style.bottom = `calc(${
         typeof margins.bottom === "number"
           ? `${margins.bottom}px`
           : margins.bottom
       } - ${this.options.height}px - 10px)`;
-      pageHeader.style.left = `calc(${
+      pageFooter.style.left = `calc(${
         typeof margins.left === "number" ? `${margins.left}px` : margins.left
       } + 1px)`;
 
@@ -117,11 +117,12 @@ export const PageFooter = Node.create<PageFooterOptions>({
 
       // pageHeader.innerText = text;
       if (this.options.footerLine) {
-        pageHeader.style.borderBottom = "1px solid #000";
+        pageFooter.style.borderBottom = "1px solid #000";
       }
+      pageFooter.contentEditable = "false";
       return {
-        dom: pageHeader,
-        contentDOM: pageHeader,
+        dom: pageFooter,
+        contentDOM: pageFooter,
       };
     };
   },

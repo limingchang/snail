@@ -39,88 +39,78 @@
       </div>
     </div>
     <Divider type="vertical" style="height: 100%;"></Divider>
-    <!-- 纸张方向设置 -->
-    <div class="orientation-settings">
-      <Dropdown placement="bottom" :trigger="['click']">
-        <Button :icon="h(IconPageOrientation)" size="small">纸张方向
-          <DownOutlined />
-        </Button>
-        <template #overlay>
-          <Menu @click="handleOrientationChange">
-            <MenuItem v-for="option in orientationOptions" :key="option.value">
-            <div class="orientation-item">
-              <component :is="option.icon" style="margin-right: 8px;" />
-              {{ option.label }}
-            </div>
-            </MenuItem>
-          </Menu>
-        </template>
-      </Dropdown>
+    <div style="display: grid; width: 180px; grid-template-columns: 1fr;">
+      <!-- 纸张方向设置 -->
+      <div class="orientation-settings">
+        <Dropdown placement="bottom" :trigger="['click']">
+          <Button :icon="h(IconPageOrientation)" size="small">纸张方向：{{ pageSettings.orientation === 'portrait' ? '纵向' :
+            '横向'
+            }}
+            <DownOutlined />
+          </Button>
+          <template #overlay>
+            <Menu @click="handleOrientationChange">
+              <MenuItem v-for="option in orientationOptions" :key="option.value">
+              <div class="orientation-item">
+                <component :is="option.icon" style="margin-right: 8px;" />
+                {{ option.label }}
+              </div>
+              </MenuItem>
+            </Menu>
+          </template>
+        </Dropdown>
+      </div>
+      <!-- 纸张大小设置 -->
+      <div class="paper-size-settings">
+        <Dropdown placement="bottom" :trigger="['click']">
+          <Button :icon="h(IconPageSize)" size="small">纸张大小：{{ typeof pageSettings.paperFormat === 'string' ?
+            pageSettings.paperFormat : pageSettings.paperFormat.name }}
+            <DownOutlined />
+          </Button>
+          <template #overlay>
+            <Menu @click="handlePaperSizeChange">
+              <MenuItem v-for="size in paperSizes" :key="size.name">
+              <div class="paper-size-item">
+                <div class="paper-size-info">
+                  <div class="size-name">{{ size.name }}</div>
+                  <div class="size-dimensions">{{ size.label }}</div>
+                </div>
+              </div>
+              </MenuItem>
+            </Menu>
+          </template>
+        </Dropdown>
+      </div>
     </div>
 
-    <!-- 纸张大小设置 -->
-    <div class="paper-size-settings">
-      <!-- <Dropdown placement="bottom" :trigger="['click']">
-        <Button :icon="h(IconPageSize)" size="small">纸张大小
+    <!-- 页头页脚设置区域 -->
+    <div class="header-footer-settings">
+      <Input v-model:value="pageHeaderText" addon-before="页头文本：" size="small" placeholder="请输入页头内容" @change="handlePageHeaderChange"></Input>
+      <Dropdown placement="bottom" :trigger="['click']" >
+        <Button size="small" style="margin-top: 8px;">页脚页码样式：{{ pageNumberFormat[pageFooterText] || pageNumberFormat['第#页，共&页'] }}
           <DownOutlined />
         </Button>
         <template #overlay>
-          <Menu @click="handlePaperSizeChange">
-            <MenuItem v-for="size in paperSizes" :key="size.name">
-            <div class="paper-size-item">
-              <div class="paper-size-info">
-                <div class="size-name">{{ size.name }}</div>
-                <div class="size-dimensions">{{ size.label }}</div>
-              </div>
-            </div>
-            </MenuItem>
-          </Menu>
-        </template>
-      </Dropdown> -->
-      <DropdownButton placement="bottom" :trigger="['click']">
-        <IconPageSize />{{ typeof pageSettings.paperFormat === 'string' ? pageSettings.paperFormat : pageSettings.paperFormat.name }}
-        <template #overlay>
-          <Menu @click="handlePaperSizeChange">
-            <MenuItem v-for="size in paperSizes" :key="size.name">
-            <div class="paper-size-item">
-              <div class="paper-size-info">
-                <div class="size-name">{{ size.name }}</div>
-                <div class="size-dimensions">{{ size.label }}</div>
-              </div>
-            </div>
-            </MenuItem>
-          </Menu>
-        </template>
-        <template #icon><DownOutlined /></template>
-      </DropdownButton>
-    </div>
-    <!-- 页头页脚设置区域 -->
-    <div>
-      <Input v-model:value="pageHeaderText" addon-before="页头文本：" placeholder="请输入页头内容"></Input>
-      <DropdownButton placement="bottom" :trigger="['click']">
-        {{ pageFooterText }}
-        <template #overlay>
           <Menu @click="handlePageFooterChange">
-            <MenuItem  key="- # -">
+            <MenuItem key="- # -">
             <div class="">-&nbsp;1&nbsp;-</div>
             </MenuItem>
-            <MenuItem  key="#/&">
+            <MenuItem key="#/&">
             <div class="">1/1</div>
             </MenuItem>
-            <MenuItem  key="第#页，共&页">
+            <MenuItem key="第#页，共&页">
             <div class="">第1页，共1页</div>
             </MenuItem>
           </Menu>
         </template>
-        <template #icon><DownOutlined /></template>
-      </DropdownButton>
+      </Dropdown>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { h, ref } from 'vue'
-import { Button, Dropdown,DropdownButton, Menu, MenuItem, InputNumber, Divider,Input,Select } from 'ant-design-vue'
+import { Button, Dropdown, InputProps, Menu, MenuItem, InputNumber, Divider, Input, Tag } from 'ant-design-vue'
 import type { MenuProps } from 'ant-design-vue'
 import {
   VerticalAlignMiddleOutlined,
@@ -135,7 +125,7 @@ import { Editor } from '@tiptap/core'
 // import type { MarginPreset, PageSettings } from '../extensions/page/typing'
 import type { MarginPreset, PageSettings } from '~editor/extensions/page/typing/page'
 import type { PaperFormat } from '~editor/extensions/page/typing/public'
-import  { PaperSize } from '~editor/extensions/page/constant/paper'
+import { PaperSize } from '~editor/extensions/page/constant/paper'
 // import { Units } from '../extensions/page/typing'
 import { Units } from '~editor/extensions/page/typing/unit'
 // import { PaperFormat } from '../extensions/page/typing/paper'
@@ -243,9 +233,22 @@ const applyPageSettings = () => {
 }
 
 // 页头内容
-const pageHeaderText = ref('')
+
+const pageHeaderExtension = props.editor.extensionManager.extensions.find(ext => ext.name === 'pageHeader')
+const pageHeaderText = ref(pageHeaderExtension?.options.textFormat || '')
 // 页脚内容
-const pageFooterText = ref('')
+const pageFooterExtension = props.editor.extensionManager.extensions.find(ext => ext.name === 'pageFooter')
+const pageFooterText = ref(pageFooterExtension?.options.textFormat || '')
+const pageNumberFormat = {
+  '- # -': '- 1 -',
+  '#/&': '1/1',
+  '第#页，共&页': '第1页，共1页',
+}
+
+const handlePageHeaderChange:InputProps['onChange'] = (e) => {
+  props.editor.chain().focus().updateAttributes('pageHeader', { textFormat: e.target.value })
+  console.log(props.editor.$node('pageHeader'))
+}
 
 const handlePageFooterChange: MenuProps['onClick'] = ({ key }) => {
   pageFooterText.value = key as string
@@ -284,6 +287,10 @@ const handlePageFooterChange: MenuProps['onClick'] = ({ key }) => {
 .orientation-settings .ant-btn,
 .paper-size-settings .ant-btn {
   min-width: 80px;
+}
+
+.paper-size-settings {
+  margin-top: 8px;
 }
 
 /* 边距预设选项样式 */
@@ -355,6 +362,10 @@ const handlePageFooterChange: MenuProps['onClick'] = ({ key }) => {
 .size-dimensions {
   font-size: 12px;
   color: #666;
+}
+
+.header-footer-settings{
+  width: 260px;
 }
 
 /* 响应式设计 */

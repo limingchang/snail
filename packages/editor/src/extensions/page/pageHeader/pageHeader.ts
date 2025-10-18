@@ -123,7 +123,7 @@ export const PageHeader = Node.create<PageHeaderOptions>({
       pageHeader.contentEditable = "false";
       return {
         dom: pageHeader,
-        // contentDOM: pageHeader,
+        contentDOM: pageHeader,
       };
     };
   },
