@@ -19,7 +19,8 @@
     "docs:build": "pnpm --filter @snail-js/docs run docs:build",
     "docs:preview": "pnpm --filter @snail-js/docs run docs:preview",
     "docs:check": "pnpm --filter @snail-js/docs run check",
-    "clean": "pnpm -r exec node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "clean": "pnpm -r exec node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepublishOnly": "pnpm run build && pnpm run verify"
   },
   "devDependencies": {
     "typescript": "7.0.2",

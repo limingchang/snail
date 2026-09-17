@@ -72,7 +72,6 @@
     "test:watch": "node ./scripts/vitest-runner.mjs",
     "test:cov": "node ./scripts/vitest-runner.mjs run --coverage",
     "verify": "node ./scripts/verify-dist.mjs",
-    "prepublishOnly": "pnpm run build && pnpm run verify"
   },
   "peerDependencies": {
     "axios": "^1.20.0",
