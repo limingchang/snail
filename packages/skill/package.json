@@ -1,0 +1,28 @@
+{
+  "name": "@snail-js/skill",
+  "version": "1.0.0",
+  "description": "Agent skill that teaches an AI coding assistant to write correct @snail-js/api code — decorators, plugins, strategies and the plugin-authoring contract.",
+  "keywords": [
+    "skill",
+    "agent",
+    "ai",
+    "claude",
+    "snail-js"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "typecheck": "node -e \"process.exit(0)\"",
+    "test": "node ./scripts/validate.mjs"
+  }
+}

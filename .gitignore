@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# test / coverage
+coverage/
+.vitest/
+test-results/
+
+# docs
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+# env & editor
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# The pre-rewrite project, kept in-tree for reference only. It is not part of
+# this workspace (see `pnpm-workspace.yaml`) and must not be published.
+api/node_modules/
+api/dist/
+api/docs/.vitepress/cache/
+api/docs/.vitepress/dist/
+
+api-rebuild.md

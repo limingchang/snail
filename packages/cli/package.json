@@ -1,0 +1,61 @@
+{
+  "name": "@snail-js/cli",
+  "version": "1.0.0",
+  "description": "Generate typed front-end request code (decorator api classes for @snail-js/api) straight from an OpenAPI 3 document.",
+  "keywords": [
+    "openapi",
+    "swagger",
+    "codegen",
+    "cli",
+    "snail-js",
+    "typescript"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "snail": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "build:types": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node ./scripts/vitest-runner.mjs run",
+    "test:cov": "node ./scripts/vitest-runner.mjs run"
+  },
+  "dependencies": {
+    "yaml": "^2.8.0"
+  },
+  "peerDependencies": {
+    "@snail-js/api": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@snail-js/api": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@snail-js/api": "workspace:*",
+    "@types/node": "24.10.1",
+    "@vitest/coverage-v8": "5.0.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

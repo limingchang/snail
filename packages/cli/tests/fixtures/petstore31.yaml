@@ -1,0 +1,62 @@
+openapi: 3.1.0
+info:
+  title: Snail Mini API
+  version: 2.0.0
+servers:
+  - url: /mini
+tags:
+  - name: ping
+    description: 健康检查。
+paths:
+  /ping:
+    get:
+      tags:
+        - ping
+      operationId: ping
+      summary: Ping the service.
+      responses:
+        "200":
+          description: pong
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingResult"
+  /ping/{name}:
+    get:
+      tags:
+        - ping
+      operationId: pingByName
+      summary: Ping with a name.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: verbose
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: pong
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    PingResult:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+        version:
+          # 3.1 spelling of nullable; the 3.0 "nullable: true" keyword must not appear.
+          type:
+            - string
+            - "null"
+        kind:
+          const: ping

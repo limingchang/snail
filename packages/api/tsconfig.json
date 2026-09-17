@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // The dev config emits nothing, so declaration output is turned off here.
+    // Leaving it on makes TS 7 report TS4094 for an anonymous class expression
+    // with private members — which is exactly what a test helper that extends
+    // `SnailServer` inline looks like.
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+}

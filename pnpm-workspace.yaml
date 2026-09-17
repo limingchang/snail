@@ -1,0 +1,12 @@
+packages:
+  - "packages/*"
+  - "docs"
+
+# pnpm 11 requires explicit opt-in for dependency build scripts.
+#
+# esbuild is set to `false` on purpose. Its postinstall only re-links a binary
+# that pnpm already installs through the optional `@esbuild/win32-x64` package,
+# and running it requires spawning a child process, which confined build
+# environments deny. Everything else in this workspace is pure JS.
+allowBuilds:
+  esbuild: false

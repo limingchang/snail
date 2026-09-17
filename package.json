@@ -1,0 +1,28 @@
+{
+  "name": "@snail-js",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Monorepo for @snail-js/api, a decorator-driven, plugin-first request library built on axios.",
+  "license": "MIT",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" run build",
+    "typecheck": "pnpm -r --filter \"./packages/**\" run typecheck",
+    "test": "pnpm -r --filter \"./packages/**\" run test",
+    "test:cov": "pnpm -r --filter \"./packages/**\" run test:cov",
+    "verify": "pnpm --filter @snail-js/api run verify",
+    "docs:dev": "pnpm --filter @snail-js/docs run docs:dev",
+    "docs:build": "pnpm --filter @snail-js/docs run docs:build",
+    "docs:preview": "pnpm --filter @snail-js/docs run docs:preview",
+    "docs:check": "pnpm --filter @snail-js/docs run check",
+    "clean": "pnpm -r exec node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}
