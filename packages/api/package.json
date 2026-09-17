@@ -71,7 +71,7 @@
     "test": "node ./scripts/vitest-runner.mjs run",
     "test:watch": "node ./scripts/vitest-runner.mjs",
     "test:cov": "node ./scripts/vitest-runner.mjs run --coverage",
-    "verify": "node ./scripts/verify-dist.mjs",
+    "verify": "node ./scripts/verify-dist.mjs"
   },
   "peerDependencies": {
     "axios": "^1.20.0",
