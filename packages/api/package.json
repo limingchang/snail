@@ -60,10 +60,6 @@
     "README.md",
     "LICENSE"
   ],
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "scripts": {
     "build": "node ./scripts/build.mjs",
     "build:types": "tsc -p tsconfig.build.json",

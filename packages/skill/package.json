@@ -16,10 +16,6 @@
     "README.md",
     "LICENSE"
   ],
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "scripts": {
     "build": "node ./scripts/build.mjs",
     "typecheck": "node -e \"process.exit(0)\"",
