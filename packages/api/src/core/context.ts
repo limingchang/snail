@@ -75,7 +75,12 @@ export class SnailContext {
   /** Plugin scratch space. Not visible to the caller. */
   readonly state = new StateBag();
 
-  /** Caller-visible reactive values, populated by `initMeta` hooks. */
+  /**
+   * Caller-visible reactive values.
+   *
+   * Core fills the five standard handles from the server's `stateAdapter`; plugins
+   * may add their own through `initMeta`.
+   */
   meta: Record<string, unknown> = {};
 
   /**

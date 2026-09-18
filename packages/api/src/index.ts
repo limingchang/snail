@@ -9,20 +9,25 @@
  *    ```
  * 2. **Optional behaviour is imported on demand.**
  *    ```ts
- *    import { Cache, Interceptor, Version, VueAdapter } from "@snail-js/api/plugins";
+ *    import { Cache, Interceptor, Version } from "@snail-js/api/plugins";
  *    import { useRequest, usePagination } from "@snail-js/api/strategies";
+ *    import { VueRef } from "@snail-js/api/adapter/vue";
  *    ```
  *
- * Keeping the plugin and strategy entry points separate is what lets a bundler
- * drop the cache, the validators and every framework adapter from an application
+ * Keeping the plugin, strategy and adapter entry points separate is what lets a
+ * bundler drop the cache, the validators and the framework glue from an application
  * that does not use them.
  *
  * ## Everything is a plugin
  *
  * The core owns three things and nothing else: the metadata decorators write, the
  * request pipeline, and the plugin lifecycle. Caching, versioning, interceptors,
- * validation, transformation and the Vue/React adapters are all built on the same
- * public API a third party gets — see `createPlugin` and `docs/guide/plugin-lifecycle.md`.
+ * validation and transformation are all built on the same public API a third party
+ * gets — see `createPlugin` and `docs/guide/plugin-lifecycle.md`.
+ *
+ * The framework integration is *not* a plugin. It is the `stateAdapter` server
+ * option, so one declaration drives both the handles on `method.meta` and the state
+ * every `use*` strategy returns — see {@link SnailAdapter}.
  *
  * @packageDocumentation
  */
@@ -39,6 +44,32 @@ export type { RegisteredPlugin } from "./core/plugin-manager";
 export { StateBag } from "./core/state-bag";
 export { createLogger } from "./core/logger";
 export type { SnailLogger } from "./core/logger";
+
+// ── state adapters ──────────────────────────────────────────────────────────
+
+/**
+ * The default, framework-free state adapter.
+ *
+ * A server that declares nothing gets this one. It is also *how* a framework is
+ * chosen: the same server option drives both projections of a request — the handles
+ * on `method.meta` and the state every `use*` strategy returns:
+ *
+ * ```ts
+ * @Server({ baseURL: "/api" })                             // SnailAdapter, implicitly
+ * @Server({ baseURL: "/api", stateAdapter: VueRef })        // or a framework's adapter
+ * class BackEnd extends SnailServer {}
+ * ```
+ *
+ * The Vue and React adapters are **not** exported here on purpose: this is the root
+ * entry, and re-exporting them would make it statically import both frameworks.
+ * Import them from their own subpaths instead:
+ *
+ * ```ts
+ * import { VueRef } from "@snail-js/api/adapter/vue";
+ * import { ReactState, useMethodState } from "@snail-js/api/adapter/react";
+ * ```
+ */
+export { SnailAdapter } from "./adapter/plain";
 
 // ── plugin authoring ────────────────────────────────────────────────────────
 

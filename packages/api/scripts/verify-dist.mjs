@@ -42,13 +42,20 @@ const SUBPATHS = [
   ["@snail-js/api/plugins", "Transform"],
   ["@snail-js/api/plugins", "RequestPool"],
   ["@snail-js/api/plugins", "SnailPoolError"],
-  ["@snail-js/api/plugins/vue", "VueAdapter"],
-  ["@snail-js/api/plugins/react", "ReactAdapter"],
+  ["@snail-js/api/plugins", "CACHE_PRIORITY"],
+  ["@snail-js/api/plugins", "INTERCEPTOR_PRIORITY"],
+  ["@snail-js/api/plugins", "VERSIONING_PRIORITY"],
+  ["@snail-js/api/plugins", "VALIDATE_PRIORITY"],
+  ["@snail-js/api/plugins", "TRANSFORM_PRIORITY"],
+  ["@snail-js/api/plugins", "POOL_PRIORITY"],
+  ["@snail-js/api", "SnailAdapter"],
+  ["@snail-js/api/adapter/vue", "VueRef"],
+  ["@snail-js/api/adapter/react", "ReactState"],
+  ["@snail-js/api/adapter/react", "useMethodState"],
   ["@snail-js/api/strategies", "useRequest"],
   ["@snail-js/api/strategies", "usePagination"],
-  ["@snail-js/api/strategies/plain", "useRequest"],
-  ["@snail-js/api/strategies/plain", "useDownload"],
-  ["@snail-js/api/strategies/react", "useRequest"]
+  ["@snail-js/api/strategies", "useDownload"],
+  ["@snail-js/api/strategies", "TOKEN_AUTH_PRIORITY"]
 ];
 
 const failures = [];
@@ -161,8 +168,8 @@ const distDir = join(dirname(fileURLToPath(import.meta.url)), "..", "dist");
  * Every bare (non-relative) module specifier reachable from a built entry.
  *
  * The walk matters: an entry usually imports a shared chunk rather than the
- * framework directly, so reading only `plugins/vue/index.js` would report no
- * `vue` import at all and the check would silently pass on a broken build.
+ * framework directly, so reading only `adapter/vue.js` would report no `vue`
+ * import at all and the check would silently pass on a broken build.
  */
 async function reachableBareImports(entry) {
   const visited = new Set();
@@ -203,10 +210,11 @@ async function reachableBareImports(entry) {
 /**
  * Assert exactly which optional peers an entry may pull in.
  *
- * This is a packaging invariant no unit test can observe. If the `plugins` barrel
- * ever re-exported the framework adapters again, it would statically reach both
- * `vue` and `react` — and an application that only wanted `Cache` would fail to
- * resolve them at all. The split only holds while the bundles stay split.
+ * This is a packaging invariant no unit test can observe. Only the two adapter
+ * entries may reach `vue` / `react`; the root entry, the `plugins` barrel and the
+ * `strategies` barrel all have to stay framework-free, or an application that
+ * merely wanted `Cache` would fail to resolve Vue and React at all. The split
+ * only holds while the bundles stay split.
  */
 async function assertPeers(entry, { requires = [], forbids = [] }) {
   const bare = await reachableBareImports(entry);
@@ -222,11 +230,9 @@ async function assertPeers(entry, { requires = [], forbids = [] }) {
 }
 
 await assertPeers("plugins/index.js", { forbids: ["vue", "react", "zod"] });
-await assertPeers("plugins/vue/index.js", { requires: ["vue"], forbids: ["react"] });
-await assertPeers("plugins/react/index.js", { requires: ["react"], forbids: ["vue"] });
-await assertPeers("strategies/index.js", { requires: ["vue"] });
-await assertPeers("strategies/plain.js", { forbids: ["vue", "react"] });
-await assertPeers("strategies/react.js", { requires: ["react"] });
+await assertPeers("strategies/index.js", { forbids: ["vue", "react", "zod"] });
+await assertPeers("adapter/vue.js", { requires: ["vue"], forbids: ["react"] });
+await assertPeers("adapter/react.js", { requires: ["react"], forbids: ["vue"] });
 await assertPeers("index.js", { requires: ["axios"], forbids: ["vue", "react", "zod"] });
 
 // ── server-side support ──────────────────────────────────────────────────────
@@ -238,8 +244,8 @@ assert.equal(typeof window, "undefined", "this check must run without a DOM");
 checks += 1;
 
 const { Cache, Cacheable, Interceptor, RequestPool } = await import("@snail-js/api/plugins");
-const { useRequest } = await import("@snail-js/api/strategies/plain");
-const { triggerDownload } = await import("@snail-js/api");
+const { SnailAdapter, triggerDownload } = await import("@snail-js/api");
+const { useRequest } = await import("@snail-js/api/strategies");
 
 {
   const seenServer = [];
@@ -269,6 +275,11 @@ const { triggerDownload } = await import("@snail-js/api");
   Get("/")(ServerApi.prototype, "get");
 
   const api = server.createApi(ServerApi);
+  assert.equal(
+    api.get().context.serverOptions.stateAdapter,
+    SnailAdapter,
+    "a server that declares no adapter must resolve to SnailAdapter"
+  );
   const cold = await api.get().send();
   const warm = await api.get().send();
 
@@ -278,12 +289,82 @@ const { triggerDownload } = await import("@snail-js/api");
   assert.deepEqual(seenServer, ["/thing/"], "only one request should reach the adapter");
   checks += 1;
 
-  // A strategy must run on the server too — the plain entry exists for exactly this.
+  // A strategy must run on the server too, and with no adapter declared it has to
+  // fall back to SnailAdapter's plain boxes.
   const { data, loading, error, send } = useRequest(api.get);
   await send();
-  assert.deepEqual(data.value, { id: 1 });
+  assert.deepEqual(data.value, { id: 1 }, "SnailAdapter must be the default state adapter");
   assert.equal(loading.value, false);
   assert.equal(error.value, undefined);
+  checks += 1;
+}
+
+// ── two servers, two frameworks, one process ─────────────────────────────────
+
+// The regression this guards is the one the adapter refactor removed: the framework
+// used to be a process-wide registry installed as an import side effect, so whichever
+// adapter entry point was imported last silently owned every server in the bundle.
+{
+  const { VueRef } = await import("@snail-js/api/adapter/vue");
+  const { ReactState } = await import("@snail-js/api/adapter/react");
+
+  const echoing = (body) => async (config) => ({
+    data: { code: 0, message: "ok", data: body },
+    status: 200,
+    statusText: "OK",
+    headers: {},
+    config
+  });
+
+  class VueBackEnd extends SnailServer {}
+  Server({ baseURL: "/api", adapter: echoing({ id: "v" }), stateAdapter: VueRef })(VueBackEnd);
+
+  class ReactBackEnd extends SnailServer {}
+  Server({ baseURL: "/api", adapter: echoing({ id: "r" }), stateAdapter: ReactState })(ReactBackEnd);
+
+  class Thing {
+    get() {}
+  }
+  Api("/thing")(Thing);
+  Get("/")(Thing.prototype, "get");
+
+  const vueApi = new VueBackEnd().createApi(Thing);
+  const reactApi = new ReactBackEnd().createApi(Thing);
+
+  assert.equal(vueApi.get().context.serverOptions.stateAdapter, VueRef);
+  assert.equal(reactApi.get().context.serverOptions.stateAdapter, ReactState);
+
+  // A Vue server: both projections are real refs, so a render effect tracks them.
+  // The hook's own handles first…
+  const vueState = useRequest(vueApi.get);
+  await vueState.send();
+  assert.equal(vueState.data.__v_isRef, true, "a Vue server must hand out Vue refs");
+  assert.deepEqual({ ...vueState.data.value }, { id: "v" });
+  checks += 1;
+
+  // …then the handles core writes on the sent method itself. A new `get()` builds a
+  // new method with new handles, so this has to be the instance that was sent.
+  const vueMethod = vueApi.get();
+  await vueMethod.send();
+  const vueHandle = vueMethod.meta[vueMethod.context.serverOptions.dataKey];
+  assert.equal(vueHandle.__v_isRef, true, "method.meta must hold refs for a Vue server");
+  assert.deepEqual({ ...vueHandle.value }, { id: "v" });
+  checks += 1;
+
+  // A React server: boxes carry a version snapshot and a listener set, which is what
+  // `useSyncExternalStore` needs. Verified through the adapter, since a plain module
+  // cannot render a component.
+  const reactMethod = reactApi.get();
+  const handle = reactMethod.meta[reactMethod.context.serverOptions.dataKey];
+  assert.equal(handle.version, 0, "a fresh React handle starts at version 0");
+  const versions = [];
+  const unsubscribe = ReactState.subscribe(handle, () => versions.push(handle.version));
+  assert.equal(typeof unsubscribe, "function", "React subscribe must return an unsubscribe");
+  await reactMethod.send();
+  unsubscribe();
+  assert.deepEqual({ ...handle.value }, { id: "r" });
+  assert.ok(versions.length > 0, "writing a React handle must notify its subscribers");
+  assert.ok(versions[versions.length - 1] > 0, "the React snapshot must change on write");
   checks += 1;
 }
 

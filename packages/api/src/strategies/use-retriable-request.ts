@@ -73,6 +73,8 @@ export function useRetriableRequest<TArgs extends readonly unknown[], TData>(
 
   const controller = createStrategyState<TData>({
     adapter: options.adapter,
+    method,
+
     initialData: options.initialData,
     onAbort: () => {
       backoff?.abort();

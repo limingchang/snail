@@ -19,5 +19,5 @@
  */
 
 export { Version } from "./decorators";
-export { Versioning } from "./plugin";
+export { VERSIONING_PRIORITY, Versioning } from "./plugin";
 export type { VersioningOptions, VersioningPatch, VersioningType } from "./type";

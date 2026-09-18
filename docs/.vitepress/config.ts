@@ -39,8 +39,10 @@ export default defineConfig({
             { text: "参数装饰器", link: "/guide/parameters" },
             { text: "响应与类型", link: "/guide/responses" },
             { text: "错误处理", link: "/guide/errors" },
+            { text: "方法事件", link: "/guide/events" },
             { text: "服务端配置", link: "/guide/configuration" },
             { text: "在服务端运行（Node / SSR）", link: "/guide/server-side" },
+            { text: "框架适配器 Vue / React", link: "/guide/adapters" },
             { text: "SSE / WebSocket / HTTP 流", link: "/guide/streaming" }
           ]
         },
@@ -61,8 +63,7 @@ export default defineConfig({
             { text: "拦截器 Interceptor", link: "/guide/plugin-interceptor" },
             { text: "版本 Versioning", link: "/guide/plugin-versioning" },
             { text: "校验 Validate", link: "/guide/plugin-validate" },
-            { text: "转换 Transform", link: "/guide/plugin-transform" },
-            { text: "框架适配器 Vue / React", link: "/guide/adapters" }
+            { text: "转换 Transform", link: "/guide/plugin-transform" }
           ]
         },
         {

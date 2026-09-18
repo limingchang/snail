@@ -8,8 +8,8 @@ description: Use proactively when writing, reviewing or debugging code that uses
 `@snail-js/api` is a decorator-driven HTTP client built on axios alone: you declare request
 classes with Nest.js-style decorators (`@Server`, `@Api`, `@Get`, `@Query`, `@Data`) and the
 library builds the axios config for you. Cache, interceptors, versioning, validation,
-transformation, the request pool, Vue/React adapters and request strategies all come from subpaths
-— never from the package root.
+transformation, the request pool and request strategies all come from subpaths — never from the
+package root. The Vue/React integration is a `@Server({ stateAdapter })` option, not a plugin.
 
 ## Five rules that decide whether the code works
 

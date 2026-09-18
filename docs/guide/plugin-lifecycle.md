@@ -14,7 +14,11 @@
 2. 请求管线；
 3. 下文描述的生命周期。
 
-缓存、版本管理、拦截器、zod 校验、JSON→class 转换、请求池以及 Vue/React 适配器，**通通都是插件**，而且它们用的就是第三方插件能拿到的那套 API。不存在内部特权通道。如果某个内置插件需要一个尚不存在的钩子，那就把这个钩子补进公开契约，而不是在内部偷偷模拟一个。
+缓存、版本管理、拦截器、zod 校验、JSON→class 转换与请求池**通通都是插件**，而且它们用的就是第三方插件能拿到的那套 API。不存在内部特权通道。如果某个内置插件需要一个尚不存在的钩子，那就把这个钩子补进公开契约，而不是在内部偷偷模拟一个。
+
+框架适配器（`SnailAdapter` / `VueRef` / `ReactState`）是这条规则的**例外**：它不是插件，而是
+`@Server({ stateAdapter })` 这个 server 选项。核心按它创建 `method.meta` 上的五个句柄，
+`ctx.meta` 因此不再需要任何插件去初始化。
 
 插件就是一个普通对象：
 
@@ -46,7 +50,9 @@ type SnailPlugin<O = unknown> = (options?: O) => SnailPluginObject<O>;
                   ┌────── SnailMethod 构造完成 ─────┐
                   │  ctx 创建（state、meta、        │
                   │  请求配置、descriptors）        │
-                  │  → initMeta（同步，每个方法）   │
+                  │  核心按 stateAdapter 创建       │
+                  │  五个 meta 句柄；initMeta 是    │
+                  │  插件追加自己句柄的扩展点       │
                   └─────────────────────────────────┘
                                 │
                        method.send(...args)
@@ -99,10 +105,10 @@ type SnailPlugin<O = unknown> = (options?: O) => SnailPluginObject<O>;
 ```
 
 ::: tip 收尾阶段的实际顺序
-`afterRequest` 与 `finish` 事件都在 `finally` 里，顺序是**先执行 `afterRequest` 钩子，再派发
-`finish`**。这个顺序是刻意的：框架适配器正是在 `afterRequest` 里把 `loading` 置回 `false`，
-如果先派发 `finish`，调用方的 `onFinish` 就会看到过期的 `loading === true` —— 而它恰恰是 UI
-用来关掉加载态的标志。两者都保证会跑（成功、失败、取消皆然）。
+`afterRequest` 与 `finish` 事件都在 `finally` 里，顺序是**先执行 `afterRequest` 钩子，然后核心把
+`meta.loading` 写回 `false`，最后才派发 `finish`**。这个顺序是刻意的：如果先派发 `finish`，
+调用方的 `onFinish` 就会看到过期的 `loading === true` —— 而它恰恰是 UI 用来关掉加载态的标志。
+`afterRequest` 钩子、`loading` 复位与 `finish` 三者都保证会跑（成功、失败、取消皆然）。
 :::
 
 ### 2.1 优先级与方向
@@ -117,17 +123,34 @@ type SnailPlugin<O = unknown> = (options?: O) => SnailPluginObject<O>;
 因此请求池（`-150`，最低的一档）是**正向链的最后一道闸门**：排在缓存之后，所以一次缓存能回答的请求
 永远到不了池，也永远不占用池的槽位。这一条只能靠这个顺序成立，理由见[请求池](./plugin-pool.md)。
 
-下面是预留的优先级区间，第三方插件可以借此插进内置插件之间：
+下面这些是**具名的参考档位**，每个都导出了对应的常量，第三方插件可以据此插进内置插件之间：
 
-| 优先级 | 区间 |
-| --- | --- |
-| `100` | 拦截器 |
-| `50` | 版本管理 |
-| `20 … 1` | 第三方插件 |
-| `0` | 框架适配器、用户插件（默认） |
-| `-50` | 校验 |
-| `-100` | 缓存 |
-| `-150` | 请求池 |
+| 优先级 | 常量 | 插件 |
+| --- | --- | --- |
+| `100` | `INTERCEPTOR_PRIORITY` | 拦截器 |
+| `50` | `VERSIONING_PRIORITY` | 版本管理 |
+| `20` | `TOKEN_AUTH_PRIORITY` | `useTokenAuth` 返回的插件 |
+| `0` | `TRANSFORM_PRIORITY` | 用户插件、转换 |
+| `-50` | `VALIDATE_PRIORITY` | 校验 |
+| `-100` | `CACHE_PRIORITY` | 缓存 |
+| `-150` | `POOL_PRIORITY` | 请求池 |
+
+六个插件常量从 `@snail-js/api/plugins` 导出，`TOKEN_AUTH_PRIORITY` 从
+`@snail-js/api/strategies` 导出。
+
+`priority` 是一个**无上界的数字**：任何整数都合法，二十几个插件也不会互相碰撞，因为只有
+**完全相等**才算并列，而并列时按注册顺序决定先后。这张表描述的是参考位置，不是「一共只有七
+个槽位」。要让自己的插件紧挨着某个内置插件，请相对它定位：
+
+```ts
+import { CACHE_PRIORITY } from "@snail-js/api/plugins";
+
+createPlugin({
+  name: "key-rewrite",
+  priority: CACHE_PRIORITY + 1,   // 正向紧挨着缓存之前，反向紧挨着它之后
+  /* … */
+});
+```
 
 #### 谁占用哪个优先级
 
@@ -137,15 +160,19 @@ type SnailPlugin<O = unknown> = (options?: O) => SnailPluginObject<O>;
 | --- | --- | --- | --- | --- |
 | `100` | `interceptor` | `beforeRequest` / `afterResponse` | 正向最先跑，才能让 `@BeforeRequest()` 在缓存哈希之前改写 config；反向最后跑，才能改写最终响应 | [拦截器](./plugin-interceptor.md) |
 | `50` | `versioning` | `beforeRequest` | 在拦截器之后（看到已改写的 url）、缓存之前（让缓存哈希带版本的 url） | [版本](./plugin-versioning.md) |
-| `20 … 1` | `token-auth`（`useTokenAuth` 返回的插件，`20`） | `beforeRequest`（包住 `await next()`） | 高于默认值，好让它包住 `beforeRequest` 链的其余部分并观察下游抛出的 401 | [`useTokenAuth`](./strategies/use-token-auth.md) |
+| `20` | `token-auth`（`useTokenAuth` 返回的插件） | `beforeRequest`（包住 `await next()`） | 高于默认值，好让它包住 `beforeRequest` 链的其余部分并观察下游抛出的 401 | [`useTokenAuth`](./strategies/use-token-auth.md) |
 | `0` | `transform` | `afterResponse` | 在反向链里排在 `validate`（`-50`）之后：先校验原始 JSON，再水合成类实例 | [转换](./plugin-transform.md) |
-| `0` | `vue-adapter` / `react-adapter` | `initMeta` / `beforeCreate` / `afterResponse` / `afterRequest` / `onError` | 只镜像状态，不改变请求或响应；`initMeta` 必须早于第一次 `createApi()` 存在 | [框架适配器](./adapters.md) |
 | `-50` | `validate` | `beforeRequest` / `afterResponse` | 正向在塑形之后、缓存要键之前；反向在缓存之后、转换之前 | [校验](./plugin-validate.md) |
 | `-100` | `cache` | `beforeRequest` / `afterResponse` | 正向最后，url / params / body 已定稿；反向最先，存下原始信封 | [缓存](./plugin-cache.md) |
 | `-150` | `pool` | `beforeRequest` | 正向最低一档，紧贴传输：排在缓存之后，所以缓存能回答的请求既不进入池、也不占用槽位；槽位只为网络步骤持有，响应一到就归还 | [请求池](./plugin-pool.md) |
 
-第三方插件请落在 `20 … 1` 区间：它高于所有默认值（`0`），又低于全部内置的请求改写插件，
-因此不会意外抢在内置插件前面。
+框架适配器不在这张表里 —— 它不是插件。`SnailAdapter` / `VueRef` / `ReactState` 由
+`@Server({ stateAdapter })` 选择，核心据此创建 `method.meta` 上的五个句柄，见
+[框架适配器](./adapters.md)。
+
+第三方插件如果需要高于所有默认值（`0`）、又低于内置的请求改写插件，请**相对某个常量定位**，
+例如 `TOKEN_AUTH_PRIORITY - 1`：硬编码一个与 `token-auth` 相等的数字只会把自己塞进一次并列，
+而且内置档位调整时不会跟着走。
 
 ### 2.2 为什么是两种顺序，而不是一种
 
@@ -178,7 +205,7 @@ Service.use(Interceptor()).use(Version({ defaultVersion: "1.0.0" }));
 
 `install` 既可以是同步的，也可以是异步的：
 
-- **同步**的 `install` 在 `use()` 期间执行，这样框架适配器的 `initMeta` 钩子在第一次调用 `createApi()` 之前就已经存在；
+- **同步**的 `install` 在 `use()` 期间执行，所以它在 `install` 里写下的状态、注册的钩子在第一次调用 `createApi()` 之前就已经存在；
 - **异步**的 `install` 会被记录下来，并在第一个请求发出之前，通过 `pluginManager.ready` 统一 await 一次。
 
 用 `remove(name)` / `remove(plugin)` 注销插件（会执行 `uninstall`），用 `Service.dispose()` 注销全部插件。
@@ -241,13 +268,11 @@ configureServer(options) {
 
 #### `initMeta(ctx)` —— 同步，正向
 
-创建调用方可见的响应式值。这就是框架适配器的钩子。
+**纯粹的扩展点**：核心已经在 `SnailMethod` 构造时按 `@Server({ stateAdapter })` 创建了五个标准句柄（`dataKey` / `codeKey` / `messageKey` 与固定的 `loading` / `error`），不需要任何插件再装一次适配器。只有想往 `ctx.meta` 上追加**自己的**句柄的插件才需要这个钩子：
 
 ```ts
 initMeta(ctx) {
-  ctx.meta.data = ref(undefined);
-  ctx.meta.loading = ref(false);
-  ctx.meta.error = ref(undefined);
+  ctx.meta.progress = ctx.serverOptions.stateAdapter.create(0);
 }
 ```
 
@@ -259,7 +284,7 @@ initMeta(ctx) {
 
 ```ts
 beforeCreate(ctx) {
-  ctx.meta.loading.value = true;
+  ctx.serverOptions.stateAdapter.write(ctx.meta.loading, true);
 }
 ```
 
@@ -324,10 +349,12 @@ requestInterceptor(config, ctx) {
 
 ```ts
 afterRequest(ctx) {
-  ctx.meta.loading.value = false;
   clearTimeout(ctx.state.get("timer"));
 }
 ```
+
+`meta.loading` 的复位由核心负责，发生在所有 `afterRequest` 钩子跑完之后、`finish` 事件之前，
+插件不需要（也不应该）在这里重复写它。
 
 ---
 
@@ -427,7 +454,7 @@ orders(@Tenant("x-org-tenant") tenantId: string) {}
 | `ctx.response` / `setResponse` / `getResponse` / `requireResponse` | axios 响应 |
 | `ctx.result` / `setResult` | 组装出来的 `SnailResult` |
 | `ctx.error` | 在失败路径上被设置 |
-| `ctx.meta` | 调用方可见的响应式值（`initMeta` 写在这里） |
+| `ctx.meta` | 调用方可见的响应式值；五个标准句柄由核心按 `stateAdapter` 创建，`initMeta` 只用来追加插件自己的句柄 |
 | `ctx.state` | 插件的暂存空间（`StateBag`），每次发送都会清空 |
 | `ctx.logger` | 受级别控制的 logger，遵循 `@Server({ logLevel })` |
 | `ctx.interrupt(response?)` | 中止请求，可选地直接返回一个响应 |
@@ -511,9 +538,11 @@ api.addMessages({
 | 两种链式方向（正向 / 反向） | 单层洋葱无法表达「缓存最后进入、最先退出」 |
 | `next()` 最多只能调用一次 | 旧的派发器会悄无声息地重跑链的尾部 |
 | `state` 从 `meta` 中拆出 | 插件的簿记泄漏进了调用方的响应式状态 |
-| `install` 可以是同步的 | 框架适配器的 `initMeta` 必须在第一次 `createApi()` 之前就存在，而延迟安装保证不了这一点 |
+| `install` 可以是同步的 | 插件必须在第一次 `createApi()` 之前完成注册，而延迟安装保证不了这一点 |
+| 五个 `meta` 句柄改由核心创建 | 它们曾经由一个适配器插件创建，而策略句柄又走另一个进程级注册表；同一个框架要在两处声明，且全局那一半是 import 副作用。现在统一由 `@Server({ stateAdapter })` 驱动，`initMeta` 只剩「追加自己的句柄」这一个用途 |
+| 框架适配器不再是插件 | 旧的两个适配器/三个策略入口让两个 server 无法使用不同框架；现在适配器是 server 选项，只为 `method.meta` 与策略提供句柄 |
 | 新增 `createPlugin` | 插件作者不得不手搓对象结构，且得不到任何校验 |
 | `afterResponse` 移出传输步骤 | 缓存命中会跳过它，导致响应校验和转换在第二次调用时悄无声息地什么都不做 |
 | 缓存在写入和读取时都做克隆 | 缓存与调用方共享同一个对象，任何一方就地修改都会改写另一方（§2.3） |
 | 缓存命中时跳过入库和标签清理 | 一次过期命中会把旧 body 重新存回去，覆盖掉它自己后台刷新刚取回的新值 |
-| `afterRequest` 在 `finish` 事件之前执行 | 适配器在这里清除 `loading`，而 `onFinish` 之前看到的是过期的 `loading === true` |
+| `afterRequest` 在 `finish` 事件之前执行 | 核心正是在这个窗口里把 `meta.loading` 置回 `false`，而 `onFinish` 之前看到的是过期的 `loading === true` |

@@ -104,9 +104,19 @@ function warnOnInvalidResponse(ctx: SnailContext, schema: ZodType): void {
  * It is normally used without options, together with the decorators:
  * `Service.use(Validate())`.
  */
+/**
+ * The reserved validation band.
+ *
+ * Forward order places it after the payload has been shaped but before the cache
+ * hashes a key; unwind order places it after the cache stored the raw envelope and
+ * before transformation hydrates it. Exported so a plugin can position itself
+ * relative to it rather than hardcoding `-50`.
+ */
+export const VALIDATE_PRIORITY = -50;
+
 export const validatePlugin = createPlugin<ValidateOptions>({
   name: "validate",
-  priority: -50,
+  priority: VALIDATE_PRIORITY,
 
   setup(options) {
     const fallbackRequest = options?.request;

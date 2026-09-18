@@ -90,9 +90,18 @@ function transformResponse(
  * Without a DTO — no decorator and no `dto` option — the plugin is a no-op and the
  * payload stays the plain object JSON.parse produced.
  */
+/**
+ * The transform band — the same default a third-party plugin gets.
+ *
+ * It is exported rather than left as a bare `0` so the intent is legible: transform
+ * sits in the ordinary band and relies on registration-independent ordering rather
+ * than on a privileged number.
+ */
+export const TRANSFORM_PRIORITY = 0;
+
 export const transformPlugin = createPlugin<TransformOptions>({
   name: "transform",
-  priority: 0,
+  priority: TRANSFORM_PRIORITY,
 
   setup(options) {
     const fallbackDto = options?.dto;

@@ -90,7 +90,8 @@ class SnailMethod<
 }
 ```
 
-所有 `on*` 订阅都返回取消订阅函数。`send(...args)` 传入参数时会覆盖代理时捕获的参数。
+所有 `on*` 订阅都返回取消订阅函数。`send(...args)` 传入参数时会覆盖代理时捕获的参数。五个事件
+各自观察什么、按什么顺序触发、以及取消订阅语义见[方法事件](/guide/events)。
 
 ### `SnailContext`
 
@@ -111,7 +112,7 @@ class SnailContext {
   readonly logger: SnailLogger;
   readonly descriptors: readonly SnailParamDescriptor[];
   readonly state: StateBag;              // 每次 send 清空
-  meta: Record<string, unknown>;         // initMeta 写这里，跨多次 send 保留
+  meta: Record<string, unknown>;         // 核心按 stateAdapter 创建五个句柄，跨多次 send 保留；initMeta 只追加插件自己的
   request: InternalAxiosRequestConfig;
   pathParams: Record<string, unknown>;
   response: AxiosResponse | undefined;
@@ -220,7 +221,7 @@ interface PluginDefinition<O, Hooks extends object> {
 
 interface SnailPluginObject<O = unknown> {
   readonly name: string;
-  readonly priority?: number;          // 默认 0
+  readonly priority?: number;          // 默认 0；无上界的数字，参考档位见下文「优先级常量」
   readonly dependsOn?: readonly string[];
   readonly options?: O;
 
@@ -504,6 +505,7 @@ const DEFAULT_SERVER_OPTIONS: {
   dataKey: "data";
   logLevel: "silent";
   coerceJSONString: true;
+  stateAdapter: SnailStateAdapter;   // 默认 SnailAdapter
 };
 const LOG_LEVEL_WEIGHT: Record<SnailLogLevel, number>;        // silent 0 / error 1 / warn 2 / info 3 / debug 4
 ```
@@ -594,6 +596,7 @@ interface ResolvedServerOptions extends SnailServerOptions {
   name: string; baseURL: string; timeout: number;
   codeKey: string; messageKey: string; dataKey: string;
   logLevel: SnailLogLevel; coerceJSONString: boolean;
+  stateAdapter: SnailStateAdapter;      // 默认 SnailAdapter
 }
 
 interface SnailApiOptions {
@@ -775,12 +778,17 @@ interface SnailStateAdapter {
 
 interface SnailStrategyCommonOptions {
   immediate?: boolean;             // 默认 false
-  adapter?: SnailStateAdapter;     // 默认使用全局注册的适配器
+  adapter?: SnailStateAdapter;     // 默认取所属 server 的 stateAdapter
   onSuccess?: (data: unknown) => void;
   onError?: (error: unknown) => void;
   onFinish?: () => void;
 }
 ```
+
+`SnailStateAdapter` 由 `@Server({ stateAdapter })` 选择，默认是 `SnailAdapter` —— 它从包根
+`@snail-js/api` 导出，返回普通的 `{ value }` 盒子。`VueRef` / `ReactState` 分别在
+`@snail-js/api/adapter/vue` 与 `@snail-js/api/adapter/react` 下，也是这两个子路径唯一会 import
+框架的原因。详见[框架适配器](/guide/adapters)。
 
 ## 插件与策略导出
 
@@ -789,12 +797,12 @@ interface SnailStrategyCommonOptions {
 
 | 子路径 | 内容 | 可选 peer |
 | --- | --- | --- |
-| `@snail-js/api/plugins` | cache、interceptor、pool、transform、validate、version | `zod`（仅 validate） |
-| `@snail-js/api/plugins/vue` | `VueAdapter` | `vue` |
-| `@snail-js/api/plugins/react` | `ReactAdapter`、`useMethodState` | `react` |
-| `@snail-js/api/strategies` | 全部策略（装好 Vue 适配器） | `vue` |
-| `@snail-js/api/strategies/plain` | 全部策略（无框架） | — |
-| `@snail-js/api/strategies/react` | 全部策略（装好 React 适配器） | `react` |
+| `@snail-js/api` | 核心 + 装饰器 + `SnailAdapter` | `axios` |
+| `@snail-js/api/plugins` | cache、interceptor、pool、transform、validate、version（含六个优先级常量） | `zod`（仅 validate） |
+| `@snail-js/api/strategies` | 全部策略，不 import 任何框架 | — |
+| `@snail-js/api/adapter/vue` | `VueRef` | `vue` |
+| `@snail-js/api/adapter/react` | `ReactState`、`useMethodState`、`ReactMethodState` | `react` |
+| `@snail-js/api/package.json` | `package.json` | — |
 
 ### `@snail-js/api/plugins` —— 缓存
 
@@ -1136,16 +1144,20 @@ interface AbortLike {
 
 详见[请求池插件](/guide/plugin-pool)。
 
-### `@snail-js/api/plugins/vue`、`@snail-js/api/plugins/react`
+### `@snail-js/api/adapter/vue`、`@snail-js/api/adapter/react`
+
+状态适配器不是插件：它们是 `@Server({ stateAdapter })` 的取值。两个子路径是**仅有的**会 import
+`vue` / `react` 的模块，所以不 import 它们就不会打包框架。
 
 ```ts
-// @snail-js/api/plugins/vue
-const VueAdapter: SnailPlugin<VueAdapterOptions>;
-interface VueAdapterOptions {}      // 刻意留空
+// @snail-js/api（包根）—— 默认适配器
+const SnailAdapter: SnailStateAdapter;   // name: "plain"，create 返回 { value }
 
-// @snail-js/api/plugins/react
-const ReactAdapter: SnailPlugin<ReactAdapterOptions>;
-interface ReactAdapterOptions {}    // 刻意留空
+// @snail-js/api/adapter/vue
+const VueRef: SnailStateAdapter;         // name: "vue"，create 返回 Vue 的 ref()
+
+// @snail-js/api/adapter/react
+const ReactState: SnailStateAdapter;     // name: "react"，create 返回可订阅盒子
 
 function useMethodState<TData = unknown>(
   method: SnailMethod<any, TData, any, any, any>
@@ -1160,12 +1172,34 @@ interface ReactMethodState<TData = unknown> {
 }
 ```
 
-详见[框架适配器](/guide/adapters)。
+`ReactState.subscribe(handle, listener)` 可以在渲染之外直接订阅；`useMethodState` 只能渲染期间
+调用，它按固定顺序绑定五个句柄。详见[框架适配器](/guide/adapters)。
 
-### `@snail-js/api/strategies`（以及 `/plain`、`/react`）
+### 优先级常量
 
-三个入口导出**完全相同**的清单，区别只有导入时安装的 state adapter。详见
-[策略概览](/guide/strategies)。
+六个插件常量从 `@snail-js/api/plugins` 导出，`TOKEN_AUTH_PRIORITY` 从
+`@snail-js/api/strategies` 导出。`priority` 是无上界的数字，这些常量只是参考档位：
+
+```ts
+// @snail-js/api/plugins
+const INTERCEPTOR_PRIORITY: number;   // 100
+const VERSIONING_PRIORITY: number;    //  50
+const TRANSFORM_PRIORITY: number;     //   0
+const VALIDATE_PRIORITY: number;      // -50
+const CACHE_PRIORITY: number;         // -100
+const POOL_PRIORITY: number;          // -150
+
+// @snail-js/api/strategies
+const TOKEN_AUTH_PRIORITY: number;    //  20（useTokenAuth 返回的插件）
+```
+
+要让自己的插件紧挨着某个内置插件，用 `CACHE_PRIORITY + 1` 这样的相对定位，而不是硬编码一个
+数字。详见[插件生命周期](/guide/plugin-lifecycle)§2.1。
+
+### `@snail-js/api/strategies`
+
+唯一的策略入口，**不 import 任何框架**：框架由 `@Server({ stateAdapter })` 决定，每个 hook 从它
+拿到的 method 上读该选项。详见[策略概览](/guide/strategies)与[框架适配器](/guide/adapters)。
 
 ```ts
 function createStrategyState<TData>(

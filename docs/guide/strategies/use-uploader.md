@@ -91,6 +91,6 @@ aggregate = files.reduce((sum, f) => sum + f.progress, 0) / files.length
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [文件上传与进度](../../examples/upload.md)：完整的模板写法
 - [错误处理](../errors.md)：为什么取消要单独区分

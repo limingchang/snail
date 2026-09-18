@@ -93,8 +93,10 @@ export interface SnailPluginObject<O = unknown> {
   /**
    * Add the reactive values this plugin owns to `ctx.meta`.
    *
-   * Runs once per `send()`, before any request work. Framework adapters use it
-   * to expose `loading` / `data` / `error`.
+   * Purely an extension point: core has already created the five standard handles
+   * from the server's `stateAdapter` by the time this runs, so a plugin adds rather
+   * than replaces. It runs **once per method**, when the `SnailMethod` is built —
+   * not once per `send()` — which is what keeps a handle stable across re-sends.
    */
   initMeta?(ctx: SnailContext): void;
 

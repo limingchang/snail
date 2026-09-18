@@ -5,25 +5,20 @@ Every built-in plugin comes from a subpath — never the package root, which car
 `Cache`, `Cacheable`, `NoCache`, `Invalidates`, `HitSource`, `Interceptor`, `BeforeRequest`,
 `AfterResponse`, `Versioning`, `Version`, `Validate`, `ValidateResponse`, `Transform`, `PropertyType`,
 `ExposeName`, `RequestPool`, `RequestPoolScheduler`, `poolStats`, `clearPool`, `isPoolError`,
-`SnailPoolError`, `POOL_ERROR_CODES`, plus cache adapters and types. `VueAdapter` and `ReactAdapter`
-are **not** in it: a re-export there would make the barrel statically import `vue` and `react`, so
-importing `Cache` would demand both frameworks installed. They live at `@snail-js/api/plugins/vue`
-and `@snail-js/api/plugins/react`; importing either from the barrel is a compile error — see
-[troubleshooting.md](troubleshooting.md).
+`SnailPoolError`, `POOL_ERROR_CODES`, the six `*_PRIORITY` constants, plus cache adapters and types.
 
-`VueAdapter()` mirrors the envelope onto `method.meta` as Vue refs (`data`/`code`/`message` under the
-server's own key names, plus `loading` and `error`); `ReactAdapter()` mirrors it into subscribable
-boxes that `useMethodState(method)` binds during render — call that unconditionally, in a fixed hook
-order. Both sit at priority `0`, create their handles once per `SnailMethod` (never per send, so what
-a component captured stays live), and are unnecessary when you use strategy hooks.
+**Every plugin here is framework-agnostic, and no framework adapter is here.** `VueRef` and
+`ReactState` are `SnailStateAdapter` values — not plugins — imported from `@snail-js/api/adapter/vue`
+and `@snail-js/api/adapter/react` and declared as `@Server({ stateAdapter })`; core builds the five
+`method.meta` handles (`data`/`code`/`message` plus `loading`/`error`) from it when a `SnailMethod`
+is built, so `initMeta` now only extends them. Re-exporting a framework would statically import
+`vue`/`react` — see [troubleshooting.md](troubleshooting.md).
 
 | Entry point | Contents |
 | --- | --- |
 | `@snail-js/api/plugins` | cache, interceptor, versioning, validate, transform, request pool |
-| `@snail-js/api/plugins/vue` | `VueAdapter` |
-| `@snail-js/api/plugins/react` | `ReactAdapter`, `useMethodState` |
 
-The strategy hooks live at `@snail-js/api/strategies` — see [strategies.md](strategies.md).
+Strategy hooks come from `@snail-js/api/strategies`; their adapters are in [strategies.md](strategies.md).
 
 ## Ordering
 
@@ -37,15 +32,20 @@ and `await Service.dispose()` are asynchronous, so an unawaited `remove()` races
 | --- | --- |
 | `100` | `Interceptor` |
 | `50` | `Versioning` |
-| `0` | `VueAdapter` / `ReactAdapter` / `Transform`, and your plugins by default |
+| `20` | `useTokenAuth` (returned by the call, not a built-in to install) |
+| `0` | `Transform`, and your plugins by default |
 | `-50` | `Validate` |
 | `-100` | `Cache` |
 | `-150` | `RequestPool` |
 
 Forward hooks (`beforeRequest`) run highest first, unwind hooks (`afterResponse`) lowest first: the
-cache keys the final url and body and is first to see the response (storing the raw envelope before
-validation and transformation touch it), while the pool — last forward — gates only what the cache
-could not answer. Chain rules: [plugin-authoring.md](plugin-authoring.md).
+cache keys the final url and body and is first to see the response (raw envelope, before validation
+and transformation), while the pool — last forward — gates only what the cache could not answer.
+Bands are **named references, not slots**: `priority` is unbounded, only exact ties matter (they keep
+registration order), and each band is exported — `INTERCEPTOR_PRIORITY`, `VERSIONING_PRIORITY`,
+`TRANSFORM_PRIORITY`, `VALIDATE_PRIORITY`, `CACHE_PRIORITY`, `POOL_PRIORITY`, plus
+`TOKEN_AUTH_PRIORITY` in `@snail-js/api/strategies` — so position against a neighbour, not a magic
+number (`CACHE_PRIORITY + 1`). Chain: [plugin-authoring.md](plugin-authoring.md).
 
 ## Cache — `Cache(options?)`, priority `-100`
 

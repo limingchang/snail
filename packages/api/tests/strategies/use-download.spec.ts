@@ -16,7 +16,7 @@ import {
   triggerBlobDownload,
   triggerDownload
 } from "../../src/index";
-import { useDownload } from "../../src/strategies/plain";
+import { useDownload } from "../../src/strategies";
 import { createTestAdapter } from "../helpers/test-adapter";
 
 /** A minimal stand-in for the parts of the DOM the download helper touches. */

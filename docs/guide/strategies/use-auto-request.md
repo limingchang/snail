@@ -40,6 +40,10 @@ interface UseAutoRequestOptions<TData> extends UseRequestOptions<TData> {
 | `send(...args)` | `(...args: TArgs) => Promise<TData>` | 继承自 `useRequest`，可手动带参数发送 |
 | 状态句柄 | `StrategyState<TData>` | 与 `useRequest` 相同 |
 
+`running` 用的是**同一个**适配器：它和请求状态一样，从传入的那个 method 上解析该 server 的
+`stateAdapter`（`{ adapter }` 覆盖同样生效）。所以在 Vue server 上 `running` 也是 `Ref<boolean>`，
+不会退化成普通盒子 —— 两者不可能跟踪到不同的响应式系统。
+
 ## 示例
 
 ```ts
@@ -83,6 +87,6 @@ stats.dispose();
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [`useRequest`](./use-request.md)：它内部委托的就是这个状态机
 - [`useRetriableRequest`](./use-retriable-request.md)：把失败的那一次自己修好

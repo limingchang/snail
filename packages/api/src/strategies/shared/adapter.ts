@@ -1,16 +1,38 @@
-import { getStateAdapter } from "../../adapter/registry";
+import { getMethodContext } from "../../core/method-context";
+import { SnailAdapter } from "../../adapter/plain";
 import type { SnailStateAdapter, SnailStateRef } from "../../typings/adapter";
 
 /**
  * Resolve the state adapter one strategy instance should use.
  *
- * The adapter is resolved **once per hook** rather than per read. A hook that
- * asked the registry on every write could observe two different adapters if an
- * application called `setStateAdapter()` between two requests, and would then mix
- * Vue refs with plain boxes in one set of handles.
+ * Precedence, and why:
+ *
+ * 1. **`options.adapter`** — an explicit per-hook override. Wins outright, so a
+ *    single exotic hook can differ from its server without a second server class.
+ * 2. **The owning server's `stateAdapter`** — read from the method factory that was
+ *    passed in. This is the normal path: declare your framework once with
+ *    `@Server({ stateAdapter: VueRef })` and every hook agrees.
+ * 3. **`SnailAdapter`** — the framework-free fallback, for a proxy built by hand or
+ *    a method whose context could not be read.
+ *
+ * ## Why the server, and not a module global
+ *
+ * This used to read a process-wide registry that the strategies entry points set as
+ * an import side effect. That made the framework choice order-dependent — importing
+ * one entry point silently reconfigured every other server — and made two servers
+ * with different frameworks impossible in one bundle. Resolving from the method's
+ * own server fixes both, and it resolves **once per hook**, so one set of handles
+ * can never mix two adapters.
  */
-export function resolveStateAdapter(options: { adapter?: SnailStateAdapter } = {}): SnailStateAdapter {
-  return options.adapter ?? getStateAdapter();
+export function resolveStateAdapter(
+  options: { adapter?: SnailStateAdapter } = {},
+  method?: unknown
+): SnailStateAdapter {
+  return (
+    options.adapter ??
+    getMethodContext(method)?.serverOptions.stateAdapter ??
+    SnailAdapter
+  );
 }
 
 /**

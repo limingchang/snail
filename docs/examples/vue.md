@@ -258,17 +258,27 @@ onBeforeUnmount(() => {
 它在语义上是「这次请求不再需要了」。详见[错误处理](/guide/errors#取消)。
 :::
 
-## 7. 可选：让插件帮你管理响应式状态
+## 7. 可选：让服务端选项帮你管理响应式状态
 
-上面的组合式函数是手写版本。本库也提供了框架适配器插件：
+上面的组合式函数是手写版本。本库也内置了 Vue 适配器：在 `@Server(...)` 上加一个
+`stateAdapter` 选项即可（见第 1 节的 `src/service.ts`）：
 
 ```ts
-import { VueAdapter } from "@snail-js/api/plugins/vue";
+import { Server, SnailServer } from "@snail-js/api";
+import { VueRef } from "@snail-js/api/adapter/vue";
 
-Service.use(VueAdapter());
+@Server({
+  baseURL: import.meta.env.VITE_API_BASE ?? "/api",
+  stateAdapter: VueRef
+})
+class BackEnd extends SnailServer {}
+
+export const Service = new BackEnd();
 ```
 
-它通过插件的 `initMeta` 钩子把 server 声明的 `data` / `code` / `message` 与固定的
-`loading` / `error` 直接挂到 `method.meta` 上，成为 `ref`。注意它**不在**
-`@snail-js/api/plugins` 里 —— 那个 barrel 一旦静态引入 `vue`，只想要 `Cache` 的应用就会被拖上
-Vue。参考手册见[框架适配器](/guide/adapters)；本页的组合式函数与它并不冲突，两者可以共存。
+核心会按这个选项把 server 声明的 `data` / `code` / `message` 与固定的 `loading` / `error` 创建
+成 Vue `ref`，直接挂在 `method.meta` 上；同一份声明也决定了 `useRequest` 等策略返回的句柄。
+
+它**不是插件**，也**不在** `@snail-js/api/plugins` 里：那个 barrel 必须保持与框架无关，只有
+`@snail-js/api/adapter/vue` 这个子路径会 import `vue`。参考手册见[框架适配器](/guide/adapters)；
+本页的组合式函数与它并不冲突，两者可以共存。

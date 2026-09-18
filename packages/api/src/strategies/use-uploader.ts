@@ -134,6 +134,8 @@ export function useUploader<TData>(
 
   const controller = createStrategyState<TData>({
     adapter: options.adapter,
+    method,
+
     onAbort: () => {
       // Two halves: abort what is on the wire, drop what has not started. Leaving
       // either half alive means `abort()` appears not to work.

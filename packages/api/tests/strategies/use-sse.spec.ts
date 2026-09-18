@@ -4,8 +4,8 @@ import type {
   SnailSseConnection,
   SnailSseMessage
 } from "../../src/index";
-import { useSSE } from "../../src/strategies/plain";
-import type { SseEndpoint } from "../../src/strategies/plain";
+import { useSSE } from "../../src/strategies";
+import type { SseEndpoint } from "../../src/strategies";
 import { delay } from "./support";
 
 /**

@@ -58,7 +58,7 @@ export type {
   UseUploaderResult
 } from "../use-uploader";
 
-export { useTokenAuth } from "../use-token-auth";
+export { TOKEN_AUTH_PRIORITY, useTokenAuth } from "../use-token-auth";
 export type { TokenAuthHandle, TokenAuthOptions } from "../use-token-auth";
 
 export { useSSE } from "../use-sse";

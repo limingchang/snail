@@ -55,9 +55,10 @@
 
 ::: tip 内置插件与策略的文档
 `Cache`、`Interceptor`、`Versioning`、`Validate`、`Transform` 现在从 `@snail-js/api/plugins`
-导入；`VueAdapter` / `ReactAdapter` 从 `@snail-js/api/plugins/vue` 与
-`@snail-js/api/plugins/react` 导入（那个 barrel 不再静态引入框架）；`useRequest` 等策略从
-`@snail-js/api/strategies` 导入。从[使用插件](/guide/plugins)开始，
+导入；框架适配器不是插件，它通过 `@Server({ stateAdapter })` 声明（装饰器里不再出现适配器
+函数），`VueRef` / `ReactState` 分别从 `@snail-js/api/adapter/vue` 与
+`@snail-js/api/adapter/react` 导入；`useRequest` 等策略统一从 `@snail-js/api/strategies` 导入
+（唯一的策略入口，不 import 任何框架）。从[使用插件](/guide/plugins)开始，
 [策略概览](/guide/strategies)接着看。
 :::
 
@@ -70,7 +71,7 @@
 | `adapter`（默认 `"fetch"`） | `adapter`（默认未设置） | 交给 axios 自行探测（浏览器 `xhr`/`fetch`，Node `http`） |
 | `enableLog`（默认 `import.meta.env.DEV`） | `logLevel`（默认 `"silent"`） | 从布尔开关变成 5 级；默认**不打印**任何东西 |
 | `lang` | `setLocale(...)` | 见下文 |
-| `stateHook` | `VueAdapter` / `ReactAdapter` 插件（`@snail-js/api/plugins/vue`、`@snail-js/api/plugins/react`） | 响应式适配器成为插件，通过 `initMeta` 写 `ctx.meta` |
+| `stateHook` | `@Server({ stateAdapter })` 选项（默认 `SnailAdapter`；`VueRef` 来自 `@snail-js/api/adapter/vue`，`ReactState` 来自 `@snail-js/api/adapter/react`） | 响应式适配器从「全局注册」变成 server 选项：核心按它创建 `method.meta` 上的五个句柄，策略也读同一份声明 |
 | `cache` / `cacheFor` | `Cache` 插件 | 从 server 选项移除 |
 | `versionManage` | `Versioning` 插件 | 从 server 选项移除 |
 | `validateCode` | 同左 | 签名仍是 `(code, data) => boolean`；默认接受 `0` 与 `200` |
@@ -104,7 +105,7 @@ const { data } = await method.send();
 | 旧 | 新 |
 | --- | --- |
 | `api.getX()` → `SnailMethod`（含 `request()`） | `api.getX()` → `SnailMethod`（直接用） |
-| `method.request()` → `{ send, data, isLoading, error }` | 无此方法；用 `method.meta` / `method.result` / `method.pending`，或装框架适配器插件 |
+| `method.request()` → `{ send, data, isLoading, error }` | 无此方法；用 `method.meta` / `method.result` / `method.pending`，或给 server 声明 `@Server({ stateAdapter })` |
 | `await method.request().send()` → `AxiosResponse` | `await method.send()` → `SnailResult` |
 | `onSuccess((envelope) => …)` | `onSuccess((result: SnailResult) => …)` |
 | `onCodeError((code, data) => …)` | `onCodeError(({ code, payload, error }) => …)` |
@@ -226,7 +227,7 @@ const { data } = await method.send();
 - [ ] 从 tsconfig 删除 `types: ["reflect-metadata"]` 与 `emitDecoratorMetadata`，确认 `experimentalDecorators: true`
 - [ ] 把 `@Param` 改成 `@Params`
 - [ ] `enableLog: true` 改成 `logLevel: "info"`（或按需 `"warn"` / `"debug"`）
-- [ ] 把 `@Server({ cache, cacheFor, versionManage, stateHook })` 拆成对应的插件安装
+- [ ] 把 `@Server({ cache, cacheFor, versionManage })` 拆成对应的插件安装，并把 `stateHook` 改成 `@Server({ stateAdapter })`（默认 `SnailAdapter`，Vue 用 `VueRef`、React 用 `ReactState`）
 - [ ] `@Before` / `@After` / `@Cache` / `@NoCache` / `@HitSource` / `@Version` / `@Transform` 的引用改到插件文档描述的写法
 - [ ] 把 `method.request().send()` 改成 `await method.send()`
 - [ ] 把 `onSuccess((res) => res.data…)` 改成 `onSuccess((result) => result.data…)`

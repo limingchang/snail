@@ -94,6 +94,6 @@ class UserApi {
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [`useWatcher`](./use-watcher.md)：筛选条件变化时重发
 - [`useRequest`](./use-request.md)：自己管页码的手动发送

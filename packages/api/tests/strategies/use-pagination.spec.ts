@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Api, Get, Query } from "../../src/index";
-import { usePagination } from "../../src/strategies/plain";
+import { usePagination } from "../../src/strategies";
 import type { RecordedRequest, TestReply } from "../helpers/test-adapter";
 import { buildServer, delay, until } from "./support";
 

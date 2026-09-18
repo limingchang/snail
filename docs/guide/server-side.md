@@ -18,7 +18,7 @@
 | 语言探测 | 先读 `globalThis.navigator`（守卫过），再读 `process.env` 的 `SNAIL_LOCALE` / `LC_ALL` / `LC_MESSAGES` / `LANG`，最后兜底 `"en"` | `src/locale/index.ts` |
 | 缓存的 L2 | `localStorage` / `sessionStorage` / `IndexedDB` 适配器都先看全局在不在；缺失时**警告一次并只用 L1**，不抛错 | `src/plugins/cache/adapters/*.ts`、`manager.ts` |
 | 流式传输 | 用 `fetch`（SSE、HTTP 流）、`new WebSocket(...)`、`ReadableStream`、`AbortController`、`TextDecoder` —— 都是**平台全局**，不是 DOM API | `src/core/sse.ts`、`websocket.ts`、`http-stream.ts` |
-| 框架适配器 | Vue / React 适配器在它们自己的子路径里；`@snail-js/api/strategies/plain` 只安装 plain 适配器，不 import 任何框架 | `src/adapter/plain.ts`、`src/strategies/plain.ts` |
+| 框架适配器 | 默认的 `SnailAdapter` 是普通 `{ value }` 盒子，不 import 任何框架，也不需要声明；`VueRef` / `ReactState` 只在专用子路径里，见[框架适配器](./adapters.md) | `src/adapter/plain.ts`、`src/adapter/vue.ts`、`src/adapter/react.ts` |
 | `isBrowser()` | 导出给**应用**使用的判断（`typeof window !== "undefined" && typeof document !== "undefined"`）；库内部并不依赖它做分支 | `src/utils/is.ts` |
 
 ## 一个能跑的 Node 例子
@@ -79,15 +79,37 @@ await writeFile("/srv/exports/report.pdf", Buffer.from(await blob.arrayBuffer())
 
 ### 2. 框架适配器
 
-**不要在服务端入口安装 `VueAdapter()` / `ReactAdapter()`。** 它们的作用是把请求状态镜像成框架的
-响应式原语，而服务端没有渲染器：
+**服务端不要用 `ReactState`。** 它分配的是可订阅盒子，而它的 `useBind` 走
+`useSyncExternalStore`（`src/adapter/react.ts`）—— 那是一个只能在 React 渲染过程中调用的 hook，
+服务端没有渲染器可订阅：
 
-- React 适配器的 `bind()` 走 `useSyncExternalStore`（`src/plugins/react/plugin.ts`），那是一个只能在
-  React 渲染过程中调用的 hook；
-- 两个适配器都会把 `vue` / `react` 拉进服务端 bundle，而它们在服务端没有任何用处。
+```ts
+// 服务端入口（Node）：不要声明 stateAdapter: ReactState
+@Server({ baseURL: process.env.API_BASE_URL ?? "https://api.example.com" })
+class BackEnd extends SnailServer {}
+```
 
-服务端要用策略就导入 **`@snail-js/api/strategies/plain`**：三个入口的导出清单完全相同，只是它安装
-的是 plain 适配器（普通 `{ value }` 盒子），值照常更新，只是不触发渲染。
+**默认的 `SnailAdapter` 什么都不用写。** 不声明 `stateAdapter` 时它就是默认值：普通
+`{ value }` 盒子，不 import 任何框架，值照常更新，只是不触发渲染 —— 这正是 SSR、Node 脚本与
+测试想要的语义。服务端要用策略就照常导入 `@snail-js/api/strategies`（唯一的策略入口）：
+
+```ts
+import { useFetcher } from "@snail-js/api/strategies";
+
+const prefetch = useFetcher(userApi.getUser);
+const user = await prefetch.fetch("1");   // 值会写进句柄，只是没有人被通知
+```
+
+需要在渲染之间**传递状态**的 SSR 仍然可以用 `SnailAdapter`（或者 `VueRef`）—— 它们都不需要
+渲染器：
+
+- `SnailAdapter`：普通盒子，服务端与客户端都能读，状态传递最直接；
+- `VueRef`：`create()` 在渲染之外调用完全安全（就是一个 `ref()`），只是没人追踪它的 `.value`，
+  所以「在组件里被追踪」这件事只发生在客户端渲染期间。
+
+`@snail-js/api/adapter/vue` 与 `@snail-js/api/adapter/react` 是仅有的两个会 import 框架的子路径：
+服务端不 import 它们，`vue` / `react` 就不会进入服务端 bundle。完整的选项与写法见
+[框架适配器](./adapters.md)。
 
 ### 3. 依赖 `window` 的刷新信号
 
@@ -141,7 +163,7 @@ class BackEnd extends SnailServer {}
 
 export const Service = new BackEnd();
 
-// 服务端入口（Node）：不要在这里 use(VueAdapter())
+// 服务端入口（Node）：不声明 stateAdapter，默认的 SnailAdapter 不需要任何框架
 setLocale("zh");
 ```
 
@@ -207,8 +229,9 @@ setLocale("zh");        // 或者启动时设置 SNAIL_LOCALE=zh-CN
 
 ## 相关
 
-- [服务端配置](./configuration.md)：`@Server(...)` 的每个默认值（含 `adapter`）
+- [服务端配置](./configuration.md)：`@Server(...)` 的每个默认值（含 `adapter` / `stateAdapter`）
 - [TypeScript 配置](./typescript.md#环境要求)：`engines` 与各 peer 的版本要求
-- [策略概览](./strategies.md)：三个入口如何选择
+- [策略概览](./strategies.md)：适配器如何选择
+- [框架适配器](./adapters.md)：`SnailAdapter` / `VueRef` / `ReactState` 与 per-hook 覆盖
 - [`useDownload`](./strategies/use-download.md)：下载这件事必须发生在浏览器
 - [`useFetcher`](./strategies/use-fetcher.md)：SSR 里最常用的策略

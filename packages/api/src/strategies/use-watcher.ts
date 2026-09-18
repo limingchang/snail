@@ -103,6 +103,8 @@ export function useWatcher<TArgs extends readonly unknown[], TData>(
 
   const controller = createStrategyState<TData>({
     adapter: options.adapter,
+    method,
+
     initialData: options.initialData,
     onAbort: () => {
       // Cancelling a *scheduled* run has no method to abort yet, so the queued

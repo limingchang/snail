@@ -5,8 +5,9 @@
  *
  * - `ctx.state` — **plugin scratch space**. Timers, cache keys, in-flight
  *   promises, tracing ids. Never exposed to the caller.
- * - `ctx.meta` — **caller-visible reactive values** (`data`, `loading`, `error`)
- *   created by the framework adapter's `initMeta` hook.
+ * - `ctx.meta` — **caller-visible reactive values** (`data`, `code`, `message`,
+ *   `loading`, `error`) created by core from the server's `stateAdapter`, plus any
+ *   extra handle a plugin contributes through `initMeta`.
  *
  * Keeping them separate matters: a plugin writing bookkeeping into `meta` would
  * leak internal state into the object the UI renders.

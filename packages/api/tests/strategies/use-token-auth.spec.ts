@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Api, Get, Server, SnailResponseError, SnailServer } from "../../src/index";
-import { useTokenAuth } from "../../src/strategies/plain";
+import { useTokenAuth } from "../../src/strategies";
 import { createTestAdapter } from "../helpers/test-adapter";
 import type { RecordedRequest, TestReply } from "../helpers/test-adapter";
 import { buildServer, delay, until } from "./support";

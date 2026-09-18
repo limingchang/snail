@@ -108,9 +108,10 @@ dist/manifest.json    # { name, version, skills: [{ name, description, path }] }
 - 内置插件与请求策略**已冻结并全部通过测试**，`plugins.md` 与 `strategies.md` 直接记录真实的
   工厂名、选项字段与默认值、装饰器与 hook 签名。记这些内容时必须对照源码与测试，不得凭印象
   杜撰。
-- 框架适配器**不在** `@snail-js/api/plugins` 里（该 barrel 一旦 re-export 就会静态引入 `vue`
-  与 `react`）。正确路径是 `@snail-js/api/plugins/vue` 与 `@snail-js/api/plugins/react`；
-  `plugins.md`、`troubleshooting.md` 都把这条写成显式的陷阱。
+- 框架适配器**不是插件**，也不在 `@snail-js/api/plugins` 或包根里（那两个入口必须保持无框架）。正确路径是
+  `@snail-js/api/adapter/vue` 与 `@snail-js/api/adapter/react`，并在 `@Server({ stateAdapter })` 上声明一次；
+  无框架默认值是包根导出的 `SnailAdapter`。`plugins.md`、`strategies.md`、`troubleshooting.md` 都把这条
+  写成显式的陷阱。
 
 ## License
 

@@ -158,6 +158,8 @@ export function usePagination<TData>(
 
   const controller = createStrategyState<TData>({
     adapter: options.adapter,
+    method,
+
     onAbort: () => holder.abort()
   });
 

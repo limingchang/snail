@@ -15,10 +15,15 @@ English | [中文](./plugin-lifecycle.md)
 2. the request pipeline,
 3. the lifecycle described below.
 
-Caching, versioning, interceptors, zod validation, JSON→class transformation and
-the Vue/React adapters are **all plugins**, built on exactly the API a third party
-gets. There is no privileged internal path. If a built-in plugin needs a hook that
-does not exist, the hook is added to the public contract, not faked internally.
+Caching, versioning, interceptors, zod validation, JSON→class transformation and the
+request pool are **all plugins**, built on exactly the API a third party gets. There
+is no privileged internal path. If a built-in plugin needs a hook that does not
+exist, the hook is added to the public contract, not faked internally.
+
+The framework adapters (`SnailAdapter` / `VueRef` / `ReactState`) are the exception to
+that rule: an adapter is **not** a plugin, it is the `@Server({ stateAdapter })` server
+option. Core builds the five handles on `method.meta` from it, so no plugin has to
+install one any more.
 
 A plugin is a plain object:
 
@@ -51,7 +56,9 @@ arrow.
                   ┌──── SnailMethod constructed ────┐
                   │  ctx created (state, meta,      │
                   │  request config, descriptors)   │
-                  │  → initMeta  (sync, per method) │
+                  │  core creates the five meta     │
+                  │  handles from stateAdapter;     │
+                  │  initMeta only adds plugin ones │
                   └─────────────────────────────────┘
                                 │
                        method.send(...args)
@@ -112,16 +119,41 @@ Plugins sort by `priority` **descending**; ties break by registration order.
 | `configureServer`, `configureApi`, `configureMethod`, `initMeta`, `beforeCreate`, `beforeRequest`, `requestInterceptor` | **forward** — highest priority first | an interceptor (`100`) must rewrite the request before the cache (`-100`) hashes it |
 | `afterResponse`, `responseInterceptor`, `onError`, `afterRequest` | **unwind** — lowest priority first | closes the onion: the plugin nearest the network sees the response first |
 
-Reserved priority bands, so third-party plugins can slot between built-ins:
+Named reference bands — each one has an exported constant — so third-party plugins can
+slot between built-ins:
 
-| Priority | Band |
-| --- | --- |
-| `100` | interceptor |
-| `50` | version |
-| `20 … 1` | third-party plugins |
-| `0` | framework adapters, user plugins (default) |
-| `-50` | validate |
-| `-100` | cache |
+| Priority | Constant | Plugin |
+| --- | --- | --- |
+| `100` | `INTERCEPTOR_PRIORITY` | interceptor |
+| `50` | `VERSIONING_PRIORITY` | versioning |
+| `20` | `TOKEN_AUTH_PRIORITY` | the plugin returned by `useTokenAuth` |
+| `0` | `TRANSFORM_PRIORITY` | user plugins, transform |
+| `-50` | `VALIDATE_PRIORITY` | validate |
+| `-100` | `CACHE_PRIORITY` | cache |
+| `-150` | `POOL_PRIORITY` | request pool |
+
+The six plugin constants come from `@snail-js/api/plugins`; `TOKEN_AUTH_PRIORITY` comes
+from `@snail-js/api/strategies`.
+
+`priority` is an **open, unbounded number**: any integer is valid, and two dozen
+plugins still do not collide, because only an *exact* tie matters and a tie breaks by
+registration order. The table describes reference positions, not a closed set of
+seven slots. To sit next to a built-in, position yourself relative to it:
+
+```ts
+import { CACHE_PRIORITY } from "@snail-js/api/plugins";
+
+createPlugin({
+  name: "key-rewrite",
+  priority: CACHE_PRIORITY + 1,   // just before the cache going forward, just after it unwinding
+  /* … */
+});
+```
+
+The framework adapters are not in that table — an adapter is not a plugin.
+`SnailAdapter` / `VueRef` / `ReactState` are chosen by `@Server({ stateAdapter })`, and
+core builds the five handles on `method.meta` from it. See
+[framework adapters](/guide/adapters).
 
 ### 2.2 Why two orderings and not one
 
@@ -174,8 +206,8 @@ before anything is mutated.
 
 `install` may be synchronous or asynchronous:
 
-- a **sync** `install` runs during `use()`, so a framework adapter's `initMeta`
-  hook exists before the first `createApi()` call;
+- a **sync** `install` runs during `use()`, so anything it sets up is in place before
+  the first `createApi()` call;
 - an **async** `install` is recorded and awaited once, via `pluginManager.ready`,
   before the first request runs.
 
@@ -245,13 +277,15 @@ options (axios config fields plus `url`).
 
 #### `initMeta(ctx)` — synchronous, forward
 
-Creates the caller-visible reactive values. This is the framework adapter's hook.
+**Purely an extension point**: core has already created the five standard handles
+(`dataKey` / `codeKey` / `messageKey`, plus the fixed `loading` / `error`) from
+`@Server({ stateAdapter })` when the `SnailMethod` was built, so no plugin installs an
+adapter any more. Only a plugin that wants to add a handle of its **own** to
+`ctx.meta` needs this hook:
 
 ```ts
 initMeta(ctx) {
-  ctx.meta.data = ref(undefined);
-  ctx.meta.loading = ref(false);
-  ctx.meta.error = ref(undefined);
+  ctx.meta.progress = ctx.serverOptions.stateAdapter.create(0);
 }
 ```
 
@@ -266,7 +300,7 @@ decorators are applied. The place to reset per-call bookkeeping:
 
 ```ts
 beforeCreate(ctx) {
-  ctx.meta.loading.value = true;
+  ctx.serverOptions.stateAdapter.write(ctx.meta.loading, true);
 }
 ```
 
@@ -343,10 +377,12 @@ per-request resources here.
 
 ```ts
 afterRequest(ctx) {
-  ctx.meta.loading.value = false;
   clearTimeout(ctx.state.get("timer"));
 }
 ```
+
+Core resets `meta.loading` itself, after every `afterRequest` hook has run and before
+the `finish` event; a plugin neither needs to nor should write it here.
 
 ---
 
@@ -453,7 +489,7 @@ keys (`"acme/tenant"` → `Symbol.for("@snail-js/api:custom:acme/tenant")`).
 | `ctx.response` / `setResponse` / `getResponse` / `requireResponse` | the axios response |
 | `ctx.result` / `setResult` | the assembled `SnailResult` |
 | `ctx.error` | set on the failure path |
-| `ctx.meta` | caller-visible reactive values (`initMeta` writes here) |
+| `ctx.meta` | caller-visible reactive values; core creates the five standard handles from `stateAdapter`, and `initMeta` only adds a plugin's own |
 | `ctx.state` | plugin scratch space (`StateBag`), cleared per send |
 | `ctx.logger` | level-gated logger honouring `@Server({ logLevel })` |
 | `ctx.interrupt(response?)` | stop the request, optionally serving a response |
@@ -540,9 +576,11 @@ visible instead of rendering a blank error message.
 | Two chain directions (forward / unwind) | one onion cannot express "cache last in, first out" |
 | `next()` may be called at most once | the old dispatcher re-ran the tail of the chain silently |
 | `state` split from `meta` | plugin bookkeeping was leaking into the caller's reactive state |
-| `install` may be sync | a framework adapter's `initMeta` must exist before the first `createApi()`, which a deferred install cannot guarantee |
+| `install` may be sync | a plugin must be registered before the first `createApi()`, which a deferred install cannot guarantee |
+| The five `meta` handles moved into core | they used to be created by an adapter plugin while strategy handles went through a separate process-wide registry; one framework had to be declared twice, and the global half was an import side effect. Now one `@Server({ stateAdapter })` drives both, and `initMeta` only adds a plugin's own handles |
+| Framework adapters are no longer plugins | the old two adapters and three strategies entries made two servers with different frameworks impossible; an adapter is now a server option that supplies handles to `method.meta` and the strategies |
 | `createPlugin` added | plugin authors had to hand-roll the object shape and got no validation |
 | `afterResponse` moved out of the transport step | a cache hit skipped it, so response validation and transformation silently did nothing on the second call |
 | The cache clones on write and on read | the cache and the caller shared one object, so an in-place edit by either rewrote the other (§2.3) |
 | The cache skips store and tag purge on a hit | a stale hit was re-storing the old body over the fresh one its own background refresh had just fetched |
-| `afterRequest` runs before the `finish` event | adapters clear `loading` there, and `onFinish` was seeing a stale `loading === true` |
+| `afterRequest` runs before the `finish` event | core resets `meta.loading` in that window, and `onFinish` was seeing a stale `loading === true` |

@@ -8,6 +8,7 @@
  *   Invalidates,
  *   Interceptor,
  *   BeforeRequest,
+ *   RequestPool,
  *   Versioning,
  *   Version,
  *   Validate,
@@ -19,7 +20,8 @@
  *   .use(Versioning({ type: "header", defaultVersion: "1.0.0" }))
  *   .use(Validate())
  *   .use(Transform())
- *   .use(Cache({ ttl: 60, l2: "localStorage" }));
+ *   .use(Cache({ ttl: 60, l2: "localStorage" }))
+ *   .use(RequestPool({ concurrency: 4 }));
  * ```
  *
  * ## Why this is a separate entry point
@@ -30,20 +32,23 @@
  * directory with its own barrel, so a bundler can drop the ones a given app never
  * calls.
  *
- * ## The framework adapters are *not* here
+ * ## No framework adapter is here — and none is needed
  *
- * `VueAdapter` and `ReactAdapter` live behind their own subpaths:
+ * Every plugin in this barrel is framework-agnostic, so importing it can never pull
+ * Vue, React or zod into a bundle.
+ *
+ * The framework choice is a *server option* rather than a plugin:
  *
  * ```ts
- * import { VueAdapter } from "@snail-js/api/plugins/vue";
- * import { ReactAdapter } from "@snail-js/api/plugins/react";
+ * import { VueRef } from "@snail-js/api/adapter/vue";
+ *
+ * @Server({ baseURL: "/api", stateAdapter: VueRef })
+ * class BackEnd extends SnailServer {}
  * ```
  *
- * They are kept out of this barrel deliberately. A re-export would make this
- * module statically import both `vue` and `react`, so a React application that
- * only wanted `Cache` would fail to resolve `vue` at all — and a framework-free
- * one would pull both frameworks into its bundle. Separate subpaths keep the
- * optional peers genuinely optional.
+ * Core reads that option to build the handles on `method.meta`, and the `use*`
+ * strategies read it from the method they were given. One declaration drives both,
+ * and because it is per server, two servers may use different frameworks.
  *
  * ## Registration order does not matter
  *
@@ -53,10 +58,16 @@
  * | --- | --- |
  * | `100` | interceptor |
  * | `50` | versioning |
- * | `0` | framework adapter, transform |
+ * | `20` | `useTokenAuth` (returned by your call, not a built-in to install) |
+ * | `0` | user plugins, transform |
  * | `-50` | validate |
  * | `-100` | cache |
  * | `-150` | request pool |
+ *
+ * Every band is exported as a constant — `INTERCEPTOR_PRIORITY`,
+ * `VERSIONING_PRIORITY`, `TRANSFORM_PRIORITY`, `VALIDATE_PRIORITY`,
+ * `CACHE_PRIORITY`, `POOL_PRIORITY` — so a plugin can position itself relative to
+ * a neighbour (`CACHE_PRIORITY + 1`) instead of hardcoding a magic number.
  *
  * Forward hooks run highest-priority first, so the interceptor sees the request
  * before the cache hashes it and the pool — dead last — only ever gates requests

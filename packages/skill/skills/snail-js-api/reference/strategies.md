@@ -1,24 +1,32 @@
 # Strategies
 
 A request strategy owns one request instance and the state a component renders. Strategies are
-**not** exported from the package root, and the core never imports a framework — import the entry
-point for your framework, and only that one:
+**not** exported from the package root, the core never imports a framework, and there is now exactly
+**one** entry point — `@snail-js/api/strategies` — which imports no framework either:
 
 ```ts
-import { useRequest, usePagination, useWatcher } from "@snail-js/api/strategies";   // Vue (default)
-import { useRequest } from "@snail-js/api/strategies/react";                       // React
-import { useRequest } from "@snail-js/api/strategies/plain";                       // no framework
+import { useRequest, usePagination, useWatcher } from "@snail-js/api/strategies";
 ```
 
-| Entry point | State primitive | Reading it |
-| --- | --- | --- |
-| `@snail-js/api/strategies` | Vue `ref()` | `.value` — the render effect tracks it |
-| `@snail-js/api/strategies/react` | subscribable boxes (`useSyncExternalStore`) | call `bind()` during render |
-| `@snail-js/api/strategies/plain` | plain `{ value }` boxes | `.value`; nothing re-renders |
+The framework is a **server option**: `@Server({ baseURL: "/api", stateAdapter: VueRef })` declares it
+once, and that one declaration drives both projections of a request — the handles on `method.meta`
+and the state every `use*` hook returns.
 
-Importing an entry point is the **only** thing that installs its adapter, and in the strategy layer
-the only thing that pulls `vue` or `react` into a bundle. All three re-export exactly the same hooks,
-so a hook named here exists at all three paths.
+| Adapter | Import it from | State primitive | Reading it |
+| --- | --- | --- | --- |
+| `SnailAdapter` (default) | `@snail-js/api` (root) | plain `{ value }` boxes | `.value`; nothing re-renders |
+| `VueRef` | `@snail-js/api/adapter/vue` | Vue `ref()` | `.value` — the render effect tracks it |
+| `ReactState` | `@snail-js/api/adapter/react` | box + `version` counter (`useSyncExternalStore`) | `useMethodState(method)` during render |
+
+`SnailAdapter` is the framework-free default: values update, nothing re-renders. `ReactState` binds
+its five handles only during render — outside one, subscribe with `ReactState.subscribe(handle,
+listener)`; its snapshot is the monotonic `version` counter, not the value, because returning the
+value itself would make `useSyncExternalStore` bail out of the re-render. Those two modules are the
+**only** modules in the library that import `vue` / `react`; neither `@snail-js/api` nor
+`@snail-js/api/plugins` nor `@snail-js/api/strategies` reaches them.
+
+A hook may override the adapter for its own state only —
+`useRequest(method, { adapter: VueRef })` — and it never touches `method.meta`.
 
 ## The call convention
 
@@ -51,8 +59,8 @@ the state handles instead.
 * `onSuccess(cb)`, `onError(cb)` and `onFinish(cb)` subscribe and return an unsubscribe function.
   A cancellation is not a failure: it skips `onError` but still fires `onFinish`.
 
-Every hook also accepts the shared options `immediate` (`false`), `adapter` (the entry point's) and
-`onSuccess`/`onError`/`onFinish`; anything else is hook-specific.
+Every hook also accepts the shared options `immediate` (`false`), `adapter` (the server's, overridable
+per hook) and `onSuccess`/`onError`/`onFinish`; anything else is hook-specific.
 
 ## The hooks
 
@@ -151,7 +159,7 @@ root: `triggerDownload(url, options?)` throws a `ReferenceError` on a server, wh
 
 ```ts
 import { triggerDownload } from "@snail-js/api";              // root — no framework, no reactivity
-import { useDownload } from "@snail-js/api/strategies";       // also /plain and /react
+import { useDownload } from "@snail-js/api/strategies";       // the only entry point
 const { download, loading, error, info, onDownload } = useDownload(reportApi.create);
 await download(query);   // only the url request is awaited; the file itself is the browser's
 ```

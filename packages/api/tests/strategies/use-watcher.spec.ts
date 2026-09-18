@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Api, Get } from "../../src/index";
-import { useWatcher } from "../../src/strategies/plain";
+import { useWatcher } from "../../src/strategies";
 import { buildServer } from "./support";
 
 /**

@@ -12,6 +12,13 @@ import { Emitter } from "../utils/emitter";
 import { applyParamDescriptors, finalizeRequestURL } from "./args";
 import { SnailContext } from "./context";
 import type { SnailLogger } from "./logger";
+import {
+  createMetaHandles,
+  markMetaFailure,
+  markMetaPending,
+  markMetaSuccess,
+  markMetaSettled
+} from "./meta";
 import type { PluginManager } from "./plugin-manager";
 import { assertBusinessCode, buildResult, coerceJSONStringBody, readKey } from "./response";
 import type { SnailServer } from "./server";
@@ -75,11 +82,11 @@ export interface SnailMethodInit {
  *
  * ## Why the context is built once and reset
  *
- * Framework adapters create the caller's reactive handles in their `initMeta`
- * hook. Those handles must survive every re-send, so the context is constructed
- * once and {@link SnailContext.reset} clears only the per-request fields. Calling
- * `userApi.getUser()` twice would produce two independent sets of refs, which is
- * exactly the bug the old `request()`-returns-fresh-state design had.
+ * Core creates the caller's reactive handles from the server's `stateAdapter` when
+ * the method is built. Those handles must survive every re-send, so the context is
+ * constructed once and {@link SnailContext.reset} clears only the per-request
+ * fields. Calling `userApi.getUser()` twice would produce two independent sets of
+ * refs, which is exactly the bug the old `request()`-returns-fresh-state design had.
  */
 export class SnailMethod<
   S = unknown,
@@ -104,11 +111,11 @@ export class SnailMethod<
   readonly args: readonly unknown[];
 
   /**
-   * Caller-visible reactive values created by framework adapters.
+   * Caller-visible reactive values, produced by the server's `stateAdapter`.
    *
-   * A live view of `context.meta`, so the handles an adapter created in
-   * `initMeta` stay stable across every re-send. Empty when no adapter plugin is
-   * installed.
+   * A live view of `context.meta`. Core creates the five standard handles when the
+   * method is built, so they stay stable across every re-send; a plugin may add its
+   * own through `initMeta`.
    *
    * `loading` and `error` are typed by the {@link SnailMeta} interface; the
    * envelope handles are named after the server's configured keys, so augment
@@ -151,8 +158,14 @@ export class SnailMethod<
       logger: init.logger
     });
 
-    // Adapter plugins create `data` / `loading` / `error` here. Runs eagerly so
-    // the caller can render the handles before the first request.
+    // Core creates the five standard handles from the server's `stateAdapter`, so
+    // `method.meta.data` is a Vue ref (or a React box, or a plain value) purely
+    // because of a `@Server` option — no adapter plugin is involved. Runs eagerly
+    // so the caller can render the handles before the first request.
+    createMetaHandles(this.context);
+
+    // Plugins may still contribute their own meta here; core has already created
+    // the standard keys, so a plugin adds rather than replaces.
     init.pluginManager.runEffectsSync("initMeta", this.context);
   }
 
@@ -214,11 +227,16 @@ export class SnailMethod<
       // A plugin with an async `install` may not have wired its hooks yet.
       await this.init.pluginManager.ready;
 
-      // Safety net for exactly that case: no adapter had run `initMeta` when the
-      // context was built, so give it a chance now.
+      // Safety net for a context built before the server's adapter was known, and
+      // for the case where an async `install` had not wired anything yet.
       if (Object.keys(ctx.meta).length === 0) {
+        createMetaHandles(ctx);
         this.init.pluginManager.runEffectsSync("initMeta", ctx);
       }
+
+      // Flag loading and clear the previous failure before any hook can observe
+      // them, so a plugin reading `meta` sees the same thing the UI does.
+      markMetaPending(ctx);
 
       this.init.pluginManager.runEffectsSync("beforeCreate", ctx);
 
@@ -251,6 +269,10 @@ export class SnailMethod<
       // network path: they exist to rewrite a real request and a real response.
       await this.init.pluginManager.runChain("afterResponse", ctx);
 
+      // Publish the payload to `meta` *before* the success event, so a handler that
+      // reads `method.meta.data` sees this response rather than the previous one.
+      markMetaSuccess(ctx);
+
       const result = this.finalize(ctx) as SnailResult<S, T, D, C, M>;
       this.emitter.emit("success", result);
       return result;
@@ -260,10 +282,10 @@ export class SnailMethod<
       this.inFlight = false;
       ctx.finishedAt = Date.now();
 
-      // `afterRequest` runs *before* the `finish` event on purpose. Adapters clear
-      // `loading` there, so emitting `finish` first would hand a caller's
-      // `onFinish` handler a stale `loading === true` — precisely the flag a UI
-      // reads to dismiss its spinner. Cleanup first, then tell everyone.
+      // `afterRequest` runs *before* the `finish` event on purpose. Both core and
+      // the plugins clear `loading` in that window, so emitting `finish` first would
+      // hand a caller's `onFinish` handler a stale `loading === true` — precisely the
+      // flag a UI reads to dismiss its spinner. Cleanup first, then tell everyone.
       try {
         await this.init.pluginManager.runEffects("afterRequest", ctx);
       } catch (cleanupError) {
@@ -271,6 +293,8 @@ export class SnailMethod<
           t("error.request.failed", this.name, `afterRequest hook: ${String(cleanupError)}`)
         );
       }
+
+      markMetaSettled(ctx);
 
       this.emitter.emit("finish", undefined);
     }
@@ -414,6 +438,11 @@ export class SnailMethod<
   /** Report a failure through the plugin hooks and the events, then rethrow it. */
   private async fail(ctx: SnailContext, error: unknown): Promise<unknown> {
     ctx.error = error;
+
+    // Publish the failure before the hooks and events run, so an observer reading
+    // `meta.error` sees the same value the `error` event carries. A cancellation is
+    // skipped inside, so an unmount does not flash an error state.
+    markMetaFailure(ctx, error);
 
     try {
       await this.init.pluginManager.runEffects("onError", ctx, error);

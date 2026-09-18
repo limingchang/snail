@@ -43,8 +43,8 @@ thing without the name validation, for a plugin that takes no options.
 | `onDispose(fn)` | register cleanup, run by `uninstall` |
 
 `install` may be async; `pluginManager.ready` awaits every pending install once, before the first
-request. A synchronous install runs inside `Service.use()`, which guarantees a framework adapter's
-`initMeta` exists before the first `createApi()`. A throwing `install` rolls back.
+request. A synchronous install runs inside `Service.use()`, which guarantees a plugin's `initMeta`
+exists before the first `createApi()`. A throwing `install` rolls back.
 
 ## Where a hook runs
 
@@ -74,16 +74,20 @@ Config hooks run once per decorated target, never per request; `initMeta` runs w
 
 ## Priority bands
 
-Plugins sort by `priority` descending, ties by registration order.
+`priority` is an unbounded number: any integer is valid, and only an exact tie falls back to
+registration order, so any number of plugins can coexist. The bands below are named reference points
+exported as constants, not slots — position yourself relative to a neighbour (`CACHE_PRIORITY + 1`)
+instead of hardcoding a magic number.
 
-| Priority | Band |
-| --- | --- |
-| `100` | interceptor |
-| `50` | version |
-| `20 … 1` | third-party plugins |
-| `0` | framework adapters, user plugins (default) |
-| `-50` | validate |
-| `-100` | cache |
+| Priority | Constant | Band |
+| --- | --- | --- |
+| `100` | `INTERCEPTOR_PRIORITY` | interceptor |
+| `50` | `VERSIONING_PRIORITY` | version |
+| `20` | `TOKEN_AUTH_PRIORITY` | `useTokenAuth` (returned by the call, not installed) |
+| `0` | `TRANSFORM_PRIORITY` | transform, and user plugins by default |
+| `-50` | `VALIDATE_PRIORITY` | validate |
+| `-100` | `CACHE_PRIORITY` | cache |
+| `-150` | `POOL_PRIORITY` | request pool |
 
 Forward hooks run highest-first, unwind hooks lowest-first: **forward hooks run outermost-in,
 unwind hooks run innermost-out.** That is what makes the cache plugin last to see the request (url

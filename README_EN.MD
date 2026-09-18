@@ -58,7 +58,7 @@ export const userApi = service.createApi(UserApi);
 // `data` is inferred as `User` from the declared return type.
 const { data } = await userApi.getUser("1").send();
 
-// Or drive it with a request strategy (Vue by default).
+// Or drive it with a request strategy (the state adapter is declared on @Server).
 import { useRequest } from "@snail-js/api/strategies";
 
 const { data: current, loading, error, send } = useRequest(userApi.getUser);
@@ -71,29 +71,30 @@ await send("1");
 
    ```ts
    import { SnailServer, Server, Api, Get, Post, Query, Data, Params } from "@snail-js/api";
+   import { SnailAdapter } from "@snail-js/api";   // the default state adapter, also on the root
    ```
 
 2. **Optional behaviour comes from a subpath, on demand.**
 
    ```ts
    import { Cache, Interceptor, RequestPool, Versioning, Validate, Transform } from "@snail-js/api/plugins";
-   import { VueAdapter } from "@snail-js/api/plugins/vue";
-   import { ReactAdapter } from "@snail-js/api/plugins/react";
 
-   import { useRequest, usePagination } from "@snail-js/api/strategies"; // Vue
-   import { useRequest } from "@snail-js/api/strategies/react";          // React
-   import { useRequest } from "@snail-js/api/strategies/plain";          // no framework
+   import { VueRef } from "@snail-js/api/adapter/vue";                    // Vue
+   import { ReactState, useMethodState } from "@snail-js/api/adapter/react"; // React
+
+   import { useRequest, usePagination } from "@snail-js/api/strategies"; // the one entry, framework-free
    ```
 
-   The framework adapters sit behind their own subpaths deliberately: if they were
-   re-exported from `@snail-js/api/plugins`, that barrel would statically import
-   both `vue` and `react`, so a React app that only wanted `Cache` would fail to
-   resolve `vue` at all.
+   A framework adapter is not an installable plugin but an option on the server —
+   `@Server({ stateAdapter })`. A framework is pulled in only by the `./adapter/vue` and
+   `./adapter/react` subpaths; the root, `./plugins` and `./strategies` never reach them, so a
+   React app that only wanted `Cache` cannot fail to resolve `vue`. The default is `SnailAdapter`
+   from the root — a plain `{ value }` box that updates but never re-renders.
 
 ## Dependencies
 
 `axios` is the only runtime dependency. `vue`, `react` and `zod` are **optional**
-peer dependencies, needed only by the plugin or strategy that uses them.
+peer dependencies, needed only by the adapter, plugin or strategy that uses them.
 
 `reflect-metadata` is **not** a dependency and is not needed. Legacy decorators
 (`experimentalDecorators: true`) and parameter decorators are fully supported by

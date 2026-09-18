@@ -29,7 +29,7 @@ interface UseFetcherOptions<TData> extends SnailStrategyCommonOptions {
 | --- | --- | --- | --- |
 | `withState` | `boolean` | `false` | 把每次请求镜像进 `loading` / `data` / `error` / `code` / `message` |
 | `immediate` | `boolean` | `false` | 创建时用空参数 `fetch()` 一次，拒绝被吞掉 |
-| `adapter` | `SnailStateAdapter` | 全局注册的 | 两种模式下都用于事件与（开启时的）状态 |
+| `adapter` | `SnailStateAdapter` | 所属 server 的 `stateAdapter`（再兜底 `SnailAdapter`） | 两种模式下都用于事件与（开启时的）状态 |
 | `onSuccess` / `onError` / `onFinish` | `(…) => void` | 未设置 | **两种模式下都触发** |
 
 ## 返回
@@ -79,7 +79,7 @@ detail.loading.value;   // false
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [`useRequest`](./use-request.md)：需要状态句柄的手动发送
 - [缓存插件 `Cache`](../plugin-cache.md)：预取最常见的目的地
-- [在服务端运行](../server-side.md)：SSR 里应当导入 `@snail-js/api/strategies/plain`
+- [在服务端运行](../server-side.md)：SSR 里用默认的 `SnailAdapter`，句柄照常更新、只是不触发渲染

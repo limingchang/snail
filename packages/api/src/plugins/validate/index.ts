@@ -52,5 +52,6 @@ function isZodSchema(value: unknown): value is ZodType {
 }
 
 export { ValidateResponse } from "./decorators";
+export { VALIDATE_PRIORITY } from "./plugin";
 export { SnailValidationError } from "./type";
 export type { SnailValidationIssue, ValidateOptions } from "./type";

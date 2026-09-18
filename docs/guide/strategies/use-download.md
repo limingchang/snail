@@ -180,7 +180,7 @@ triggerBlobDownload(blob, { filename: "report.pdf" });
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [`useRequest`](./use-request.md)：签发接口本身也是普通请求
 - [在服务端运行](../server-side.md)：服务端没有 DOM，下载要在哪里发生
 - [文件上传与进度](../../examples/upload.md)：上传侧的对称能力

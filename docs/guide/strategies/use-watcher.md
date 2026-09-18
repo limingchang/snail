@@ -88,6 +88,6 @@ promise 都会以那**唯一一次**请求的结果落定，所以不会有 `awa
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [`useRequest`](./use-request.md)：不带监视的手动发送
 - [`usePagination`](./use-pagination.md)：把页码交给 hook 自己管

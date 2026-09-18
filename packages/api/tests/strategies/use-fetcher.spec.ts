@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Api, Get, Params } from "../../src/index";
-import { useFetcher } from "../../src/strategies/plain";
+import { useFetcher } from "../../src/strategies";
 import { buildServer, delay } from "./support";
 
 /** `useFetcher` — background work with no visible state. */

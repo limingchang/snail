@@ -185,7 +185,7 @@ method.pending;                      // true while in flight
 method.result;                       // last SnailResult
 method.error;                        // last error
 method.request;                      // final axios config of the last send()
-method.meta;                         // reactive handles created by an adapter plugin
+method.meta;                         // reactive handles, shaped by the server's stateAdapter
 ```
 
 Event order is `success` → `finish` on success, and `codeError`/`error` → `finish` on failure.

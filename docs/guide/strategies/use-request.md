@@ -25,7 +25,7 @@ interface UseRequestOptions<TData> extends SnailStrategyCommonOptions {
 | `initialData` | `TData` | `undefined` | `data` 的初始值，也是 `resetOnSend` 复位到的值 |
 | `resetOnSend` | `boolean` | `false` | 每次发送前把 `data` 复位成 `initialData`。默认关闭是因为上一份载荷通常还值得继续渲染（刷新不闪烁）；明细面板这种「不能显示上一条记录」的场景才打开 |
 | `immediate` | `boolean` | `false` | 创建时用**空参数**发一次 |
-| `adapter` | `SnailStateAdapter` | 全局注册的 | 显式指定适配器 |
+| `adapter` | `SnailStateAdapter` | 所属 server 的 `stateAdapter`（再兜底 `SnailAdapter`） | 显式指定适配器，只覆盖这个 hook 自己的句柄 |
 | `onSuccess` / `onError` / `onFinish` | `(…) => void` | 未设置 | 与 `state.onSuccess(...)` 注册的监听器走同一条路径 |
 
 公共选项的完整语义见[策略概览](../strategies.md#公共选项)。
@@ -85,7 +85,7 @@ const { data, loading } = user.bind();
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [`useWatcher`](./use-watcher.md)：被监视的值变化时重发（突发合并）
 - [`useFetcher`](./use-fetcher.md)：不需要状态句柄的请求
 - [`usePagination`](./use-pagination.md)：分页与无限滚动

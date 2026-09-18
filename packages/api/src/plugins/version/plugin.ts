@@ -214,9 +214,20 @@ function applyVersion(ctx: SnailContext, options: ResolvedVersioning): void {
  * The rewrite happens in `beforeRequest`, so it is the last thing that can change
  * the url before the request is hashed, cached and sent.
  */
+/**
+ * The reserved versioning band.
+ *
+ * Exported so a plugin can position itself relative to it — `VERSIONING_PRIORITY - 1`
+ * says what it means, where the literal `49` does not.
+ */
+export const VERSIONING_PRIORITY = 50;
+
+/**
+ * Create the version-management plugin.
+ */
 export const Versioning = createPlugin<VersioningOptions>({
   name: "versioning",
-  priority: 50,
+  priority: VERSIONING_PRIORITY,
 
   setup(options) {
     const resolved = resolveVersioningOptions(options);

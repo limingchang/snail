@@ -32,7 +32,13 @@ export interface SseEndpoint extends SnailSseEndpoint {
 
 /** Options accepted by {@link useSSE}. */
 export interface UseSseOptions {
-  /** State adapter. Defaults to the globally registered one. */
+  /**
+   * State adapter for this hook's handles.
+   *
+   * Defaults to the `stateAdapter` of the server that created the endpoint, falling
+   * back to `SnailAdapter`. `Service.createSse()` records its server on the endpoint
+   * it returns precisely so this can be inherited rather than repeated.
+   */
   adapter?: SnailStateAdapter;
 
   /**
@@ -138,7 +144,9 @@ function attachTap(
  * unhandled rejection.
  */
 export function useSSE(endpoint: SseEndpoint, options: UseSseOptions = {}): UseSseResult {
-  const adapter = resolveStateAdapter(options);
+  // `endpoint` is passed so the hook inherits the server's adapter: `createSse`
+  // records this server's options on the endpoint it hands back.
+  const adapter = resolveStateAdapter(options, endpoint);
   const maxMessages = Number.isFinite(options.maxMessages)
     ? Math.max(1, Math.floor(options.maxMessages as number))
     : 100;

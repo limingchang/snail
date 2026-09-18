@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Api, createPlugin, Get, Params, Post, SnailCancelledError } from "../../src/index";
-import { useRequest } from "../../src/strategies/plain";
+import { useRequest } from "../../src/strategies";
 import { buildServer, delay } from "./support";
 
 /**

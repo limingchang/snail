@@ -20,6 +20,7 @@ import { createLogger } from "./logger";
 import { SNAIL_PARAMS } from "./metadata.keys";
 import { getMetadata } from "./metadata";
 import { SnailMethod } from "./method";
+import { attachMethodContext, attachServerContext } from "./method-context";
 import { PluginManager } from "./plugin-manager";
 import {
   buildBaseRequestConfig,
@@ -201,8 +202,20 @@ export class SnailServer<
             this.createHttpStream(apiClass, apiOptions, descriptor, args);
         }
 
-        return (...args: unknown[]) =>
-          this.createMethod(apiClass, target, apiOptions, descriptor, args);
+        // The description rides on the factory so a `use*` strategy can read this
+        // server's `stateAdapter` and envelope keys synchronously, before any
+        // `SnailMethod` exists. That is what removed the process-global adapter
+        // registry. See `core/method-context.ts`.
+        return attachMethodContext(
+          (...args: unknown[]) =>
+            this.createMethod(apiClass, target, apiOptions, descriptor, args),
+          {
+            serverOptions: this.options,
+            apiName: apiOptions.name || apiClass.name,
+            methodName: descriptor.methodName,
+            methodType: descriptor.methodType
+          }
+        );
       }
     });
 
@@ -239,16 +252,21 @@ export class SnailServer<
 
     const instance = new sseClass();
 
-    return {
-      open: () =>
-        createSseConnection({
-          url: buildRequestURL(this.options.baseURL, endpoint.url),
-          options: endpoint.options,
-          handlers: rebindSseHandlers(endpoint.handlers, instance),
-          name: `${this.options.name}.${sseClass.name}`,
-          logger: this.logger
-        })
-    };
+    // The endpoint carries this server's options so `useSSE(endpoint)` inherits the
+    // server's `stateAdapter` exactly like a `use*` hook driving a method does.
+    return attachServerContext(
+      {
+        open: () =>
+          createSseConnection({
+            url: buildRequestURL(this.options.baseURL, endpoint.url),
+            options: endpoint.options,
+            handlers: rebindSseHandlers(endpoint.handlers, instance),
+            name: `${this.options.name}.${sseClass.name}`,
+            logger: this.logger
+          })
+      },
+      this.options
+    );
   }
 
   /**
@@ -275,16 +293,19 @@ export class SnailServer<
 
     const instance = new wsClass();
 
-    return {
-      open: () =>
-        createWsConnection({
-          url: toWebSocketURL(buildRequestURL(this.options.baseURL, endpoint.url)),
-          options: endpoint.options,
-          handlers: rebindWsHandlers(endpoint.handlers, instance),
-          name: `${this.options.name}.${wsClass.name}`,
-          logger: this.logger
-        })
-    };
+    return attachServerContext(
+      {
+        open: () =>
+          createWsConnection({
+            url: toWebSocketURL(buildRequestURL(this.options.baseURL, endpoint.url)),
+            options: endpoint.options,
+            handlers: rebindWsHandlers(endpoint.handlers, instance),
+            name: `${this.options.name}.${wsClass.name}`,
+            logger: this.logger
+          })
+      },
+      this.options
+    );
   }
 
   /**

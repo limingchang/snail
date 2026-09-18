@@ -47,15 +47,12 @@ const distDir = new URL("../dist", import.meta.url);
 const ENTRIES = {
   index: "src/index.ts",
   "plugins/index": "src/plugins/index.ts",
-  // The framework adapters get their own entries so the `plugins` barrel never
-  // statically imports `vue` or `react` — see `src/plugins/index.ts`. Names carry
-  // the trailing `index` so the emitted JS sits next to the `.d.ts` tree `tsc`
-  // produces, keeping the layout predictable.
-  "plugins/vue/index": "src/plugins/vue/index.ts",
-  "plugins/react/index": "src/plugins/react/index.ts",
-  "strategies/index": "src/strategies/index.ts",
-  "strategies/plain": "src/strategies/plain.ts",
-  "strategies/react": "src/strategies/react.ts"
+  // The framework adapters get their own entries. Neither the root entry nor the
+  // `plugins` barrel may statically import `vue` or `react`; the adapters are the
+  // only modules that do, and only these entries reach them.
+  "adapter/vue": "src/adapter/vue.ts",
+  "adapter/react": "src/adapter/react.ts",
+  "strategies/index": "src/strategies/index.ts"
 };
 
 /**

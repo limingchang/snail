@@ -7,7 +7,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
 - **装饰器驱动** — `@Server` / `@Api` / `@Get` 定义请求，设计思想来自 Nest.js
-- **一切皆插件** — 缓存、拦截器、请求池、版本、校验、转换、框架适配全部是插件，核心只做三件事
+- **一切皆插件** — 缓存、拦截器、请求池、版本、校验、转换全是插件，核心只做三件事；框架适配不是插件，而是 `@Server` 的 `stateAdapter` 选项
 - **零运行时依赖** — `dependencies` 是空的；axios 是 peer 依赖，也不需要 `reflect-metadata`
 - **完整的类型推断** — 从方法声明的返回类型推断 `data` 类型，无需手写泛型
 - **请求策略** — alova 风格的 `useRequest` / `usePagination` / `useRetriableRequest` / `useDownload` 等 hook
@@ -19,7 +19,7 @@
 pnpm add @snail-js/api axios
 ```
 
-`vue`、`react`、`zod` 都是**可选**的 peer 依赖，只有用到对应插件/策略时才需要安装。
+`vue`、`react`、`zod` 都是**可选**的 peer 依赖，只有用到对应的适配器、插件或策略时才需要安装。
 
 ## 快速开始
 
@@ -162,9 +162,19 @@ const { download } = useDownload(reportApi.create);
 await download({ from: "2026-01-01" });
 ```
 
-默认适配 Vue 的响应式状态（`ref`）；React 用户请从
-`@snail-js/api/strategies/react` 引入，无框架场景请从
-`@snail-js/api/strategies/plain` 引入。
+策略入口只有一个：`@snail-js/api/strategies`，它不引入任何框架。状态适配器是 `@Server` 的选项，
+默认是无框架的 `SnailAdapter`（普通 `{ value }` 盒子，值会更新但不会触发渲染）：
+
+```ts
+import { VueRef } from "@snail-js/api/adapter/vue";          // Vue 用户；React 用 @snail-js/api/adapter/react
+
+@Server({ baseURL: "/api", stateAdapter: VueRef })
+class BackEnd extends SnailServer {}
+```
+
+这一次声明同时驱动两处状态：`method.meta` 上的 `data`/`code`/`message`/`loading`/`error` 句柄，
+以及每个 `use*` hook 返回的状态（React 侧的 `ReactState` 配合 `useMethodState` 在渲染期绑定）。
+某个 hook 想用自己的适配器，可以只覆盖自己那份状态：`useRequest(method, { adapter: VueRef })`。
 
 不想把整个文件读进 JavaScript 内存时用 `useDownload`：它 await 的只是让服务端
 生成临时下载链接的那次请求，随后用 `<a>` 触发浏览器原生下载 —— 有进度、可断点
@@ -183,7 +193,7 @@ await download({ from: "2026-01-01" });
 
 ## 设计说明
 
-核心只负责三件事，其余全部是插件：
+核心只负责三件事，其余能力（插件与状态适配器）都建立在同一套公开 API 之上：
 
 1. 装饰器写入的元数据；
 2. 请求管线；

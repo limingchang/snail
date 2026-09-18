@@ -45,6 +45,7 @@ export function Transform(
 }
 
 export { ExposeName, PropertyType } from "./decorators";
+export { TRANSFORM_PRIORITY } from "./plugin";
 export { hydrate } from "./hydrate";
 export type { HydrateOptions } from "./hydrate";
 export type {

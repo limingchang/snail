@@ -1,6 +1,6 @@
 # 响应与类型
 
-`send()` 解析成一个 `SnailResult`：信封、拆包后的 `data`、业务码、业务消息、原始 axios
+`send()` 解析成一个 `SnailResult`：后端返回数据载荷、拆包后的 `data`、业务码、业务消息、原始 axios
 响应、最终请求配置，都在里面。
 
 ```ts
@@ -9,15 +9,15 @@ const result = await userApi.getUser("42").send();
 result.data;      // 已拆包的业务数据
 result.code;      // 业务状态码
 result.message;   // 业务消息
-result.envelope;  // 完整信封 { code, message, data }
+result.envelope;  // 完整后端返回数据 { code, message, data }
 result.response;  // axios 的 AxiosResponse
 result.config;    // 最终请求配置
 result.fromCache; // 是否来自缓存
 ```
 
-## 默认信封
+## 默认后端返回的标准数据载荷
 
-库假设每个 JSON 接口都返回标准信封：
+库假设每个 JSON 接口都返回标准数据载荷：
 
 ```json
 { "code": 0, "message": "ok", "data": {} }
@@ -33,7 +33,7 @@ interface SnailEnvelopeSchema {
 }
 ```
 
-**形状**和**键名**都可以改，而且是两件独立的事。
+**类型**和**键名**都可以自定义。
 
 ## 自定义键名
 
@@ -91,7 +91,7 @@ augmentation 后的类型，因为 `SnailServer` 的第一个泛型参数默认�
 
 ::: warning augmentation 是全局的
 `declare module "@snail-js/api"` 会给整个工程里的 `SnailEnvelopeSchema` 加字段。如果同一个
-应用要对接两套不同结构的后端，请用 `SnailServer` 的泛型参数分别指定各自的信封类型，
+应用要对接两套不同结构的后端，请用 `SnailServer` 的泛型参数分别指定各自的数据载荷类型，
 而不是只做一次 augmentation。
 :::
 
@@ -101,7 +101,7 @@ augmentation 后的类型，因为 `SnailServer` 的第一个泛型参数默认�
 interface SnailResult<S, T, D extends string, C extends string, M extends string> {
   /** 原始 axios 响应（含 status / headers / request）。 */
   response: AxiosResponse<SnailEnvelope<S, T, D>>;
-  /** 解析后的完整信封。 */
+  /** 解析后的完整数据。 */
   envelope: SnailEnvelope<S, T, D>;
   /** 已拆包的业务数据 —— envelope[dataKey]。 */
   data: T;
@@ -119,9 +119,9 @@ interface SnailResult<S, T, D extends string, C extends string, M extends string
 | 字段 | 说明 |
 | --- | --- |
 | `response` | axios 的完整响应。需要 `status`、`headers`、原始 `request` 时用它 |
-| `envelope` | 后端返回的整个信封。业务码失败时不会拿到 `SnailResult`，而是 `SnailResponseError.payload` |
+| `envelope` | 后端返回的完整数据载荷。业务码失败时不会拿到 `SnailResult`，而是 `SnailResponseError.payload` |
 | `data` | 已拆包的业务数据。绝大多数场景只需要它 |
-| `code` | 业务码。信封里没有该键、或值为 `undefined`/`null` 时，校验直接通过 |
+| `code` | 业务码。后端数据载荷里没有该键、或值为 `undefined`/`null` 时，校验直接通过 |
 | `message` | 业务消息，同样可能为 `undefined` |
 | `fromCache` | 默认 `false`；只有插件调用 `ctx.markCacheHit()` 服务缓存命中时才为 `true` |
 | `config` | 最终 `InternalAxiosRequestConfig`，可用于排查实际发出的 url / headers |
@@ -206,7 +206,8 @@ try {
 
 ::: warning `onCodeError` 只能观察，不能恢复
 `method.onCodeError(cb)` 是事件订阅：回调跑完之后，`send()` 仍然会以 `SnailResponseError`
-reject。想「拦住」失败只能靠插件的 `beforeRequest`（例如缓存命中）。详见
+reject。想「拦住」失败只能靠插件的 `beforeRequest`（例如缓存命中）。五个方法事件的完整清单、
+触发时机与取消订阅语义见[方法事件](/guide/events)，与错误层次的关系见
 [错误处理](/guide/errors#onerror-与-oncodeerror)。
 :::
 

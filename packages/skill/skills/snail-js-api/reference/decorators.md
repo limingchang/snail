@@ -49,6 +49,7 @@ resolve.
 | `baseURL` | prefix every url resolves against (`"/"`) |
 | `timeout` | milliseconds (`10000`) |
 | `adapter` | axios adapter; unset = axios' own detection |
+| `stateAdapter` | framework state bridge — `SnailAdapter` (default), or `VueRef` / `ReactState` from `@snail-js/api/adapter/vue|react` |
 | `headers`, `params` | merged into every request |
 | `responseType` | axios `responseType` for every request |
 | `withCredentials` | cookies / cross-site auth headers |

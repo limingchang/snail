@@ -152,9 +152,10 @@ export class PluginManager {
       };
 
       // `install` is invoked eagerly and synchronously when it can be, so a
-      // plugin's hooks are wired the moment `use()` returns. Framework adapters
-      // depend on that: their `initMeta` hook must exist before the first
-      // `createApi()` call. A promise-returning `install` is queued on `ready`.
+      // plugin's hooks are wired the moment `use()` returns. Plugins that
+      // contribute to `ctx.meta` depend on that: their `initMeta` hook must exist
+      // before the first `createApi()` call. A promise-returning `install` is
+      // queued on `ready`.
       let outcome: unknown;
       try {
         outcome = plugin.install(context, plugin.options);

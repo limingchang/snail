@@ -24,14 +24,22 @@ function box<T>(state: SnailStateRef<T>): ReactStateBox<T> {
  * React state adapter.
  *
  * `create` returns a subscribable box; `useBind` is what a component calls during
- * render to subscribe and re-render. Strategies therefore work in both a
- * component (via `useBind`) and an event handler (via `read`).
+ * render to subscribe and re-render. Strategies therefore work both in a component
+ * (via `useBind`) and in an event handler (via `read`).
  *
- * This module is the only place in the library that imports `react`. It is
- * reachable solely from `@snail-js/api/strategies/react` and the `ReactAdapter`
- * plugin.
+ * ```tsx
+ * import { ReactState } from "@snail-js/api/adapter/react";
+ *
+ * @Server({ baseURL: "/api", stateAdapter: ReactState })
+ * class BackEnd extends SnailServer {}
+ *
+ * const { data, loading } = useMethodState(userApi.getUser("1"));
+ * ```
+ *
+ * This module is the only place in the library that imports `react`, and it is
+ * reached solely through the `@snail-js/api/adapter/react` subpath.
  */
-export const reactStateAdapter: SnailStateAdapter = {
+export const ReactState: SnailStateAdapter = {
   name: "react",
 
   create<T>(initial: T): SnailStateRef<T> {
@@ -75,7 +83,7 @@ export const reactStateAdapter: SnailStateAdapter = {
   useBind<T>(state: SnailStateRef<T>): T {
     const target = box(state);
     useSyncExternalStore(
-      (listener) => reactStateAdapter.subscribe!(state, listener),
+      (listener) => ReactState.subscribe!(state, listener),
       () => target.version,
       () => target.version
     );
@@ -86,3 +94,72 @@ export const reactStateAdapter: SnailStateAdapter = {
     box(state).listeners.clear();
   }
 };
+
+/** What {@link useMethodState} returns. */
+export interface ReactMethodState<TData = unknown> {
+  /** Unwrapped payload of the most recent response. */
+  data: TData | undefined;
+
+  /** `true` between `send()` and settlement. */
+  loading: boolean;
+
+  /** Failure of the most recent send, cleared at the start of the next one. */
+  error: unknown;
+
+  /** Business code of the most recent response. */
+  code: unknown;
+
+  /** Business message of the most recent response. */
+  message: unknown;
+}
+
+/**
+ * A shared placeholder so the hook order never depends on which handles exist.
+ *
+ * Creating it once avoids allocating a throwaway box on every render.
+ */
+const MISSING_HANDLE = ReactState.create<unknown>(undefined);
+
+/**
+ * Read a request method's state inside a component, subscribing it to changes.
+ *
+ * ```tsx
+ * function User({ id }: { id: string }) {
+ *   const method = useMemo(() => userApi.getUser(id), [id]);
+ *   const { data, loading, error } = useMethodState(method);
+ *   useEffect(() => { void method.send(); }, [method]);
+ *   if (loading) return <Spinner />;
+ *   return <p>{error ? String(error) : data?.name}</p>;
+ * }
+ * ```
+ *
+ * The five handles are bound unconditionally and in a fixed order, because React
+ * identifies hooks by call position: a conditional `useBind` throws
+ * "rendered fewer hooks than expected" as soon as the second render takes a
+ * different branch.
+ *
+ * Requires `stateAdapter: ReactState` on the server — the handles exist only when
+ * an adapter that produces subscribable boxes created them.
+ */
+export function useMethodState<TData = unknown>(
+  method: { meta: Record<string, unknown>; context: { serverOptions: { dataKey: string; codeKey: string; messageKey: string } } }
+): ReactMethodState<TData> {
+  const meta = method.meta;
+  const { dataKey, codeKey, messageKey } = method.context.serverOptions;
+  const bind = ReactState.useBind as (ref: SnailStateRef) => unknown;
+
+  // Fixed order and fixed count — do not reorder, do not hoist into a loop.
+  const data = bind((meta[dataKey] ?? MISSING_HANDLE) as SnailStateRef);
+  const code = bind((meta[codeKey] ?? MISSING_HANDLE) as SnailStateRef);
+  const message = bind((meta[messageKey] ?? MISSING_HANDLE) as SnailStateRef);
+  const loading = bind((meta.loading ?? MISSING_HANDLE) as SnailStateRef);
+  const error = bind((meta.error ?? MISSING_HANDLE) as SnailStateRef);
+
+  return {
+    data: data as TData | undefined,
+    loading: Boolean(loading),
+    error,
+    code,
+    message
+  };
+}

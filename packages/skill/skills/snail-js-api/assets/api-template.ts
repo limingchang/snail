@@ -34,9 +34,10 @@ export const Service = new BackEnd();
 // Optional behaviour is registered here, imported from its own entry point —
 // `Service.use(...)` with the plugins that `@snail-js/api/plugins` exports:
 //   import { Interceptor, Cache } from "@snail-js/api/plugins";
-// The framework adapters are NOT in that barrel; they have their own subpaths:
-//   import { VueAdapter } from "@snail-js/api/plugins/vue";
-//   import { ReactAdapter, useMethodState } from "@snail-js/api/plugins/react";
+// The framework adapter is NOT a plugin; it is a server option:
+//   import { VueRef } from "@snail-js/api/adapter/vue";
+//   @Server({ baseURL: "/api", stateAdapter: VueRef })
+//   // React: import { ReactState } from "@snail-js/api/adapter/react"
 
 // ── shared types ────────────────────────────────────────────────────────────
 

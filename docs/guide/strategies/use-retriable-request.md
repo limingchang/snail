@@ -80,7 +80,7 @@ POST，重试是会造成重复写入的。
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [`useRequest`](./use-request.md)：不重试的手动发送
 - [`useAutoRequest`](./use-auto-request.md)：周期性刷新
 - [错误处理](../errors.md)：取消为什么不是失败

@@ -16,11 +16,7 @@
   ],
   "license": "MIT",
   "type": "module",
-  "sideEffects": [
-    "./dist/strategies/index.js",
-    "./dist/strategies/plain.js",
-    "./dist/strategies/react.js"
-  ],
+  "sideEffects": false,
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -33,25 +29,17 @@
       "types": "./dist/plugins/index.d.ts",
       "import": "./dist/plugins/index.js"
     },
-    "./plugins/vue": {
-      "types": "./dist/plugins/vue/index.d.ts",
-      "import": "./dist/plugins/vue/index.js"
-    },
-    "./plugins/react": {
-      "types": "./dist/plugins/react/index.d.ts",
-      "import": "./dist/plugins/react/index.js"
-    },
     "./strategies": {
       "types": "./dist/strategies/index.d.ts",
       "import": "./dist/strategies/index.js"
     },
-    "./strategies/plain": {
-      "types": "./dist/strategies/plain.d.ts",
-      "import": "./dist/strategies/plain.js"
+    "./adapter/vue": {
+      "types": "./dist/adapter/vue.d.ts",
+      "import": "./dist/adapter/vue.js"
     },
-    "./strategies/react": {
-      "types": "./dist/strategies/react.d.ts",
-      "import": "./dist/strategies/react.js"
+    "./adapter/react": {
+      "types": "./dist/adapter/react.d.ts",
+      "import": "./dist/adapter/react.js"
     },
     "./package.json": "./package.json"
   },

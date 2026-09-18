@@ -1,4 +1,5 @@
 import { Server, SnailServer } from "../../src/index";
+import type { SnailStateAdapter } from "../../src/typings/adapter";
 import { createTestAdapter } from "../helpers/test-adapter";
 
 /**
@@ -7,11 +8,18 @@ import { createTestAdapter } from "../helpers/test-adapter";
  * Copied from `tests/core/core.spec.ts` on purpose: exercising the *real* axios
  * adapter path is what makes a strategy bug observable, and a stubbed axios would
  * hide exactly the config mutations this layer performs.
+ *
+ * `stateAdapter` is optional and left undefined by default, which is the common
+ * case — a suite that cares about the framework projection passes `VueRef` or
+ * `ReactState` here.
  */
-export function buildServer(reply: Parameters<typeof createTestAdapter>[0] = {}) {
+export function buildServer(
+  reply: Parameters<typeof createTestAdapter>[0] = {},
+  options: { stateAdapter?: SnailStateAdapter } = {}
+) {
   const test = createTestAdapter(reply);
 
-  @Server({ baseURL: "/api", adapter: test.adapter })
+  @Server({ baseURL: "/api", adapter: test.adapter, ...options })
   class TestServer extends SnailServer {}
 
   return { Service: new TestServer(), test };

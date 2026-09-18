@@ -117,9 +117,9 @@ method.onError((error) => console.error(error));
 | --- | --- | --- |
 | `codeError` | 错误是 `SnailResponseError` | `{ code, payload, error }` |
 | `error` | 其它任何错误（包括取消，因为 `SnailCancelledError` 不是 `SnailResponseError`） | `unknown` |
-| `success` | 成功 | `SnailResult` |
-| `finish` | **总是**（在 `finally` 里），成功、失败、取消都会触发 | `undefined` |
-| `cache` | 成功路径上、响应由缓存提供时（由插件调用 `ctx.markCacheHit()` 标记） | `undefined` |
+
+失败之外的两个事件 —— `success` 与 `finish`（缓存命中时还有 `cache`）—— 以及它们的触发时机
+见[方法事件](/guide/events)。
 
 ::: warning `onCodeError` 不能恢复
 它只是**观察**：所有 `onCodeError` 回调跑完后，`send()` 仍然以 `SnailResponseError` reject。

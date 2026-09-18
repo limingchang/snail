@@ -88,6 +88,13 @@ export type StrategyStateEvents<TData> = {
 /** Options accepted by {@link createStrategyState}. */
 export interface StrategyStateOptions<TData> {
   adapter?: SnailStateAdapter;
+  /**
+   * The proxied method this hook drives.
+   *
+   * Used only to read the owning server's `stateAdapter`, so a hook inherits the
+   * framework its server declared rather than consulting a process-wide global.
+   */
+  method?: unknown;
   /** Value `data` starts at. Defaults to `undefined`. */
   initialData?: TData;
   /** Invoked by `state.abort()`. The hook owns what "abort" means. */
@@ -147,7 +154,7 @@ function hasKey(source: object, key: string): boolean {
 export function createStrategyState<TData>(
   options: StrategyStateOptions<TData> = {}
 ): StrategyStateController<TData> {
-  const adapter = resolveStateAdapter(options);
+  const adapter = resolveStateAdapter(options, options.method);
   const loading = adapter.create<boolean>(false);
   const data = adapter.create<TData | undefined>(options.initialData);
   const error = adapter.create<unknown>(undefined);

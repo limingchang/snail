@@ -35,6 +35,7 @@ Service.name;            // "BackEnd"
 | `validateCode` | `(code, envelope) => boolean` | 未设置 | 未设置时接受 `0` 与 `200`；`code` 为 `undefined`/`null` 时直接通过 |
 | `logLevel` | `"silent" \| "error" \| "warn" \| "info" \| "debug"` | `"silent"` | 日志级别。**默认不打印任何东西** |
 | `coerceJSONString` | `boolean` | `true` | 响应体是 JSON 字符串（含 content-type 写错的情况）时尝试解析 |
+| `stateAdapter` | `SnailStateAdapter` | `SnailAdapter` | 该 server 的请求状态用什么响应式原语：驱动 `method.meta` 上的句柄与每个 `use*` 策略返回的状态。见[框架适配器](./adapters.md) |
 
 ::: warning 关于 `name` 的默认值
 `DEFAULT_SERVER_OPTIONS.name` 的值是 `"SNAIL_SERVER"`，但这只是一个兜底常量：实际解析时
@@ -127,7 +128,7 @@ import {
 DEFAULT_RESPONSE_KEYS;  // { code: "code", message: "message", data: "data" }
 DEFAULT_ACCEPTED_CODES; // [0, 200]
 DEFAULT_API_OPTIONS;    // { url: "", name: "" }
-DEFAULT_SERVER_OPTIONS; // { name, baseURL, timeout, codeKey, messageKey, dataKey, logLevel, coerceJSONString }
+DEFAULT_SERVER_OPTIONS; // { name, baseURL, timeout, codeKey, messageKey, dataKey, logLevel, coerceJSONString, stateAdapter }
 LOG_LEVEL_WEIGHT;       // { silent: 0, error: 1, warn: 2, info: 3, debug: 4 }
 ```
 

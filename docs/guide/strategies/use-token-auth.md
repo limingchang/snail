@@ -93,7 +93,7 @@ auth.setToken(readFromLoginForm());
 
 ## 相关
 
-- [策略概览](../strategies.md)：三个入口与公共选项
+- [策略概览](../strategies.md)：适配器与公共选项
 - [使用插件](../plugins.md)：`use()` / `remove()` / 优先级
 - [插件生命周期](../plugin-lifecycle.md)：`beforeRequest` 的链式契约
 - [`useRequest`](./use-request.md)：调用方如何消费失败

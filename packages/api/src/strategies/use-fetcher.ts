@@ -79,6 +79,8 @@ export function useFetcher<TArgs extends readonly unknown[], TData>(
 
   const controller = createStrategyState<TData>({
     adapter: options.adapter,
+    method,
+
     onAbort: () => holder.abort()
   });
 

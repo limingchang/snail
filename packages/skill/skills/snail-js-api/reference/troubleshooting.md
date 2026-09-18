@@ -64,20 +64,25 @@ import { Cache } from "@snail-js/api/plugins";            // ✅
 import { useRequest } from "@snail-js/api/strategies";    // ✅
 ```
 
-## `VueAdapter` / `ReactAdapter` is not exported by `@snail-js/api/plugins`
+## The Vue/React adapter is not exported by the root or `@snail-js/api/plugins`
 
-**Cause** — they are not in that barrel, and cannot be: a re-export would make it statically import
-`vue` and `react`, so importing `Cache` would demand both frameworks installed. They have their own
-subpaths, and importing them from the barrel is a compile error, not a fallback.
+**Cause** — an adapter is not a plugin, and those two entries must stay framework-free: a re-export
+would make them statically import `vue` / `react`, so importing `Cache` would demand both installed.
+Nor is there an adapter to `use()` any more — the framework is a server option.
 
 ```ts
-import { VueAdapter } from "@snail-js/api/plugins";             // ❌ no such export
-import { VueAdapter } from "@snail-js/api/plugins/vue";         // ✅
-import { ReactAdapter, useMethodState } from "@snail-js/api/plugins/react";   // ✅
+import { VueRef } from "@snail-js/api";                          // ❌ not on the root entry
+import { VueRef } from "@snail-js/api/plugins";                  // ❌ not in that barrel either
+import { SnailAdapter } from "@snail-js/api";                    // ✅ the framework-free default
+import { VueRef } from "@snail-js/api/adapter/vue";              // ✅ the Vue adapter
+import { ReactState, useMethodState } from "@snail-js/api/adapter/react";   // ✅ the React adapter
+
+@Server({ baseURL: "/api", stateAdapter: VueRef })               // ✅ declared once, per server
+class BackEnd extends SnailServer {}
 ```
 
-The barrel exports only cache, interceptor, versioning, validate and transform — see
-[plugins.md](plugins.md).
+Core builds the five `method.meta` handles from that option when a `SnailMethod` is built — see
+[strategies.md](strategies.md).
 
 ## A second identical request never reaches the network
 

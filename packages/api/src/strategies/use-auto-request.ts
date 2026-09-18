@@ -99,9 +99,9 @@ export function useAutoRequest<TArgs extends readonly unknown[], TData>(
   // to send differs here.
   const request = useRequest<TArgs, TData>(method, { ...options, immediate: false });
 
-  // Same adapter the state handles use — resolved from the same options object, so
+  // Same adapter the state handles use — resolved from the same method, so
   // `running` cannot end up tracking a different reactivity system than `loading`.
-  const adapter = resolveStateAdapter(options);
+  const adapter = resolveStateAdapter(options, method);
   const running = adapter.create<boolean>(false);
   const scope = createListenerScope();
 

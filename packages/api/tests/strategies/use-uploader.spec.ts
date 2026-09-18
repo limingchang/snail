@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Api, Data, Post } from "../../src/index";
-import { useUploader } from "../../src/strategies/plain";
+import { useUploader } from "../../src/strategies";
 import { buildServer, delay, until } from "./support";
 
 /**

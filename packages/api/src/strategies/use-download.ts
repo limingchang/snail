@@ -127,6 +127,8 @@ export function useDownload<TArgs extends readonly unknown[], TPayload>(
 
   const controller = createStrategyState<TPayload>({
     adapter: options.adapter,
+    method,
+
     onAbort: () => holder.abort()
   });
 

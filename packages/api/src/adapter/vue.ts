@@ -4,16 +4,33 @@ import type { SnailStateAdapter, SnailStateRef } from "../typings/adapter";
 /**
  * Vue 3 state adapter.
  *
- * A Vue `Ref<T>` already *is* a `{ value: T }` box, so this adapter is almost
- * pure identity — `create` hands back the ref and `read`/`write` touch `.value`.
- * Vue's render effect tracks the `.value` access itself, which is why no
- * `subscribe` implementation is needed: there is nothing to notify manually.
+ * A Vue `Ref<T>` already *is* a `{ value: T }` box, so this adapter is almost pure
+ * identity — `create` hands back the ref and `read`/`write` touch `.value`. Vue's
+ * render effect tracks the `.value` access itself, which is why no `subscribe`
+ * implementation is needed: there is nothing to notify manually.
  *
- * This module is the only place in the library that imports `vue`, and it is only
- * reachable from the strategies' default entry point and the `VueAdapter` plugin.
- * Applications that never import either never pull Vue in.
+ * ```ts
+ * import { VueRef } from "@snail-js/api/adapter/vue";
+ *
+ * @Server({ baseURL: "/api", stateAdapter: VueRef })
+ * class BackEnd extends SnailServer {}
+ *
+ * const user = Service.createApi(UserApi).getUser("1");
+ * user.meta.loading;                     // Ref<boolean>
+ *
+ * const { data, loading } = useRequest(userApi.getUser);
+ * data;                                  // Ref<User | undefined>
+ * ```
+ *
+ * Declaring it once on `@Server` drives **both** projections: the handles on
+ * `method.meta` and the state every `use*` hook returns. There is no second place
+ * to configure and no global to fight over.
+ *
+ * This module is the only place in the library that imports `vue`, and it is
+ * reached solely through the `@snail-js/api/adapter/vue` subpath — so an
+ * application that never imports it never pulls Vue in.
  */
-export const vueStateAdapter: SnailStateAdapter = {
+export const VueRef: SnailStateAdapter = {
   name: "vue",
 
   create<T>(initial: T): SnailStateRef<T> {
@@ -28,7 +45,7 @@ export const vueStateAdapter: SnailStateAdapter = {
     (state as Ref<T>).value = value;
   },
 
-  /** `true` when a value already is a Vue ref. */
+  /** `true` when a value already is a Vue ref — lets core avoid replacing one. */
   isState(value: unknown): boolean {
     return isRef(value);
   }

@@ -230,4 +230,4 @@ class MixApi {
 | `@Sse` `@SseEvent` `@OnSseOpen` `@OnSseError` `@WebSocket` `@OnWs*` `@HttpStream` | [SSE / WebSocket / HTTP 流](/guide/streaming) |
 | `createClassDecorator` `createMethodDecorator` `createParamDecorator` `createPropertyDecorator` `customMetadataKey` | [编写插件](/guide/plugin-authoring#自定义装饰器) |
 | `Cache` `Interceptor` `Versioning` `Validate` `Transform` | 从 `@snail-js/api/plugins` 导入，见[使用插件](/guide/plugins) |
-| `VueAdapter` `ReactAdapter` | 从 `@snail-js/api/plugins/vue`、`@snail-js/api/plugins/react` 导入，见[框架适配器](/guide/adapters) |
+| 框架适配器 `SnailAdapter` `VueRef` `ReactState` | 不是插件，是 `@Server({ stateAdapter })` 选项，见[框架适配器](/guide/adapters) |

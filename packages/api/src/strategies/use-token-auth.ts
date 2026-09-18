@@ -4,6 +4,16 @@ import { createPlugin } from "../core/plugin";
 import { deferred, noop } from "../utils/object";
 import type { SnailNext, SnailPluginObject } from "../typings/plugin";
 
+/**
+ * The band the `useTokenAuth` plugin occupies.
+ *
+ * Above the default `0`, because the hook wraps the rest of the `beforeRequest`
+ * chain so it can observe a 401 raised anywhere downstream. Exported so an
+ * application that must sit *inside* that wrapper can say so by name instead of
+ * guessing a number.
+ */
+export const TOKEN_AUTH_PRIORITY = 20;
+
 /** Options accepted by {@link useTokenAuth}. */
 export interface TokenAuthOptions {
   /**
@@ -211,9 +221,7 @@ export function useTokenAuth(options: TokenAuthOptions): TokenAuthHandle {
 
   const factory = createPlugin<TokenAuthOptions, TokenAuthHooks>({
     name: "token-auth",
-    // The third-party band, above the default `0`: this hook wraps the rest of the
-    // `beforeRequest` chain so it can observe a 401 raised anywhere downstream.
-    priority: 20,
+    priority: TOKEN_AUTH_PRIORITY,
 
     setup(_pluginOptions, api) {
       // Registered here, not on the hook, so an uninstall cannot leave a queue of

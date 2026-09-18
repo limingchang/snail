@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "@snail-js/api"
-  text: 浏览器与服务端通用的 HTTP 客户端
-  tagline: 装饰器描述请求，一切皆插件。同一份代码跑在浏览器、Node 与 SSR 里。
+  text: 装饰器驱动的 HTTP 请求库
+  tagline: 基于 axios —— 装饰器描述请求，可选能力皆为插件，同时提供多种请求策略。
   actions:
     - theme: brand
       text: 快速上手
@@ -14,24 +14,14 @@ hero:
       link: /api/reference
 
 features:
-  - title: 只依赖 axios
-    details: dependencies 里只有 axios。没有 reflect-metadata，没有 polyfill，没有任何运行时注入。
-  - title: 浏览器与服务端
-    details: '没有运行时依赖，axios 是 peer；DOM 触点全部有守卫。Node 与 SSR 里可以直接 import 并发请求，需要框架适配器的地方再装。'
   - title: 装饰器描述请求
-    details: '@Server @Api @Get @Query … 装饰器只做一件事：往元数据仓库里写数据。请求体永远不会执行。'
+    details: '@Server @Api @Get @Query … 请求从装饰器创建，随处调用，并提供完整的Typing。`@Server({ stateAdapter })` 多框架state适配。'
   - title: 插件优先
-    details: 缓存、请求池、版本、拦截器、校验、转换、框架适配器全部是插件，用的是第三方作者拿到的同一套公开 API。
-  - title: 内置插件
-    details: 'Cache / RequestPool / Interceptor / Versioning / Validate / Transform 在 @snail-js/api/plugins；Vue 与 React 适配器在 /plugins/vue、/plugins/react，barrel 不静态引入任何框架。'
+    details: 提供内置插件：缓存、请求池、版本、拦截器、校验、转换，你也可以按需求开发自己的插件，没有内部特权通道。
   - title: 请求策略
-    details: 'useRequest / useWatcher / usePagination / useUploader / useDownload … 一套实现、三个入口：Vue、React、plain，只有你导入的那个会引入框架。'
-  - title: 类型来自声明
-    details: '方法声明的返回类型就是 data 的类型：Promise&lt;User&gt; 让 send() 的 data 直接是 User。'
-  - title: 可预测的错误
-    details: 每个错误都有稳定的 code 字段；业务码被拒绝时抛出 SnailResponseError，取消被单独区分。
-  - title: 按需加载
-    details: 核心从包根导入，可选能力从 @snail-js/api/plugins、/plugins/vue、/plugins/react 与 @snail-js/api/strategies 导入。
+    details: 'useRequest / useWatcher / usePagination / useUploader / useDownload … 一套实现，可适配 Vue、React 或无框架；框架由 server 的 stateAdapter 决定，只有对应的 adapter 子路径会引入框架。'
+  - title: 浏览器与服务端
+    details: 核心只用平台能力，DOM 触点全部有守卫；Node 与 SSR 里可以直接 import 并发请求，要用响应式句柄时再按需声明 stateAdapter。
 ---
 
 # 文档导览
@@ -62,13 +52,14 @@ axios 当作唯一的传输层，自己只负责三件事：**装饰器写入的
 
 ::: tip 核心与可选能力分开导入
 核心永远是 `import { SnailServer, Server, Api, Get } from "@snail-js/api"`；可选能力是
-`@snail-js/api/plugins`、`@snail-js/api/plugins/vue`、`@snail-js/api/plugins/react` 与
-`@snail-js/api/strategies`。这样打包器才能把用不到的缓存、校验器和框架适配器整块摇掉 ——
-尤其是 `vue` / `react`：它们只在对应子路径里被静态引入。
+`@snail-js/api/plugins`、`@snail-js/api/strategies`，以及两个框架适配器子路径
+`@snail-js/api/adapter/vue` / `@snail-js/api/adapter/react`。这样打包器才能把用不到的缓存、
+校验器和适配器整块摇掉 —— 尤其是 `vue` / `react`：只有这两个 adapter 子路径会静态引入它们。
 :::
 
-::: warning `@snail-js/api/plugins` 里没有框架适配器
-`VueAdapter` 与 `ReactAdapter` 已移动到 `@snail-js/api/plugins/vue` 与
-`@snail-js/api/plugins/react`。原因见[框架适配器](/guide/adapters)：那个 barrel 一旦静态
-引入框架，只想要 `Cache` 的应用就会被拖上两个框架。
+::: warning 框架适配器是一个 server 选项，不是插件
+`@Server({ stateAdapter })` 一次声明同时决定 `method.meta` 上的句柄和每个 `use*` 策略返回的
+状态；不写它就是默认的 `SnailAdapter`（普通 `{ value }` 盒子，不 import 任何框架）。详见
+[框架适配器](/guide/adapters)：把一个框架从插件改成选项，是因为插件与「进程级注册」的旧组合
+让同一个进程里的两个 server 无法使用不同框架。
 :::

@@ -65,6 +65,8 @@ export function useRequest<TArgs extends readonly unknown[], TData>(
 
   const controller = createStrategyState<TData>({
     adapter: options.adapter,
+    method,
+
     initialData: options.initialData,
     onAbort: () => holder.abort()
   });

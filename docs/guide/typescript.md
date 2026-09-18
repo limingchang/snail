@@ -136,18 +136,19 @@ TypeScript 7 在需要 emit 时要求显式 `rootDir`（旧的隐式推断不再
   "exports": {
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
     "./plugins": { "types": "./dist/plugins/index.d.ts", "import": "./dist/plugins/index.js" },
-    "./plugins/vue": { "types": "./dist/plugins/vue/index.d.ts", "import": "./dist/plugins/vue/index.js" },
-    "./plugins/react": { "types": "./dist/plugins/react/index.d.ts", "import": "./dist/plugins/react/index.js" },
     "./strategies": { "types": "./dist/strategies/index.d.ts", "import": "./dist/strategies/index.js" },
-    "./strategies/plain": { "types": "./dist/strategies/plain.d.ts", "import": "./dist/strategies/plain.js" },
-    "./strategies/react": { "types": "./dist/strategies/react.d.ts", "import": "./dist/strategies/react.js" }
+    "./adapter/vue": { "types": "./dist/adapter/vue.d.ts", "import": "./dist/adapter/vue.js" },
+    "./adapter/react": { "types": "./dist/adapter/react.d.ts", "import": "./dist/adapter/react.js" },
+    "./package.json": "./package.json"
   }
 }
 ```
 
-`./plugins/vue` 与 `./plugins/react` 是独立子路径，不是 `./plugins` 的再导出：那个 barrel 必须
-保持不静态引入 `vue` / `react`，否则只想要 `Cache` 的应用会因为解析不到另一个框架而构建失败。
-详见[框架适配器](./adapters.md)。
+`./adapter/vue` 与 `./adapter/react` 是独立子路径，不是任何 barrel 的再导出：核心、
+`./plugins` 与 `./strategies` 都必须保持不静态引入 `vue` / `react`，否则只想要 `Cache` 的
+React 应用会因为解析不到 `vue` 而构建失败，与框架无关的应用则会把两个框架都打进 bundle。框架
+的选择是 server 选项 `@Server({ stateAdapter })`，默认的 `SnailAdapter` 从包根导出。详见
+[框架适配器](./adapters.md)。
 
 因此 `moduleResolution` 用 `"bundler"`（打包器 / Vite / Next）或 `"node16"`/`"nodenext"`
 （Node 原生 ESM）都能正确解析到类型。别再使用已废弃的 `"node"`/`"node10"` 解析模式。
@@ -172,7 +173,7 @@ import type { SnailResult, SnailServerOptions } from "@snail-js/api";
 | Node | `>= 20.19.0`（仓库 `engines` 字段；流式传输用到 `fetch` + `ReadableStream`） |
 | TypeScript | 在 5.x 与 7.x 上均可使用 legacy 装饰器与参数装饰器 |
 | axios | `^1.20.0`（peer dependency，必须由应用安装） |
-| 可选 peer | `vue >= 3.4.0`、`react >= 18`、`zod >= 3.23`，仅在使用对应插件时需要 |
+| 可选 peer | `vue >= 3.4.0`、`react >= 18`、`zod >= 3.23`，仅在使用 `@snail-js/api/adapter/vue`、`@snail-js/api/adapter/react` 或校验插件时需要 |
 
 ## 常见报错速查
 

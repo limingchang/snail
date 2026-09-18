@@ -1,10 +1,11 @@
 /**
- * Framework state abstraction used by the request strategies.
+ * Framework state abstraction.
  *
- * A strategy needs to hand the caller values that update as the request
- * progresses. "Updates" means something different in every framework, so the
- * strategies never touch `ref()` or `useState()` directly — they go through a
- * {@link SnailStateAdapter}.
+ * Two callers need values that update as a request progresses: the strategy hooks
+ * (`useRequest` and friends) and core itself, which builds the handles on
+ * `method.meta`. "Updates" means something different in every framework, so neither
+ * touches `ref()` or `useState()` directly — both go through a
+ * {@link SnailStateAdapter}, chosen once per server.
  *
  * A state handle is intentionally minimal: anything with a mutable `value`
  * property qualifies, which is exactly what a Vue `Ref<T>` is.
@@ -57,9 +58,11 @@ export interface SnailStrategyCommonOptions {
   immediate?: boolean;
 
   /**
-   * State adapter to use.
+   * State adapter for this hook's own handles.
    *
-   * Defaults to the globally registered adapter (Vue in the default entry).
+   * Defaults to the `stateAdapter` of the server that owns the method the hook was
+   * given, falling back to `SnailAdapter`. Overriding it here affects only this
+   * hook's state — it never changes `method.meta`, which belongs to the server.
    */
   adapter?: SnailStateAdapter;
 

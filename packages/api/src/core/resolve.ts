@@ -52,7 +52,10 @@ export function resolveServerOptions(
     dataKey: declared.dataKey ?? DEFAULT_SERVER_OPTIONS.dataKey,
     logLevel: declared.logLevel ?? DEFAULT_SERVER_OPTIONS.logLevel,
     coerceJSONString:
-      declared.coerceJSONString ?? DEFAULT_SERVER_OPTIONS.coerceJSONString
+      declared.coerceJSONString ?? DEFAULT_SERVER_OPTIONS.coerceJSONString,
+    // A per-server framework choice, resolved here so nothing downstream has to
+    // consult a global. See `SnailServerOptions.stateAdapter`.
+    stateAdapter: declared.stateAdapter ?? DEFAULT_SERVER_OPTIONS.stateAdapter
   };
 }
 

@@ -14,7 +14,7 @@ interface SseEndpoint extends SnailSseEndpoint {
 
 ```ts
 interface UseSseOptions {
-  adapter?: SnailStateAdapter;      // 默认全局注册的
+  adapter?: SnailStateAdapter;      // 默认取创建该 endpoint 的 server 的 stateAdapter
   immediate?: boolean;              // 默认 false
   maxMessages?: number;             // 默认 100
   filter?: (message: SnailSseMessage) => boolean;
@@ -24,11 +24,16 @@ interface UseSseOptions {
 
 | 选项 | 类型 | 真实默认值 | 说明 |
 | --- | --- | --- | --- |
-| `adapter` | `SnailStateAdapter` | 全局注册的 | 状态适配器 |
+| `adapter` | `SnailStateAdapter` | 创建该 endpoint 的 server 的 `stateAdapter`（再兜底 `SnailAdapter`） | 状态适配器；显式传入只覆盖这个 hook 自己的句柄 |
 | `immediate` | `boolean` | `false` | 创建时立刻 `open()`（与 `SnailSseEndpoint` 的「不调用就不连接」契约一致） |
 | `maxMessages` | `number` | `100` | 缓冲上限，超出时丢**最旧**的；下限夹到 1。有界是故意的：跑几小时的 SSE 配一个无界数组就是一次最终会冻住标签页的内存泄漏 |
 | `filter` | `(message) => boolean` | 未设置 | 只保留返回 `true` 的消息 |
 | `onMessage` | `(message) => void` | 未设置 | 每条**被接受**的消息，在缓冲更新之后调用 |
+
+endpoint 不是一个 `SnailMethod`，所以适配器不是从方法上继承的：`Service.createSse(Events)` 会把
+**创建它的那个 server** 记在返回的 endpoint 上，`useSSE` 再从那里读 `stateAdapter`。于是同一个
+server 上的请求策略与 SSE 策略拿到的句柄类型一致（Vue server 上都是 ref），而 `{ adapter }` 依然
+可以按 hook 覆盖。
 
 ## 返回
 
@@ -98,6 +103,6 @@ feed.close();           // 释放：close()，不是 Symbol.asyncDispose
 
 ## 相关
 
-- [策略概览](../strategies.md)：状态形状、三个入口、公共选项
+- [策略概览](../strategies.md)：状态形状、适配器与公共选项
 - [SSE / WebSocket / HTTP 流](../streaming.md)：`@Sse` 与连接契约
 - [在服务端运行](../server-side.md)：SSE 依赖的 `fetch` / `ReadableStream` 是平台全局，不是 DOM API

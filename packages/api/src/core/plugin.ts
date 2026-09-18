@@ -18,9 +18,11 @@ import { t } from "../locale";
  * ## Everything is a plugin
  *
  * The core ships *no* optional behaviour: caching, versioning, interceptors,
- * validation, transformation and framework adapters are all plugins. Core owns
- * exactly three things — the metadata written by decorators, the request
- * pipeline, and this plugin lifecycle.
+ * validation and transformation are all plugins. Core owns exactly three things —
+ * the metadata written by decorators, the request pipeline, and this plugin
+ * lifecycle. Even the framework integration is not a plugin: it is the
+ * `stateAdapter` server option, because it has to drive both `method.meta` and the
+ * `use*` strategies from one declaration.
  *
  * ## Two kinds of hook
  *

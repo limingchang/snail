@@ -1,4 +1,5 @@
 import type { AxiosRequestConfig } from "axios";
+import type { SnailStateAdapter } from "./adapter";
 import type { SnailCodeValidator, SnailEnvelopeSchema } from "./response";
 
 /** Severity used by the logger. */
@@ -77,6 +78,29 @@ export interface SnailServerOptions {
 
   /** Parse a JSON string body when the server forgot the content-type header. */
   coerceJSONString?: boolean;
+
+  /**
+   * How reactive state is created for this server.
+   *
+   * Declare your framework **once** here and it drives both projections of a
+   * request: the handles on `method.meta`, and the state every `use*` strategy
+   * returns.
+   *
+   * ```ts
+   * import { VueRef } from "@snail-js/api/adapter/vue";
+   *
+   * @Server({ baseURL: "/api", stateAdapter: VueRef })
+   * class BackEnd extends SnailServer {}
+   * ```
+   *
+   * Defaults to `SnailAdapter` — a plain mutable box, correct for a test, a Node
+   * process, an SSR pass or an application that drives requests by hand.
+   *
+   * Because this is a *server* option, two servers in one bundle may use different
+   * frameworks: a Vue admin panel and a React widget no longer have to share a
+   * single process-wide setting.
+   */
+  stateAdapter?: SnailStateAdapter;
 }
 
 /**
@@ -93,6 +117,7 @@ export interface ResolvedServerOptions extends SnailServerOptions {
   dataKey: string;
   logLevel: SnailLogLevel;
   coerceJSONString: boolean;
+  stateAdapter: SnailStateAdapter;
 }
 
 /** Narrow an arbitrary value to a usable envelope schema. */

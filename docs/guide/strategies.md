@@ -15,39 +15,34 @@ user.data.value;        // → 同一个载荷
 user.loading.value;     // false
 ```
 
-## 三个入口，一个实现
+## 一个入口，不 import 任何框架
 
-三个入口的差别**只有一条语句**：安装哪个 state adapter，然后统统 `export * from "./shared/public"`。
-
-| 入口 | 安装的适配器 | 句柄是什么 | 会拉进框架吗 |
-| --- | --- | --- | --- |
-| `@snail-js/api/strategies` | Vue | `ref()` | 会（`vue`） |
-| `@snail-js/api/strategies/react` | React | 可订阅盒子 | 会（`react`） |
-| `@snail-js/api/strategies/plain` | plain | `{ value }` 普通对象 | 不会 |
-
-把导出清单集中在一个模块里（`strategies/shared/public.ts`），是三个入口不会各自漂移的原因：
-在这里加一个 hook，三个入口同时拥有，而且没有任何一个重新实现过什么。这也是**本页列出的每个
-hook 在三个入口下签名完全一致**的原因。
+策略只有一个入口 —— `@snail-js/api/strategies` —— 而它**不 import 任何框架**。框架由 server 决定：
 
 ```ts
-// 脚本、SSR、测试：值正常更新，只是不触发任何渲染
-import { useRequest } from "@snail-js/api/strategies/plain";
+import { Server, SnailServer } from "@snail-js/api";
+import { VueRef } from "@snail-js/api/adapter/vue";
 
-// 组件：句柄就是 ref，模板里直接 .value
-import { useRequest } from "@snail-js/api/strategies";
+@Server({ baseURL: "/api", stateAdapter: VueRef })
+class BackEnd extends SnailServer {}
 
-// 组件：句柄需要 bind() 才会订阅
-import { useRequest } from "@snail-js/api/strategies/react";
+const { data } = useRequest(userApi.getUser);   // data 是 Vue Ref
 ```
 
-::: warning 导入哪个入口 = 选择哪个适配器
-导入这个模块本身，就是「让 Vue 的 `ref()` 成为状态原语」的**唯一**动作 —— 这也是它会把 `vue`
-拉进 bundle 的原因。从来没有导入这个入口（也没有导入 Vue 适配器插件）的应用，永远不会打包
-Vue。`strategies/index.ts` 与 `strategies/react.ts` 是策略层里**仅有的**允许 import 框架的模块。
+每个 hook 从它拿到的 method 上读该 server 的 `stateAdapter`，所以同一份导入清单在 Vue、React 与
+无框架的应用里完全一致。旧版的三个入口（`/plain`、`/react`）已经不存在：它们唯一的差别是在
+导入时往一个**进程级注册表**里安装适配器，那既是 import 副作用，也让同一个进程里的两个 server
+无法使用不同的框架。
 
-也可以不用入口、给单个 hook 显式传 `adapter`（见 `SnailStateAdapter`），这时导入
-`strategies/plain` 即可。
-:::
+| 适配器 | 导入 | 返回的句柄是什么 | 读取时会订阅吗 |
+| --- | --- | --- | --- |
+| `SnailAdapter`（默认） | `@snail-js/api` | 普通 `{ value }` 盒子 | 不会 —— 值照常更新，只是不触发渲染 |
+| `VueRef` | `@snail-js/api/adapter/vue` | Vue `ref()` | 会 —— Vue 的渲染副作用追踪 `.value` 的读取 |
+| `ReactState` | `@snail-js/api/adapter/react` | 可订阅盒子 | 需要 `bind()` / `useBind`（`useSyncExternalStore`） |
+
+也可以不用 server 声明，给单个 hook 显式传 `adapter`（见 `SnailStateAdapter`）：它只覆盖**这个
+hook 自己的状态**，永远不改 `method.meta`。解析顺序是 `options.adapter` → 所属 server 的
+`stateAdapter` → `SnailAdapter`。三种适配器的完整说明见[框架适配器](./adapters.md)。
 
 ## 共享的状态形状
 
@@ -129,13 +124,15 @@ function bindRef<T>(adapter: SnailStateAdapter, ref: SnailStateRef<T>): T {
 
 | 适配器 | `useBind` | `bind()` 的行为 |
 | --- | --- | --- |
-| Vue | 未实现 | 读取 `.value`（渲染副作用自己追踪） |
-| React | `useSyncExternalStore` | **订阅当前组件并返回快照** |
-| plain | 未实现 | 读取 `.value`，只是不触发渲染 |
+| `VueRef` | 未实现 | 读取 `.value`（渲染副作用自己追踪） |
+| `ReactState` | `useSyncExternalStore` | **订阅当前组件并返回快照** |
+| `SnailAdapter` | 未实现 | 读取 `.value`，只是不触发渲染 |
 
 ```tsx
 // React：bind() 是让组件重渲染的那一步
-const user = useRequest(userApi.getUser, { adapter: reactStateAdapter });
+import { ReactState } from "@snail-js/api/adapter/react";
+
+const user = useRequest(userApi.getUser, { adapter: ReactState });
 const { data, loading } = user.bind();
 ```
 
@@ -155,9 +152,10 @@ interface MethodHolder<TData = unknown> {
 }
 ```
 
-这不是优化，而是正确性要求：`initMeta` 每个方法只跑一次（[插件生命周期](./plugin-lifecycle.md)），
-再调用一次 `method(...args)` 会构造**第二个**上下文和第二套 ref —— UI 会一直渲染第一个，冻结
-在那里。`send("2")` 仍然会用新参数覆盖本次请求，只是不换实例。
+这不是优化，而是正确性要求：核心在构建 `SnailMethod` 时创建的五个 `meta` 句柄每个方法只创建
+一次（[插件生命周期](./plugin-lifecycle.md)），再调用一次 `method(...args)` 会构造**第二个**
+上下文和第二套 ref —— UI 会一直渲染第一个，冻结在那里。`send("2")` 仍然会用新参数覆盖本次请求，
+只是不换实例。
 
 副作用是：**一个实例意味着同一时刻只有一个请求**。`SnailMethod` 每次 `send()` 都会重置自己的
 上下文，所以在第一次还在飞的时候发起第二次 `send()`，会让第一次读到一个属于第二次的上下文。
@@ -168,7 +166,7 @@ interface MethodHolder<TData = unknown> {
 ```ts
 interface SnailStrategyCommonOptions {
   immediate?: boolean;             // 默认 false
-  adapter?: SnailStateAdapter;     // 默认使用全局注册的适配器
+  adapter?: SnailStateAdapter;     // 默认取所属 server 的 stateAdapter
   onSuccess?: (data: unknown) => void;
   onError?: (error: unknown) => void;
   onFinish?: () => void;
@@ -180,7 +178,7 @@ interface SnailStrategyCommonOptions {
 | 选项 | 默认 | 说明 |
 | --- | --- | --- |
 | `immediate` | `false` | 创建时就发一次。`useRequest` / `useFetcher` / `useWatcher` 用**空参数**发送；`useAutoRequest` 的 `immediate` 等价于 `start()` |
-| `adapter` | 全局注册的 | 显式指定适配器，可以绕过入口选择 |
+| `adapter` | 所属 server 的 `stateAdapter`（再兜底 `SnailAdapter`） | 只覆盖这个 hook 自己的句柄，不影响 `method.meta` |
 | `onSuccess` / `onError` / `onFinish` | 未设置 | 与 `state.onSuccess(...)` 注册的监听器走同一条路径，所以两种写法行为一致 |
 
 `onError` **不会**为取消触发：取消是预期控制流（`abort()`、策略丢弃过期响应），不是失败。上报
@@ -218,5 +216,6 @@ interface SnailStrategyCommonOptions {
   [`useTokenAuth`](./strategies/use-token-auth.md)、[`useSSE`](./strategies/use-sse.md)、
   [`useDownload`](./strategies/use-download.md)
 - [框架适配器](./adapters.md)：`bind()` 与 `useMethodState` 的关系
-- [在服务端运行](./server-side.md)：SSR 与脚本里用哪个入口
+- [在服务端运行](./server-side.md)：SSR 与脚本里用哪个适配器
+- [方法事件](./events.md)：状态句柄之外的五个请求事件
 - [错误处理](./errors.md#取消)：为什么取消要单独区分

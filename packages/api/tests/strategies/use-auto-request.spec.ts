@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Api, Get, Params } from "../../src/index";
-import { useAutoRequest } from "../../src/strategies/plain";
+import { useAutoRequest } from "../../src/strategies";
 import { buildServer, delay, until } from "./support";
 
 /**
