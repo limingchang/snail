@@ -10,7 +10,7 @@
 - **一切皆插件** — 缓存、拦截器、请求池、版本、校验、转换全是插件，核心只做三件事；框架适配不是插件，而是 `@Server` 的 `stateAdapter` 选项
 - **零运行时依赖** — `dependencies` 是空的；axios 是 peer 依赖，也不需要 `reflect-metadata`
 - **完整的类型推断** — 从方法声明的返回类型推断 `data` 类型，无需手写泛型
-- **请求策略** — alova 风格的 `useRequest` / `usePagination` / `useRetriableRequest` / `useDownload` 等 hook
+- **请求策略** — 多场景请求策略 `useRequest` / `usePagination` / `useRetriableRequest` / `useDownload` 等 hook
 - **浏览器与服务端皆可** — 核心只用平台能力，没有 DOM 依赖；SSR 与 Node 服务同样适用
 
 ## 安装
@@ -183,7 +183,7 @@ class BackEnd extends SnailServer {}
 
 ## 文档
 
-完整文档：<https://snail-js.github.io/api>
+完整文档：<https://limingchang.github.io/snail>
 
 - [快速开始](https://snail-js.github.io/api/guide/getting-started)
 - [装饰器参考](https://snail-js.github.io/api/guide/decorators)
