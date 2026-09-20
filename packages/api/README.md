@@ -38,7 +38,7 @@ pnpm add @snail-js/api axios
 
 > **不需要** `reflect-metadata`，也**不需要** `emitDecoratorMetadata`。
 > TypeScript 7 已不再产出 `design:*` 元数据，本库使用自己的元数据存储。
-> 如果你从旧版本迁移，请参照[迁移指南](https://snail-js.github.io/api/guide/migration)。
+> 如果你从旧版本迁移，请参照[迁移指南](https://limingchang.github.io/snail/guide/migration)。
 
 ### 2. 创建后端服务端点
 
@@ -188,11 +188,11 @@ class BackEnd extends SnailServer {}
 
 完整文档：<https://limingchang.github.io/snail>
 
-- [快速开始](https://snail-js.github.io/api/guide/getting-started)
-- [装饰器参考](https://snail-js.github.io/api/guide/decorators)
-- [插件生命周期](https://snail-js.github.io/api/guide/plugin-lifecycle)（[English](https://snail-js.github.io/api/guide/plugin-lifecycle_EN)）
-- [编写插件](https://snail-js.github.io/api/guide/plugin-authoring)
-- [从 0.1.x 迁移](https://snail-js.github.io/api/guide/migration)
+- [快速开始](https://limingchang.github.io/snail/guide/getting-started)
+- [装饰器参考](https://limingchang.github.io/snail/guide/decorators)
+- [插件生命周期](https://limingchang.github.io/snail/guide/plugin-lifecycle)（[English](https://limingchang.github.io/snail/guide/plugin-lifecycle_EN)）
+- [编写插件](https://limingchang.github.io/snail/guide/plugin-authoring)
+- [从 0.1.x 迁移](https://limingchang.github.io/snail/guide/migration)
 
 ## 设计说明
 
@@ -203,8 +203,8 @@ class BackEnd extends SnailServer {}
 3. 插件生命周期（Koa 风格中间件 + 双向洋葱模型）。
 
 内置插件使用的公开 API 与第三方插件完全相同 —— 不存在内部特权通道。如果你在编写插件，
-请阅读[插件生命周期](https://snail-js.github.io/api/guide/plugin-lifecycle)（英文原文见
-[Plugin lifecycle](https://snail-js.github.io/api/guide/plugin-lifecycle_EN)）。
+请阅读[插件生命周期](https://limingchang.github.io/snail/guide/plugin-lifecycle)（英文原文见
+[Plugin lifecycle](https://limingchang.github.io/snail/guide/plugin-lifecycle_EN)）。
 
 ## License
 
