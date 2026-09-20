@@ -1,0 +1,511 @@
+/**
+ * The editor chrome.
+ *
+ * ## The class names, and the defect they fix
+ *
+ * The legacy stylesheet targeted `.tiptap-page`, `.tiptap-page-header`,
+ * `.tiptap-page-content` and `.tiptap-page-footer`, while the node views rendered
+ * `section.s-editor-page`, `.page-header`, `.page-content` and `.page-footer`
+ * (defect 18). **Nothing defined the classes that existed**, so `min-height`,
+ * `overflow: hidden` and `contain: layout style` never applied to anything, and the
+ * "paper" had no page geometry at all. Two more rules — `.s-editor-paper` and
+ * `.page-locator` — referenced a node type that no longer exists and are gone.
+ *
+ * The page node views are owned by another module, so both spellings of each of the
+ * three inner regions are matched here: the documented DOM names (`.page-header`) and
+ * the `.s-editor-page-header` form used elsewhere in this package. Matching both costs
+ * one selector list and removes an entire class of silent-mismatch bug.
+ *
+ * ## Why `.s-editor-content` is the scroller and not the page list
+ *
+ * `.tiptap` is the ProseMirror element; making *it* scroll would put the scrollbar
+ * inside the element ProseMirror measures, so the page-gap padding would scroll away
+ * with the content. The wrapper scrolls, the column inside it grows.
+ */
+
+.s-editor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  // A definite height rather than `100%`: a percentage resolves against a parent the
+  // consumer may have left `auto`, in which case the workspace never scrolls and the
+  // pages simply run off the bottom of the window.
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--se-color-text);
+  font-family: var(--se-font-family-body);
+  font-size: var(--se-font-size-body);
+}
+
+// ---------------------------------------------------------------------------------
+// Toolbar
+// ---------------------------------------------------------------------------------
+
+.s-editor-toolbar {
+  flex: none;
+  box-sizing: border-box;
+  margin: 10px auto;
+  padding: var(--se-toolbar-padding);
+  min-width: calc(100% - 2 * var(--se-workspace-padding));
+  background-color: var(--se-color-paper);
+  border: 1px solid var(--se-color-toolbar-border);
+  border-radius: var(--se-toolbar-radius);
+  box-shadow: var(--se-toolbar-shadow);
+
+  // The ribbon's sections, laid out as a row of panels rather than as a stack of tabs:
+  // a section is a flex row of controls, and its height is the tallest control.
+  .s-editor-toolbar-pane {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 120px;
+  }
+
+  // A vertical separator between two control groups inside one pane.
+  .s-editor-toolbar-divider {
+    align-self: stretch;
+    height: auto;
+    margin: 0 4px;
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// Workspace and scroller
+// ---------------------------------------------------------------------------------
+
+.s-editor-workspace {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.s-editor-content {
+  flex: 1;
+  // `auto`, not `scroll`: a short contract should not show an empty track.
+  overflow-x: hidden;
+  overflow-y: auto;
+  // 5 mm of breathing room around the paper, as in the legacy design.
+  padding: var(--se-workspace-padding);
+  background-color: var(--se-color-workspace);
+  scrollbar-width: thin;
+  scrollbar-color: var(--se-color-primary) var(--se-scrollbar-track);
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--se-scrollbar-track);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--se-color-primary);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--se-color-primary-dark);
+  }
+
+  // The ProseMirror element. It is the page *column*: one page per child, an 8 px gap
+  // between pages, and no padding of its own (the wrapper owns that).
+  .tiptap,
+  .ProseMirror {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--se-page-gap);
+    margin: 0;
+    padding: 0;
+    background-color: transparent;
+    outline: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  // Typing metrics for the document itself. The paper sets the body size; a consumer
+  // that wants a different face overrides the `--se-font-*` values on `.s-editor-scope`.
+  .tiptap {
+    font-family: var(--se-font-family-body);
+    font-size: var(--se-font-size-body);
+    line-height: var(--se-line-height-body);
+  }
+
+  // A resize in progress. Element Plus does not ship a `col-resize` cursor for the
+  // column handle, and the legacy rule was on the wrong element.
+  .tiptap.resize-cursor,
+  .ProseMirror.resize-cursor {
+    cursor: ew-resize;
+    cursor: col-resize;
+  }
+
+  // A placeholder (`@tiptap/extensions` `Placeholder`) must not be real content.
+  .tiptap p.is-editor-empty:first-child::before,
+  .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    color: var(--el-text-color-placeholder);
+    pointer-events: none;
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// The paper
+// ---------------------------------------------------------------------------------
+
+.s-editor-page {
+  position: relative;
+  box-sizing: border-box;
+  background-color: var(--se-color-paper);
+  border-radius: var(--se-page-radius);
+  // No shadow and no ruler, deliberately: the legacy design is a flat white sheet on a
+  // grey desk. A drop shadow makes page boundaries harder to judge at 100 % zoom.
+  box-shadow: none;
+
+  // The three regions. `min-height: 0` is what lets the header/footer collapse to their
+  // content instead of inheriting the content region's height.
+  .s-editor-page-header,
+  .page-header,
+  .s-editor-page-footer,
+  .page-footer {
+    display: flex;
+    min-height: 0;
+    box-sizing: border-box;
+  }
+
+  // The content region is the one that must never push the page taller than its own
+  // box: `overflow: hidden` clips an overflowing line, and `contain: layout style`
+  // stops a descendant's layout from invalidating the whole workspace — which is what
+  // makes pagination measurement cheap. Neither rule ever applied in the legacy build
+  // (defect 18), which is why an over-long line used to stretch the page.
+  .s-editor-page-content,
+  .page-content {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--se-page-min-content-height);
+    overflow: hidden;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    contain: layout style;
+
+    // An absolutely positioned child (the QR code) must stay inside the region, so
+    // this is the containing block and every direct child is kept in flow.
+    > * {
+      max-width: 100%;
+      position: relative;
+    }
+  }
+}
+
+// Design-mode affordances. In fill mode the page is read-only output, so neither the
+// hover outline nor the selection ring is wanted — `.s-editor-fill` marks the reader.
+.s-editor-scope:not(.s-editor-fill) {
+  .s-editor-page-header,
+  .page-header,
+  .s-editor-page-footer,
+  .page-footer {
+    &:hover > * {
+      border: 1px dashed var(--se-color-primary);
+    }
+
+    &.ProseMirror-selectednode,
+    &.s-editor-page-region--selected {
+      border-color: var(--se-color-primary);
+      box-shadow: var(--se-shadow-selected);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// Variables
+// ---------------------------------------------------------------------------------
+
+.s-editor {
+  .s-editor-variable {
+    display: inline-block;
+    margin: 0 5px;
+    padding: 2px 6px;
+    // `0.8em` rather than a fixed size: the badge must follow the paragraph's font size,
+    // because the variable's *value* is normal inline content (defect 23's fix).
+    font-size: 0.8em;
+    line-height: 1.4;
+    color: var(--se-variable-color);
+    background-color: var(--se-variable-bg);
+    border-radius: var(--se-variable-radius);
+    cursor: pointer;
+    white-space: nowrap;
+
+    &.s-editor-variable--selected {
+      box-shadow: var(--se-shadow-selected);
+    }
+
+    // A fill value that resolved to nothing is painted as the locale's "(未填写)"; the
+    // attribute lets a consumer style it without matching on the text.
+    &[data-variable-mode="fill"][data-variable-empty="true"] {
+      color: var(--el-text-color-placeholder);
+      background-color: transparent;
+    }
+
+    // One colour per discriminant. `--se-variable-bg` is the badge's *foreground* for
+    // every colour below: each is chosen to carry white text.
+    &[data-variable-type="text"] {
+      color: #ffffff;
+      background-color: var(--se-variable-text);
+    }
+
+    &[data-variable-type="number"] {
+      color: #ffffff;
+      background-color: var(--se-variable-number);
+    }
+
+    &[data-variable-type="money"] {
+      color: #ffffff;
+      background-color: var(--se-variable-money);
+    }
+
+    &[data-variable-type="boolean"] {
+      color: #ffffff;
+      background-color: var(--se-variable-boolean);
+    }
+
+    &[data-variable-type="date"] {
+      color: #ffffff;
+      background-color: var(--se-variable-date);
+    }
+
+    &[data-variable-type="select"] {
+      color: #ffffff;
+      background-color: var(--se-variable-select);
+    }
+
+    &[data-variable-type="image"] {
+      color: #ffffff;
+      background-color: var(--se-variable-image);
+    }
+
+    &[data-variable-type="formula"] {
+      color: #ffffff;
+      background-color: var(--se-variable-formula);
+    }
+
+    &[data-variable-type="system"] {
+      color: #ffffff;
+      background-color: var(--se-variable-system);
+    }
+
+    // `keySource: "inner"` keeps the legacy `#ee3f4d` that `object` also used.
+    &[data-variable-key-source="inner"] {
+      color: #ffffff;
+      background-color: var(--se-variable-inner);
+    }
+  }
+
+  // An `image` variable's picture, painted inside the badge.
+  .s-editor-variable-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    vertical-align: middle;
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// QR code
+// ---------------------------------------------------------------------------------
+
+.s-editor {
+  // Both the class and the attribute are matched: the class is this stylesheet's, the
+  // attribute is what `renderHTML` emits, so an exported document styles identically.
+  .s-editor-qrcode,
+  [data-type="qrcode"] {
+    display: block;
+    box-sizing: border-box;
+    max-width: 100%;
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      // The raster is generated at the requested pixel size; keeping it crisp when the
+      // user asks for a larger millimetre size is a rendering decision, not a document
+      // one, so it belongs here.
+      image-rendering: pixelated;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// Watermark
+// ---------------------------------------------------------------------------------
+
+.s-editor {
+  .s-editor-watermark,
+  [data-type="watermark"] {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    // The mark must never intercept a click: it is decoration, and a watermark that
+    // swallowed clicks would make the page under it uneditable.
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .s-editor-page {
+    // The watermark is positioned against the page, so the page is its containing block
+    // even when the mark is rendered outside the content region.
+    position: relative;
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// Layout tables
+// ---------------------------------------------------------------------------------
+
+.s-editor {
+  .tiptap table,
+  .ProseMirror table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+    margin: 0;
+
+    td,
+    th {
+      position: relative;
+      box-sizing: border-box;
+      padding: 5px;
+      border: 1px solid var(--se-color-cell-border);
+      vertical-align: top;
+    }
+
+    th {
+      font-weight: bold;
+      text-align: center;
+    }
+
+    // A layout table is a grid, not a data table: in design mode its lines are dashed
+    // hints that disappear when printed or filled, which is what the
+    // `--se-layout-line-style` custom property switches between. The legacy build used
+    // the property in `editor.vue` but the extension's own stylesheet also set a border,
+    // so the two disagreed.
+    tr.layout-mode,
+    tr[data-layout] {
+      td,
+      th {
+        width: 80px;
+        border-style: var(--se-layout-line-style, dashed);
+      }
+    }
+
+    .column-resize-handle {
+      position: absolute;
+      top: 0;
+      right: -1px;
+      bottom: 0;
+      width: 2px;
+      // `#409eff` — Element Plus's primary, which is what the legacy table used here.
+      background-color: #409eff;
+      pointer-events: none;
+    }
+
+    .selectedCell {
+      position: relative;
+
+      &::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background: rgba(64, 158, 255, 0.1);
+        pointer-events: none;
+      }
+
+      // The selected-cell outline is drawn per cell and the shared edges are removed on
+      // the neighbour, which is what turns a rectangular selection into one outline
+      // instead of a grid of doubled 2 px lines.
+      &::after {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        z-index: 2;
+        border: 2px solid var(--se-color-cell-selected);
+        pointer-events: none;
+      }
+    }
+
+    .selectedCell + .selectedCell::after {
+      left: 0;
+      border-left: none;
+    }
+
+    tr:has(.selectedCell) + tr .selectedCell::after {
+      top: 0;
+      border-top: none;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// The print hidden list
+// ---------------------------------------------------------------------------------
+
+/**
+ * Elements that must not appear on paper.
+ *
+ * The print extension owns `@page` and the page-geometry rules; what lives here is the
+ * *list* of chrome this component renders, so that the two stylesheets cannot disagree
+ * about which class hides which element. `data-print="hide"` is the escape hatch for a
+ * consumer's own chrome.
+ */
+@media print {
+  .s-editor-toolbar,
+  .s-editor-actions,
+  .s-editor-template-picker,
+  .s-editor-dialog,
+  .s-editor-error,
+  .el-overlay,
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  .s-editor,
+  .s-editor-workspace,
+  .s-editor-content {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .s-editor-content .tiptap,
+  .s-editor-content .ProseMirror {
+    display: block !important;
+    gap: 0 !important;
+  }
+
+  // A custom property cannot be read by the print layer if only the screen layer sets
+  // it, so the layout lines are nailed shut here rather than left to `--se-layout-line-style`.
+  .s-editor tr.layout-mode td,
+  .s-editor tr.layout-mode th,
+  .s-editor tr[data-layout] td,
+  .s-editor tr[data-layout] th {
+    border-style: none;
+  }
+
+  .s-editor-page {
+    border-radius: 0;
+    box-shadow: none;
+  }
+}

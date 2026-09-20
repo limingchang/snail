@@ -1,0 +1,26 @@
+/**
+ * The editor's stylesheet entry.
+ *
+ * Imported by `src/index.ts` so the build emits `dist/style.css`, and by nothing else.
+ * Split in two because the two halves have different lifetimes:
+ *
+ * - `variables.scss` declares the `--se-*` palette and the scoped `--el-*` overrides;
+ * - `base.scss` consumes them for the editor chrome.
+ *
+ * Nothing here is `@use`d by the components — a component's `<style scoped>` reads the
+ * custom properties at runtime, which is what lets a consumer retheme an instance by
+ * setting the variables on their own `.s-editor-scope` wrapper without recompiling
+ * anything.
+ */
+@use "./variables";
+@use "./base";
+
+// The page extension owns its own stylesheet, because it is UI-framework-free and is
+// the only side that knows the class table in `extensions/page/constant/dom.ts`. The
+// package ships **one** `dist/style.css` (`cssCodeSplit: false`), so the theme entry is
+// where the parts are aggregated rather than each extension importing its own CSS —
+// which also keeps a stylesheet out of the module graph the tests walk.
+//
+// Used last on purpose: the page model's own values are more specific than the generic
+// chrome rules in `base.scss` that touch the same elements.
+@use "../extensions/page/style/page";

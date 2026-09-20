@@ -2,9 +2,9 @@
 layout: home
 
 hero:
-  name: "@snail-js/api"
-  text: 装饰器驱动的 HTTP 请求库
-  tagline: 基于 axios —— 装饰器描述请求，可选能力皆为插件，同时提供多种请求策略。
+  name: "@snail-js"
+  text: 请求、生成、编辑、组件
+  tagline: 只依赖 axios —— 装饰器描述请求，可选能力皆为插件，一套约定贯穿四个包。
   actions:
     - theme: brand
       text: 快速上手
@@ -14,24 +14,37 @@ hero:
       link: /api/reference
 
 features:
-  - title: 装饰器描述请求
-    details: '@Server @Api @Get @Query … 请求从装饰器创建，随处调用，并提供完整的Typing。`@Server({ stateAdapter })` 多框架state适配。'
-  - title: 插件优先
-    details: 提供内置插件：缓存、请求池、版本、拦截器、校验、转换，你也可以按需求开发自己的插件，没有内部特权通道。
-  - title: 请求策略
-    details: 'useRequest / useWatcher / usePagination / useUploader / useDownload … 一套实现，可适配 Vue、React 或无框架；框架由 server 的 stateAdapter 决定，只有对应的 adapter 子路径会引入框架。'
-  - title: 浏览器与服务端
-    details: 核心只用平台能力，DOM 触点全部有守卫；Node 与 SSR 里可以直接 import 并发请求，要用响应式句柄时再按需声明 stateAdapter。
+  - title: "@snail-js/api"
+    details: 装饰器驱动的 HTTP 客户端。@Server / @Api / @Get 描述请求，插件承载横切关注点，请求策略驱动组件状态。
+    link: /guide/introduction
+    linkText: 阅读文档
+  - title: "@snail-js/cli"
+    details: 从 OpenAPI 3.0 / 3.1 文档生成带完整类型的装饰器请求代码 —— 相同的输入永远产出逐字节相同的输出。
+    link: /cli/
+    linkText: 阅读文档
+  - title: "@snail-js/editor"
+    details: 基于 Tiptap 的合同模板编辑器。真实分页与页眉页脚、变量填充、二维码、水印，以及浏览器原生打印。
+    link: /editor/
+    linkText: 阅读文档
+  - title: "@snail-js/vue"
+    details: Vue 3 组件库。补齐 Element Plus 缺失的图标，外加阿里验证码、点击复制、右键菜单与 3D 词云。
+    link: /vue/
+    linkText: 阅读文档
 ---
 
 # 文档导览
 
-`@snail-js/api` 是一个从零重写的、装饰器驱动且插件优先的 HTTP 客户端。它把
-axios 当作唯一的传输层，自己只负责三件事：**装饰器写入的元数据**、**请求管线**、
-**插件生命周期**。所有本页列出的行为都能在
-[`packages/api/src`](https://github.com/limingchang/snail) 中找到对应实现。
+`@snail-js` 是一组围绕同一套约定的前端工具包。四个包的共同前提只有两条：**传输层用
+axios**，以及**可选能力一律按需引入**，所以不用的东西不会进你的 bundle。
 
-## 从这里开始
+| 包 | 它解决什么 | 从哪看起 |
+| --- | --- | --- |
+| [`@snail-js/api`](/guide/introduction) | 用装饰器描述接口，用插件承载缓存、校验、转换、请求池 | [快速上手](/guide/getting-started) · [API 参考](/api/reference) |
+| [`@snail-js/cli`](/cli/) | 把 OpenAPI 文档变成上面那种接口类 | [`snail generate`](/cli/#snail-generate) |
+| [`@snail-js/editor`](/editor/) | 合同模板的编写、变量填充与打印 | [快速上手](/editor/#快速上手) |
+| [`@snail-js/vue`](/vue/) | Element Plus 没有的图标，以及几个自用组件 | [组件总览](/vue/#组件总览) |
+
+## 从这里开始（@snail-js/api）
 
 | 我想…… | 看这一页 |
 | --- | --- |
@@ -41,6 +54,7 @@ axios 当作唯一的传输层，自己只负责三件事：**装饰器写入的
 | 查某个装饰器怎么用 | [装饰器](/guide/decorators)、[参数装饰器](/guide/parameters) |
 | 处理 `{ code, message, data }` 与类型推断 | [响应与类型](/guide/responses) |
 | 分支处理各种失败 | [错误处理](/guide/errors) |
+| 订阅请求事件（success / error / finish / cache） | [方法事件](/guide/events) |
 | 逐项核对 `@Server(...)` 的默认值 | [服务端配置](/guide/configuration) |
 | 在 Node / SSR 里用同一个库 | [在服务端运行（Node / SSR）](/guide/server-side) |
 | 接 SSE / WebSocket / 流式响应 | [SSE / WebSocket / HTTP 流](/guide/streaming) |

@@ -1,0 +1,16 @@
+<template>
+
+    <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 1024 1024">
+      <path d="M128 176H896V272H128Z"></path>
+      <path d="M384 368H896V464H384Z"></path>
+      <path d="M320 560H896V656H320Z"></path>
+      <path d="M128 752H896V848H128Z"></path>
+    </svg>
+
+</template>
+
+<script setup lang="ts">
+defineOptions({
+  name: "IconAlignRight",
+});
+</script>

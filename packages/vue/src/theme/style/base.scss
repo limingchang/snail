@@ -1,0 +1,289 @@
+/**
+ * Component styles for `@snail-js/vue`.
+ *
+ * ## What is deliberately absent
+ *
+ * - **No page-level resets.** The legacy stylesheet opened with
+ *   `body { margin: 0 auto; }`. A component library that restyles the host page is
+ *   not a library, it is a framework: it silently moves every application's layout.
+ *   Anything here is scoped to an `s-` class.
+ * - **No `STab` rules.** `STab`/`STabItem` were removed from the package, so their
+ *   stylesheet was removed with them.
+ * - **No `filter: alpha(opacity = …)`.** That is a malformed, long-dead IE-only hack
+ *   that was emitted from the word cloud on every frame; opacity is a plain CSS
+ *   property now.
+ *
+ * Everything is a plain, non-nested selector where it can be: the intended consumer
+ * is a bundler that concatenates this one file into an application's stylesheet, and
+ * deeply nested Sass output is harder to override.
+ */
+
+.s-icon {
+  /* A plain `<i>` wrapper rather than an Element Plus `<el-icon>`, so the package
+     never needs Element Plus installed to draw its own icons. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: inherit;
+  /* Sit the glyph on the text baseline instead of on the descender. */
+  vertical-align: -0.125em;
+  color: inherit;
+  fill: currentColor;
+  /* No default margin: the legacy `.s-icon { margin: 0 5px }` silently added space
+     around every icon in the host application. Spacing belongs to the call site. */
+}
+
+/* Defensive sizing: every bundled icon carries `width="1em" height="1em"`, but a
+   consumer's own svg in the slot may not, and an unsized svg is 300x150px. */
+.s-icon > svg {
+  width: 1em;
+  height: 1em;
+}
+
+.s-icon.is-spin {
+  animation: s-icon-spin 1s linear infinite;
+}
+
+@keyframes s-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .s-icon.is-spin {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ clickCopy */
+
+.s-click-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-space-xs);
+  box-sizing: border-box;
+  color: var(--s-color-primary);
+  font-size: var(--s-font-size-xs);
+  line-height: var(--s-line-height);
+  cursor: pointer;
+  user-select: none;
+}
+
+.s-click-copy:focus-visible {
+  outline: 2px solid var(--s-color-primary);
+  outline-offset: 2px;
+  border-radius: var(--s-radius-sm);
+}
+
+.s-click-copy.is-success {
+  color: var(--s-color-success);
+}
+
+.s-click-copy.is-error {
+  color: var(--s-color-danger);
+}
+
+.s-click-copy.is-disabled {
+  color: var(--s-color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* The opt-in replacement for the legacy `.s-click-copy-parent` hook. The legacy
+   component wrote that class onto the consumer's own `parentElement` and never took
+   it off; a modifier on our own root gets the same overlay placement without
+   touching anyone else's DOM. The consumer supplies the positioned ancestor. */
+.s-click-copy.is-overlay {
+  position: absolute;
+  right: var(--s-space-sm);
+  bottom: var(--s-space-sm);
+}
+
+/* ---------------------------------------------------------------- contextMenu */
+
+/* The application mount point for a programmatic menu. The menu itself is
+   teleported to `<body>`, so this node is an inert zero-size anchor. */
+.s-context-menu-portal {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.s-context-menu {
+  box-sizing: border-box;
+  position: fixed;
+  /* `left`/`top`/`transform` are written inline by Floating UI; `fixed` here is the
+     pre-position fallback for the single frame before the first measurement. */
+  min-width: 120px;
+  margin: 0;
+  padding: var(--s-space-xs) 0;
+  list-style: none;
+  /* `size()` middleware caps this inline; the rule keeps the list scrollable
+     whatever the cap turns out to be. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: var(--s-color-bg);
+  color: var(--s-color-text-primary);
+  font-size: var(--s-font-size-md);
+  line-height: var(--s-line-height);
+  border: 1px solid var(--s-color-border-strong);
+  border-radius: var(--s-radius-md);
+  box-shadow: var(--s-shadow-md);
+  z-index: var(--s-z-index-context-menu);
+}
+
+.s-context-menu__loading {
+  padding: var(--s-space-xs) var(--s-space-md);
+  color: var(--s-color-text-secondary);
+  font-size: var(--s-font-size-sm);
+}
+
+.s-context-menu__separator {
+  height: 1px;
+  margin: var(--s-space-xs) 0;
+  background-color: var(--s-color-border-light);
+}
+
+.s-context-menu__item {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.s-context-menu__button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-space-sm);
+  width: 100%;
+  margin: 0;
+  padding: var(--s-space-xs) var(--s-space-md);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.s-context-menu__button.is-active {
+  background-color: var(--s-color-bg-hover);
+}
+
+.s-context-menu__button[aria-disabled="true"] {
+  color: var(--s-color-text-disabled);
+  cursor: not-allowed;
+}
+
+.s-context-menu__button.is-danger {
+  color: var(--s-color-danger);
+}
+
+.s-context-menu__label {
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
+.s-context-menu__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  font-size: var(--s-font-size-md);
+}
+
+/* A CSS triangle rather than an icon component: the packaged icon set deliberately
+   contains no glyph Element Plus already ships, and `CaretRight` is one of those. */
+.s-context-menu__arrow {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+}
+
+.s-context-menu__busy {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: var(--s-radius-full);
+  animation: s-icon-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .s-context-menu__busy {
+    animation: none;
+  }
+}
+
+/* ----------------------------------------------------------------- wordCloud */
+
+.s-word-cloud {
+  position: relative;
+  overflow: hidden;
+  background-color: transparent;
+  font-size: var(--s-font-size-md);
+  line-height: 1;
+}
+
+.s-word-cloud__tag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  /* The loop writes `transform`, `opacity` and `font-size` directly; telling the
+     compositor up front keeps the frame budget for the maths. */
+  will-change: transform, opacity;
+}
+
+/* ----------------------------------------------------------------- aliCaptcha */
+
+.s-ali-captcha {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-space-sm);
+}
+
+/* The element the Captcha 2.0 SDK renders into (`initAliyunCaptcha`'s `element`).
+   It must exist in the DOM before init, which is what the legacy component's empty,
+   ref-less `<div class="captcha">` failed to guarantee. */
+.s-ali-captcha__mount {
+  width: 100%;
+  min-height: 1px;
+}
+
+.s-ali-captcha__trigger {
+  padding: var(--s-space-xs) var(--s-space-md);
+  border: 1px solid var(--s-color-border);
+  border-radius: var(--s-radius-md);
+  background-color: var(--s-color-bg);
+  color: var(--s-color-text-regular);
+  font-size: var(--s-font-size-md);
+  line-height: var(--s-line-height);
+  cursor: pointer;
+}
+
+.s-ali-captcha__trigger:hover:not(:disabled) {
+  border-color: var(--s-color-primary);
+  color: var(--s-color-primary);
+}
+
+.s-ali-captcha__trigger:disabled {
+  background-color: var(--s-color-bg-disabled);
+  color: var(--s-color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* Captcha 2.0 requires a `button` even when nothing visible triggers the widget
+   (the instance's `show()` is used instead); Alibaba's own guidance is to pass a
+   hidden element, and a hidden element still receives a programmatic `click()`. */
+.s-ali-captcha__trigger.is-hidden {
+  display: none;
+}

@@ -1,0 +1,170 @@
+/**
+ * The editor's palette, and the Element Plus tokens it overrides.
+ *
+ * ## Why everything is scoped to `.s-editor-scope`
+ *
+ * `--el-*` are Element Plus's own custom properties, and they cascade. Setting them on
+ * `:root` would restyle **every** Element Plus component in the consumer's application
+ * — their buttons, their tables, their dialogs — the moment this stylesheet is imported.
+ * The Element Plus documentation recommends a scope class for exactly this reason, so
+ * `SEditor.vue` puts `.s-editor-scope` on its root element and every override lives
+ * inside it. The `--se-*` values are declared in the same block: they are inert custom
+ * properties, and keeping one scope means a consumer can nest two editor instances with
+ * different themes by wrapping one of them in their own `.s-editor-scope` rule.
+ *
+ * ## The mapping
+ *
+ * The legacy editor was built on `ant-design-vue` and its colours are Ant Design's. The
+ * rebuild uses Element Plus, so each legacy colour is either mapped onto the closest
+ * Element Plus token or kept as a `--se-*` value where no token fits. The one
+ * genuinely surprising pair is the two blues: `#1677ff` is Ant Design's primary (the
+ * toolbar hover and the scrollbar) while `#409eff` is Element Plus's primary — and the
+ * legacy table already used `#409eff` for its column-resize handle. Both are kept, in
+ * their own places, rather than collapsed into one.
+ */
+
+.s-editor-scope {
+  // -------------------------------------------------------------------------------
+  // The legacy palette, as `--se-*`.
+  // -------------------------------------------------------------------------------
+
+  // Ant Design's blue: toolbar hover/selection borders and the scrollbar thumb.
+  --se-color-primary: #1677ff;
+  // The scrollbar's hover state.
+  --se-color-primary-dark: #0958d9;
+  // The "this header/footer is selected" ring. `rgba(22, 119, 255, .2)` has no
+  // Element Plus token: the light-N tokens are opaque blends.
+  --se-shadow-selected: 0 0 0 2px rgba(22, 119, 255, 0.2);
+
+  // The workspace behind the paper, and the paper itself.
+  --se-color-workspace: #ccc;
+  --se-color-paper: #ffffff;
+
+  // The print action. Kept local rather than mapped onto `--el-color-danger`
+  // (`#f56c6c`): `#f53f3f` is Ant Design's red and the two are visibly different
+  // side by side.
+  --se-color-print: #f53f3f;
+  // The selected table cell's outline (legacy `$selectedBorderColor`).
+  --se-color-cell-selected: #109968;
+  // The variable badge's default background and the table hover tint.
+  --se-color-tint: #e6f7ff;
+
+  // Borders. `--el-border-color` is `#dcdfe6`, which is *close* but not equal, and the
+  // difference is visible on a 1px toolbar edge, so the exact legacy values are kept.
+  --se-color-toolbar-border: #e0e0e0;
+  --se-color-cell-border: #d9d9d9;
+
+  // Text.
+  --se-color-text: #333333;
+  --se-color-text-secondary: #666666;
+
+  // Scrollbar track.
+  --se-scrollbar-track: rgba(0, 0, 0, 0.1);
+
+  // Page geometry.
+  --se-workspace-padding: 5mm;
+  --se-page-gap: 8px;
+  --se-page-radius: 8px;
+  --se-page-min-content-height: 20mm;
+  --se-toolbar-radius: 8px;
+  --se-toolbar-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  --se-toolbar-padding: 8px 16px;
+
+  // -------------------------------------------------------------------------------
+  // Typography.
+  //
+  // None of these map onto `--el-font-size-*`: Element Plus's scale is
+  // 12/13/14/16/18/20 px for UI chrome, while a contract is typeset in points —
+  // 14pt body, 28pt leading — and the heading faces are Chinese families that a UI
+  // font stack has no opinion about.
+  // -------------------------------------------------------------------------------
+
+  --se-font-family-body: "SimSun", "宋体", serif;
+  --se-font-family-h1: "SimHei", "黑体", sans-serif;
+  --se-font-family-h2: "KaiTi", "楷体", serif;
+  --se-font-family-header: "KaiTi", "楷体", serif;
+
+  --se-font-size-body: 14pt;
+  --se-line-height-body: 28pt;
+  --se-font-size-h1: 18pt;
+  --se-line-height-h1: 2;
+  --se-font-size-h2: 15pt;
+  --se-line-height-h2: 1.5;
+  --se-font-size-header: 9pt;
+  --se-line-height-header: 1;
+
+  // -------------------------------------------------------------------------------
+  // The variable badge palette.
+  //
+  // One colour per `VariableData` discriminant. The five legacy values are kept
+  // verbatim; the four **new** types (`money`, `select`, `image`, `formula`) plus
+  // `system` needed a colour each and were picked for perceptual distance from the
+  // existing five while staying in the same saturated, print-safe family:
+  //
+  // | type | colour | why |
+  // | --- | --- | --- |
+  // | `money` | `#0f9b8e` teal | money is a *number*, so it must not be the number blue; teal is the nearest distinct hue |
+  // | `select` | `#7d5fff` violet | a closed choice is neither text nor a number, and violet reads as "pick one" |
+  // | `image` | `#c04c9c` magenta | a picture is the least textual type; magenta is unmistakable at badge size |
+  // | `formula` | `#d4380d` deep orange-red | derived, not entered — warmer and darker than the date orange |
+  // | `system` | `#5b6b7f` slate | supplied by the document, so deliberately the *quietest* badge |
+  //
+  // `inner` keeps the legacy `#ee3f4d` that `object` also used, because the legacy
+  // `innerVariable` survives as `keySource: "inner"`.
+  // -------------------------------------------------------------------------------
+
+  --se-variable-bg: var(--se-color-tint);
+  --se-variable-color: var(--se-color-text);
+  --se-variable-text: #333333;
+  --se-variable-number: #1e80ff;
+  --se-variable-money: #0f9b8e;
+  --se-variable-boolean: #55bb8a;
+  --se-variable-date: #f28e16;
+  --se-variable-select: #7d5fff;
+  --se-variable-image: #c04c9c;
+  --se-variable-formula: #d4380d;
+  --se-variable-system: #5b6b7f;
+  --se-variable-inner: #ee3f4d;
+  --se-variable-radius: 4px;
+
+  // -------------------------------------------------------------------------------
+  // Element Plus tokens.
+  // -------------------------------------------------------------------------------
+
+  // `#1677ff` — Ant Design's blue, which the legacy toolbar and scrollbar used.
+  // Element Plus's own `#409eff` is the other blue in the legacy table's resize handle,
+  // which is left alone below.
+  --el-color-primary: #1677ff;
+  --el-color-primary-dark-2: #0958d9;
+  --el-color-primary-light-3: #4a97ff;
+  --el-color-primary-light-5: #7db4ff;
+  --el-color-primary-light-7: #b0d0ff;
+  // `rgba(22,119,255,.2)` over white is `#d0e3ff`; `light-8` is the token the selected
+  // header/footer ring and hover states read.
+  --el-color-primary-light-8: #c7dcff;
+  --el-color-primary-light-9: #e6f7ff;
+
+  // `#f56c6c` — the layout-table highlight.
+  --el-color-danger: #f56c6c;
+  --el-color-error: #f56c6c;
+
+  // `#e0e0e0` — the toolbar border. `--el-border-color` is `#dcdfe6`; nudged to the
+  // legacy value so a toolbar edge matches the design exactly.
+  --el-border-color: #e0e0e0;
+  --el-border-color-light: #e0e0e0;
+  --el-border-color-lighter: #e6e6e6;
+
+  // `#666` — secondary text. Element Plus's `#606266` is one step darker.
+  --el-text-color-regular: #606266;
+  --el-text-color-primary: #333333;
+  --el-text-color-secondary: #666666;
+
+  // `#fff` — the paper and the toolbar background.
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #cccccc;
+
+  // Element Plus's own fills (`#f5f7fa`/`#e4e7ed`) have no legacy counterpart, so the
+  // workspace colour stays a `--se-*` value; these are left at their defaults on
+  // purpose and are not overridden here.
+  --el-border-radius-base: 4px;
+}

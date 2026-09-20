@@ -1,0 +1,28 @@
+/**
+ * Site-level styles for the `@snail-js` documentation.
+ *
+ * Kept deliberately small: the components document themselves and the VitePress
+ * default theme handles everything else. Only two things need saying here — how much
+ * room a live editor example gets, and how the package cards on the home page look.
+ */
+
+/* A live `SEditor` needs a bounded height, or the demo pushes the rest of the page
+   off-screen. Every other component sizes itself. */
+.demo-editor-stage {
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.demo-editor-stage > * {
+  min-height: 0;
+  flex: 1;
+}
+
+/* A demo that renders a whole component library's worth of chrome should not also
+   inherit the site's link styling inside it. */
+.demo-block__stage :where(a) {
+  text-decoration: none;
+}

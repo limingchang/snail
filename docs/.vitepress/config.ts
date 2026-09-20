@@ -7,11 +7,14 @@ import { defineConfig } from "vitepress";
  * 构建时会校验内部链接，死链会让 `docs:build` 直接失败。
  */
 export default defineConfig({
-  base: '/snail/',
+  // The site is served from `https://limingchang.github.io/snail/`, so VitePress
+  // needs the base to generate correct asset and internal-link URLs. Without it a
+  // deployment under a repository sub-path loads a blank page.
+  base: "/snail/",
   lang: "zh-CN",
-  title: "@snail-js/api",
+  title: "@snail-js",
   description:
-    "装饰器驱动、插件优先，只基于 axios 的 TypeScript HTTP 客户端：核心只拥有装饰器写入的元数据、请求管线与插件生命周期。",
+    "装饰器驱动的 HTTP 客户端、OpenAPI 代码生成器、合同模板编辑器与 Vue 组件库 —— 只依赖 axios，一切皆插件。",
   head: [
     ["meta", { name: "viewport", content: "width=device-width,initial-scale=1" }]
   ],
@@ -19,7 +22,10 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: "指南", link: "/guide/introduction", activeMatch: "/guide/" },
-      { text: "API 参考", link: "/api/reference", activeMatch: "/api/" },
+      { text: "@snail-js/api", link: "/api/reference", activeMatch: "/api/" },
+      { text: "@snail-js/editor", link: "/editor/", activeMatch: "/editor/" },
+      { text: "@snail-js/vue", link: "/vue/", activeMatch: "/vue/" },
+      { text: "@snail-js/cli", link: "/cli/", activeMatch: "/cli/" },
       { text: "示例", link: "/examples/crud", activeMatch: "/examples/" }
     ],
 
@@ -104,6 +110,82 @@ export default defineConfig({
             { text: "Vue 3 完整示例", link: "/examples/vue" },
             { text: "CRUD 接口类", link: "/examples/crud" },
             { text: "文件上传与进度", link: "/examples/upload" }
+          ]
+        }
+      ],
+      // The three package guides. `editor` and `vue` are single pages that hold
+      // every component, so their sidebars link into the page's own sections —
+      // which is what makes a component reference usable without a page per
+      // component. `check-links.mjs` strips the anchor before resolving the file.
+      "/editor/": [
+        {
+          text: "@snail-js/editor",
+          items: [
+            { text: "总览", link: "/editor/" },
+            { text: "快速上手", link: "/editor/#快速上手" },
+            { text: "两种模式", link: "/editor/#两种模式" },
+            { text: "模板来源与保存", link: "/editor/#模板的来源与保存" }
+          ]
+        },
+        {
+          text: "扩展",
+          items: [
+            { text: "变量", link: "/editor/#变量" },
+            { text: "页眉页脚与页码", link: "/editor/#页眉页脚与页码" },
+            { text: "水印", link: "/editor/#水印" },
+            { text: "打印", link: "/editor/#打印" },
+            { text: "全部扩展", link: "/editor/#扩展" }
+          ]
+        },
+        {
+          text: "接口",
+          items: [
+            { text: "组件接口", link: "/editor/#组件接口" },
+            { text: "已知的清晰边界", link: "/editor/#已知的清晰边界" },
+            { text: "与 0.1.x 的差异", link: "/editor/#与-0-1-x-的差异" }
+          ]
+        }
+      ],
+      "/vue/": [
+        {
+          text: "@snail-js/vue",
+          items: [
+            { text: "总览", link: "/vue/" },
+            { text: "安装", link: "/vue/#安装" },
+            { text: "组件总览", link: "/vue/#组件总览" }
+          ]
+        },
+        {
+          text: "组件",
+          items: [
+            { text: "SIcon", link: "/vue/#sicon" },
+            { text: "图标集", link: "/vue/#图标集" },
+            { text: "SClickCopy", link: "/vue/#sclickcopy" },
+            { text: "AliCaptcha", link: "/vue/#alicaptcha" },
+            { text: "SPopUpMenu", link: "/vue/#spopupmenu" },
+            { text: "SWordCloud", link: "/vue/#swordcloud" }
+          ]
+        },
+        {
+          text: "主题",
+          items: [
+            { text: "设计令牌", link: "/vue/#主题" },
+            { text: "与 0.1.x 的差异", link: "/vue/#与-0-1-x-的差异" }
+          ]
+        }
+      ],
+      "/cli/": [
+        {
+          text: "@snail-js/cli",
+          items: [
+            { text: "总览", link: "/cli/" },
+            { text: "安装", link: "/cli/#安装" },
+            { text: "snail init", link: "/cli/#snail-init" },
+            { text: "snail generate", link: "/cli/#snail-generate" },
+            { text: "生成的文件结构", link: "/cli/#生成的文件结构" },
+            { text: "确定性保证", link: "/cli/#确定性保证" },
+            { text: "程序化 API", link: "/cli/#程序化-api" },
+            { text: "已知限制", link: "/cli/#已知限制" }
           ]
         }
       ]

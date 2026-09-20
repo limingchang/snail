@@ -1,0 +1,135 @@
+/**
+ * Page, header, footer, logo and page-number styles.
+ *
+ * These classes are the ones the node views actually render (`constant/dom.ts` is the one
+ * table both sides read), which is the fix for defect 18: the legacy editor styled
+ * `.tiptap-page*` while the DOM was `section.s-editor-page` / `.page-header` /
+ * `.page-content` / `.page-footer`, and nothing defined the rendered names at all — so
+ * `min-height`, `overflow: hidden` and `contain: layout style` never applied.
+ *
+ * The margins arrive as inherited custom properties from the `page` node view
+ * (`--snail-page-margin-*`), not as inline styles on each body: ProseMirror only calls a
+ * node view's `update` for *its own* node, so a body that read the page's margins itself
+ * would keep stale padding after `setPageMargins`.
+ *
+ * This file is imported by the package stylesheet (`src/theme/index.scss`).
+ */
+
+:root {
+  /** Vertical gap between sheets on screen. */
+  --snail-page-gap: 8mm;
+  --snail-page-background: #ffffff;
+  --snail-page-shadow: 0 1px 4px rgb(0 0 0 / 18%);
+  --snail-page-furniture-color: #333333;
+  --snail-page-furniture-padding: 2mm;
+}
+
+.s-editor-page {
+  position: relative;
+  box-sizing: border-box;
+  display: block;
+  margin: 0 auto var(--snail-page-gap);
+  background: var(--snail-page-background);
+  box-shadow: var(--snail-page-shadow);
+  // Content that overflows is *hidden* until the pagination pass moves it to the next
+  // sheet: without this the body spills over the footer and the paper edge.
+  overflow: hidden;
+  contain: layout style;
+}
+
+.s-editor-page-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.s-editor-page-content {
+  // The body takes whatever the furniture leaves, and `min-height: 0` stops a tall child
+  // from growing the flex item past the sheet.
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding:
+    var(--snail-page-margin-top, 20mm)
+    var(--snail-page-margin-right, 20mm)
+    var(--snail-page-margin-bottom, 20mm)
+    var(--snail-page-margin-left, 20mm);
+}
+
+.s-editor-page-content-inner {
+  position: relative;
+}
+
+.s-editor-page-header,
+.s-editor-page-footer {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: var(--snail-page-furniture-color);
+  padding-left: var(--snail-page-margin-left, 20mm);
+  padding-right: var(--snail-page-margin-right, 20mm);
+}
+
+.s-editor-page-header {
+  padding-top: var(--snail-page-furniture-padding);
+}
+
+.s-editor-page-footer {
+  padding-bottom: var(--snail-page-furniture-padding);
+}
+
+// `showLine` — one spelling, attribute and class alike (the legacy attribute was
+// `headerLing` while its option was `headerLine`, so setting the option did nothing).
+.s-editor-page-header.has-line {
+  border-bottom: 1px solid currentColor;
+}
+
+.s-editor-page-footer.has-line {
+  border-top: 1px solid currentColor;
+}
+
+.s-editor-page-furniture-content {
+  height: 100%;
+  overflow: hidden;
+}
+
+// The logo overlay: absolutely positioned inside the page node view's `dom`, as a sibling
+// of that view's `contentDOM`, so it never participates in ProseMirror's child mapping.
+.s-editor-page-logo {
+  position: absolute;
+  display: block;
+  z-index: 2;
+  object-fit: contain;
+  // Never swallow an editing click: the mark is decoration, the body is the target.
+  pointer-events: none;
+}
+
+// `hidden` must win over the `display: block` above.
+.s-editor-page-logo[hidden] {
+  display: none;
+}
+
+// The hidden placeholder ProseMirror renders the `pageLogo` node itself as.
+.s-editor-page-logo-placeholder {
+  display: none;
+}
+
+.s-editor-page-number {
+  display: inline;
+  white-space: nowrap;
+}
+
+@media print {
+  .s-editor-page {
+    margin: 0;
+    box-shadow: none;
+    // One sheet per printed page; the last sheet must not add a blank one (the trailing
+    // blank page the legacy print pipeline produced).
+    break-after: page;
+  }
+
+  .s-editor-page:last-child {
+    break-after: auto;
+  }
+}

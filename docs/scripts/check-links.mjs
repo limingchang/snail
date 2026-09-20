@@ -63,10 +63,30 @@ function resolveTarget(fromFile, link) {
   return path.resolve(path.dirname(fromFile), noHash);
 }
 
+/**
+ * Candidate files for a resolved target, **most specific first**.
+ *
+ * Order matters, and getting it wrong is a silent false-negative: a route like
+ * `/vue/` resolves to the *directory* `docs/vue`, which exists, so if the bare path
+ * is tried first it always wins over `docs/vue/index.md`. Anchors are keyed on `.md`
+ * files, so every anchor link into a directory route (`/vue/#组件总览`,
+ * `/cli/#snail-generate`, `/editor/#快速上手`) was then reported dead even though the
+ * headings exist. Declarations before the bare path fixes it, and the bare path stays
+ * last only as a fallback for a target that genuinely is an unprefixed file.
+ */
 function candidateFiles(base) {
-  const out = [base, `${base}.md`, path.join(base, "index.md"), `${base}.html`];
-  if (base.endsWith(".html")) out.push(`${base.slice(0, -5)}.md`);
+  const out = [`${base}.md`, path.join(base, "index.md"), `${base}.html`, base];
+  if (base.endsWith(".html")) out.splice(2, 0, `${base.slice(0, -5)}.md`);
   return out;
+}
+
+/** `true` when `p` is an existing regular file, so a directory is never read. */
+function isFile(p) {
+  try {
+    return fs.statSync(p).isFile();
+  } catch {
+    return false;
+  }
 }
 
 for (const file of files) {
@@ -87,7 +107,7 @@ for (const file of files) {
     if (hash) {
       const anchors =
         pageAnchors.get(found) ??
-        (found.endsWith(".md") && fs.existsSync(found)
+        (found.endsWith(".md") && isFile(found)
           ? new Set(
               [...md.render(fs.readFileSync(found, "utf8")).matchAll(/<h[1-6][^>]*\sid="([^"]*)"/g)].map(
                 (m) => m[1]
@@ -115,11 +135,19 @@ for (const file of files) {
     if (fence === null && /\{\{|\}\}/.test(line)) {
       problems.push(`MUSTACHE   ${rel(file)}:${i + 1} ${line.trim()}`);
     }
-    // a generic like SnailStateRef<TData> left outside backticks becomes an HTML
-    // tag to Vue's template compiler.
+    // A generic like SnailStateRef<TData> left outside backticks becomes an HTML
+    // tag to Vue's template compiler. Lines that *start* with `<` are deliberately
+    // excluded: they are markup the page legitimately contains — `<script setup>`,
+    // a `<DemoBlock …>` opening tag, `<IconBasic />` — not a generic that escaped
+    // its backticks. Without this the demo pattern every component page uses
+    // produces a warning per example, which drowns the real findings.
     if (fence === null) {
       const prose = line.replace(/`[^`]*`/g, "");
-      if (/<\s*[A-Za-z][^>]*>$/.test(prose) && !/^\s*(import|export|\/\/)/.test(prose)) {
+      if (
+        /<\s*[A-Za-z][^>]*>$/.test(prose) &&
+        !/^\s*</.test(prose) &&
+        !/^\s*(import|export|\/\/)/.test(prose)
+      ) {
         problems.push(`BARE TAG   ${rel(file)}:${i + 1} ${line.trim()}`);
       }
     }
@@ -131,7 +159,12 @@ for (const file of files) {
 const config = fs.readFileSync(path.join(root, ".vitepress/config.ts"), "utf8");
 const sidebarLinks = [...config.matchAll(/link:\s*"(\/[^"]*)"/g)].map((m) => m[1]);
 for (const link of sidebarLinks) {
-  const target = path.join(root, link);
+  // A sidebar entry may point at a section of a page (`/vue/#sicon`), which is the
+  // normal shape for a single-page component reference. `path.join` would treat the
+  // `#sicon` as part of the filename and report every such entry as a missing page,
+  // so the anchor is stripped before resolving — the anchor itself is validated by
+  // the in-page link pass above whenever a page links to it.
+  const target = path.join(root, link.split("#")[0]);
   if (!candidateFiles(target).some((candidate) => fs.existsSync(candidate))) {
     problems.push(`SIDEBAR    ${link} -> no page`);
   }

@@ -1,0 +1,61 @@
+{
+  "name": "@snail-js/vue",
+  "version": "1.0.0",
+  "description": "Vue 3 component library: an icon set that complements Element Plus, Aliyun captcha, click-to-copy, a right-click context menu and a rotating 3D word cloud.",
+  "keywords": [
+    "vue",
+    "vue3",
+    "components",
+    "icons",
+    "captcha",
+    "context-menu",
+    "word-cloud",
+    "snail"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "build:types": "vue-tsc -p tsconfig.build.json",
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit",
+    "test": "node ./scripts/vitest-runner.mjs run",
+    "test:watch": "node ./scripts/vitest-runner.mjs",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@floating-ui/vue": "2.0.1"
+  },
+  "peerDependencies": {
+    "vue": ">=3.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@vitejs/plugin-vue": "6.0.9",
+    "@vitest/coverage-v8": "5.0.1",
+    "sass-embedded": "1.104.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.0",
+    "vitest": "5.0.1",
+    "vue": "3.5.24",
+    "vue-tsc": "3.3.11"
+  }
+}

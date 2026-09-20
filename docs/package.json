@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "VitePress documentation site for @snail-js/api.",
+  "description": "VitePress documentation site for the @snail-js packages.",
   "scripts": {
     "docs:dev": "vitepress dev .",
     "docs:build": "vitepress build .",
@@ -11,7 +11,13 @@
     "check": "node ./scripts/check-links.mjs"
   },
   "devDependencies": {
+    "@element-plus/icons-vue": "2.3.2",
     "@snail-js/api": "workspace:*",
+    "@snail-js/cli": "workspace:*",
+    "@snail-js/editor": "workspace:*",
+    "@snail-js/vue": "workspace:*",
+    "element-plus": "2.14.6",
+    "sass": "1.104.1",
     "vitepress": "1.6.4",
     "vue": "3.5.24"
   }

@@ -1,0 +1,10 @@
+/**
+ * The package's single stylesheet entry point.
+ *
+ * `src/index.ts` imports this file, which is what makes the library build emit one
+ * `dist/style.css` instead of one stylesheet per component. Token declarations come
+ * first so a consumer reading the file (or a tool diffing it) sees the variables
+ * before the rules that use them.
+ */
+@use "./style/variables.scss";
+@use "./style/base.scss";

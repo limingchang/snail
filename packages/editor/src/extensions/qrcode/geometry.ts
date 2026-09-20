@@ -1,0 +1,341 @@
+/**
+ * The QR code's geometry, units and attribute serialisation — all pure.
+ *
+ * Nothing in this file touches the DOM or Tiptap: every function is a value → value
+ * transform, which is what lets the interesting half of the extension (how a millimetre
+ * size becomes a raster width, how a structured attribute survives an HTML round-trip)
+ * be verified without a canvas.
+ *
+ * ## Why a raster is not a fixed size
+ *
+ * Legacy defect 34: the generated image was always 200 px wide whatever the requested
+ * size, so enlarging a code degraded it — at 300 dpi a 40 mm code needs ~472 px and was
+ * being printed from a 200 px source. {@link toRasterPixels} derives the width from the
+ * requested length and the print resolution instead, with a floor so a tiny code is still
+ * scannable and a ceiling so a huge one cannot produce a multi-megabyte data URL.
+ */
+
+import type {
+  QRCodeAttrs,
+  QRCodeConfig,
+  QRColor,
+  QRLength,
+  QRPosition,
+  QRUnit
+} from "./typing";
+import { QR_UNITS } from "./typing";
+
+/**
+ * Resolution a raster is generated at, in dots per inch.
+ *
+ * 300 dpi is the floor commercial printers ask for on line art, and for a QR code the
+ * source pixels *are* the line art: too few and a phone camera sees a blurry module
+ * boundary. The value is in CSS pixels per inch for a `px` length and dots per inch for
+ * `mm`/`cm`, because a CSS pixel is defined as exactly 1/96 in.
+ */
+export const QR_PRINT_DPI = 300;
+
+/** Smallest raster edge, in device pixels. Below this a v10 code stops resolving. */
+export const QR_MIN_RASTER_PIXELS = 128;
+
+/** Largest raster edge, in device pixels. A 300 dpi A4-width code is ~2480 px. */
+export const QR_MAX_RASTER_PIXELS = 2048;
+
+/**
+ * The QR code's `z-index`.
+ *
+ * The watermark is a *rendering instruction over the page* and a QR code is content on
+ * it, so the watermark must paint on top and never be hidden by a code that happens to
+ * sit under it. Keep this below `WATERMARK_Z_INDEX` in `../watermark/typing.ts`.
+ */
+export const QR_CODE_Z_INDEX = 1;
+
+/** CSS pixels per inch. A CSS pixel is 1/96 in by definition. */
+const CSS_PIXELS_PER_INCH = 96;
+
+/** Millimetres per inch. */
+const MM_PER_INCH = 25.4;
+
+/** Default rendered size, unchanged from the legacy extension. */
+export const QR_DEFAULT_SIZE: QRLength = { value: 30, unit: "mm" };
+
+/** Default offset from the page's content-box origin. */
+export const QR_DEFAULT_POSITION: QRPosition = { x: 10, y: 10, unit: "mm" };
+
+/** Black on white. */
+export const QR_DEFAULT_COLOR: QRColor = { dark: "#000000", light: "#ffffff" };
+
+/** Default quiet zone, in modules. See {@link QRCodeConfig.margin}. */
+export const QR_DEFAULT_MARGIN = 4;
+
+/** Default accessible label. A Chinese default, like the rest of the product. */
+export const QR_DEFAULT_ALT = "二维码";
+
+/** The default payload. Empty: a caller must say *what* the code points at. */
+export const QR_DEFAULT_TEXT = "";
+
+/** `true` for `"mm" | "px" | "cm"`. */
+export function isQRUnit(value: unknown): value is QRUnit {
+  return typeof value === "string" && (QR_UNITS as readonly string[]).includes(value);
+}
+
+/** `true` for a finite number. Used to reject `NaN` before it reaches a JSON attribute. */
+export function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/** `true` for a non-null object that is not an array. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Coerce to a length.
+ *
+ * A negative value is clamped to `0` rather than rejected, because `moveQRCode(-100, 0)`
+ * against a code at `x: 10` legitimately asks for "as far left as possible" and resetting
+ * it to the default `10` would look like the move was ignored. A non-finite value or an
+ * unknown unit falls back, because there is no sensible reading of `"30furlong"`.
+ */
+export function normalizeLength(input: unknown, fallback: QRLength = QR_DEFAULT_SIZE): QRLength {
+  if (!isRecord(input)) return { ...fallback };
+  const { value, unit } = input;
+  if (!isFiniteNumber(value) || !isQRUnit(unit)) return { ...fallback };
+  return { value: Math.max(0, value), unit };
+}
+
+/** Coerce to a position, clamping both axes at `0` for the reason in {@link normalizeLength}. */
+export function normalizePosition(
+  input: unknown,
+  fallback: QRPosition = QR_DEFAULT_POSITION
+): QRPosition {
+  if (!isRecord(input)) return { ...fallback };
+  const { x, y, unit } = input;
+  if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isQRUnit(unit)) return { ...fallback };
+  return { x: Math.max(0, x), y: Math.max(0, y), unit };
+}
+
+/** Coerce to a colour pair. An empty string is not a colour, so it falls back. */
+export function normalizeColor(input: unknown, fallback: QRColor = QR_DEFAULT_COLOR): QRColor {
+  if (!isRecord(input)) return { ...fallback };
+  const { dark, light } = input;
+  if (typeof dark !== "string" || dark.length === 0) return { ...fallback };
+  if (typeof light !== "string" || light.length === 0) return { ...fallback };
+  return { dark, light };
+}
+
+/** Coerce to a quiet zone in modules: an integer, never negative. */
+export function normalizeMargin(input: unknown, fallback: number = QR_DEFAULT_MARGIN): number {
+  if (!isFiniteNumber(input)) return fallback;
+  return Math.max(0, Math.round(input));
+}
+
+/** Coerce every structured attribute at once. */
+export function normalizeConfig(input: Partial<QRCodeConfig> | undefined): QRCodeConfig {
+  const source: Partial<QRCodeConfig> = input ?? {};
+  return {
+    size: normalizeLength(source.size),
+    position: normalizePosition(source.position),
+    color: normalizeColor(source.color),
+    margin: normalizeMargin(source.margin)
+  };
+}
+
+/**
+ * Coerce a whole attribute set.
+ *
+ * Used on everything that enters the node — a command argument, a parsed element, an
+ * `update()` payload — so the node view never has to defend itself and a malformed
+ * attribute can never reach the renderer.
+ */
+export function normalizeAttrs(input: Partial<QRCodeAttrs> | undefined): QRCodeAttrs {
+  const source: Partial<QRCodeAttrs> = input ?? {};
+  const config = normalizeConfig(source);
+  return {
+    ...config,
+    text: typeof source.text === "string" ? source.text : QR_DEFAULT_TEXT,
+    src: typeof source.src === "string" ? source.src : "",
+    alt: typeof source.alt === "string" && source.alt.length > 0 ? source.alt : QR_DEFAULT_ALT
+  };
+}
+
+/**
+ * `true` when two attribute sets would render identically.
+ *
+ * The commands use this to answer "did anything change?" without dispatching a
+ * transaction — and therefore without adding an undo step — for a no-op.
+ */
+export function sameQRCodeAttrs(a: QRCodeAttrs, b: QRCodeAttrs): boolean {
+  return (
+    a.text === b.text &&
+    a.src === b.src &&
+    a.alt === b.alt &&
+    a.margin === b.margin &&
+    a.color.dark === b.color.dark &&
+    a.color.light === b.color.light &&
+    sameLength(a.size, b.size) &&
+    a.position.x === b.position.x &&
+    a.position.y === b.position.y &&
+    a.position.unit === b.position.unit
+  );
+}
+
+/** {@link sameQRCodeAttrs}'s length half, exported because the command needs only this. */
+export function sameLength(a: QRLength, b: QRLength): boolean {
+  return a.value === b.value && a.unit === b.unit;
+}
+
+/** Write a length the way CSS wants it, e.g. `{ value: 30, unit: "mm" }` → `"30mm"`. */
+export function lengthToCss(length: QRLength): string {
+  return `${length.value}${length.unit}`;
+}
+
+/**
+ * A length in CSS pixels.
+ *
+ * `mm`/`cm` use the CSS definition of the inch (96 px), which is *not* the print
+ * resolution: this is the on-screen size, and {@link toRasterPixels} is the paper size.
+ */
+export function toCssPixels(length: QRLength): number {
+  switch (length.unit) {
+    case "px":
+      return length.value;
+    case "mm":
+      return (length.value / MM_PER_INCH) * CSS_PIXELS_PER_INCH;
+    case "cm":
+      return ((length.value * 10) / MM_PER_INCH) * CSS_PIXELS_PER_INCH;
+    default:
+      return length.value;
+  }
+}
+
+/**
+ * The raster width to generate for a rendered size.
+ *
+ * The floor and ceiling are applied after rounding, so the result is always inside
+ * `[QR_MIN_RASTER_PIXELS, QR_MAX_RASTER_PIXELS]` and always an integer — `qrcode` would
+ * happily accept `354.33` and then round it itself, which makes the tests meaningless.
+ */
+export function toRasterPixels(size: QRLength, dpi: number = QR_PRINT_DPI): number {
+  const inches = toCssPixels(size) / CSS_PIXELS_PER_INCH;
+  const requested = inches * (isFiniteNumber(dpi) && dpi > 0 ? dpi : QR_PRINT_DPI);
+  return Math.min(QR_MAX_RASTER_PIXELS, Math.max(QR_MIN_RASTER_PIXELS, Math.round(requested)));
+}
+
+/**
+ * The inline styles the node renders from, as a declaration map.
+ *
+ * One function serves both halves of the extension — `renderHTML` joins it into a `style`
+ * attribute and the node view writes the same declarations onto the live element — so the
+ * exported HTML and the editor cannot drift apart. That drift is exactly what the legacy
+ * toolbar's direct DOM write caused: the document said one size and the screen showed
+ * another (defect 32).
+ */
+export function qrCodeStyle(attrs: QRCodeAttrs): Record<string, string> {
+  return {
+    position: "absolute",
+    left: lengthToCss({ value: attrs.position.x, unit: attrs.position.unit }),
+    top: lengthToCss({ value: attrs.position.y, unit: attrs.position.unit }),
+    width: lengthToCss(attrs.size),
+    height: lengthToCss(attrs.size),
+    "z-index": String(QR_CODE_Z_INDEX),
+    // A QR code is positioned *inside* the page, and the page clips its own overflow. The
+    // node must not add a second clipping box of its own: the legacy combination of
+    // `position: absolute` and a clipping ancestor is what hid the code entirely.
+    overflow: "visible",
+    display: "block"
+  };
+}
+
+/** Join a declaration map into a `style` attribute value. */
+export function styleString(declarations: Record<string, string>): string {
+  return Object.entries(declarations)
+    .map(([property, value]) => `${property}: ${value}`)
+    .join("; ");
+}
+
+/**
+ * Encode the structured attributes as one JSON blob.
+ *
+ * See the table in `attributes.ts` for the whole encoding. One blob rather than four HTML
+ * attributes because `size`, `position` and `color` are only ever written and read
+ * together, and a single reader cannot disagree with itself about which fields exist.
+ */
+export function encodeQRCodeConfig(config: QRCodeConfig): string {
+  return JSON.stringify({
+    size: config.size,
+    position: config.position,
+    color: config.color,
+    margin: config.margin
+  });
+}
+
+/**
+ * Decode {@link encodeQRCodeConfig}'s output, defensively.
+ *
+ * Every field is validated on its own and an invalid field is simply *absent* from the
+ * result, so the caller's default for that field applies. A template edited by hand, or
+ * written by a future version, must be openable: opening a contract may not fail because
+ * one attribute is malformed.
+ */
+export function decodeQRCodeConfig(raw: string | null | undefined): Partial<QRCodeConfig> {
+  if (raw === null || raw === undefined || raw === "") return {};
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+
+  if (!isRecord(parsed)) return {};
+
+  const config: Partial<QRCodeConfig> = {};
+
+  const size = parsed.size;
+  if (isRecord(size) && isFiniteNumber(size.value) && isQRUnit(size.unit)) {
+    config.size = { value: Math.max(0, size.value), unit: size.unit };
+  }
+
+  const position = parsed.position;
+  if (isRecord(position) && isFiniteNumber(position.x) && isFiniteNumber(position.y) && isQRUnit(position.unit)) {
+    config.position = {
+      x: Math.max(0, position.x),
+      y: Math.max(0, position.y),
+      unit: position.unit
+    };
+  }
+
+  const color = parsed.color;
+  if (
+    isRecord(color) &&
+    typeof color.dark === "string" &&
+    color.dark.length > 0 &&
+    typeof color.light === "string" &&
+    color.light.length > 0
+  ) {
+    config.color = { dark: color.dark, light: color.light };
+  }
+
+  if (isFiniteNumber(parsed.margin)) config.margin = Math.max(0, Math.round(parsed.margin));
+
+  return config;
+}
+
+/**
+ * The command arguments that would change the raster.
+ *
+ * `updateQRCode` uses this to decide between a synchronous attribute write and an
+ * asynchronous regenerate-and-write: only the payload, the rendered size and the two
+ * colours (and the quiet zone, which is part of the bitmap) affect the pixels. Moving a
+ * code must never cost a canvas.
+ */
+export function rasterInputsChanged(before: QRCodeAttrs, after: QRCodeAttrs): boolean {
+  return (
+    before.text !== after.text ||
+    !sameLength(before.size, after.size) ||
+    before.color.dark !== after.color.dark ||
+    before.color.light !== after.color.light ||
+    before.margin !== after.margin
+  );
+}

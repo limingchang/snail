@@ -15,6 +15,8 @@
 | --- | --- |
 | [<img src="https://img.shields.io/npm/v/%40snail-js%2Fapi?label=%40snail-js%2Fapi&labelColor=1e80ff&color=67C23A"></img>](./packages/api) | 装饰器驱动、一切皆插件的 HTTP 客户端，仅基于 axios。 |
 | [<img src="https://img.shields.io/npm/v/%40snail-js%2Fapi?label=%40snail-js%2Fcli&labelColor=1e80ff&color=67C23A"></img>](./packages/cli) | 从 OpenAPI 3 文档直接生成带完整类型的前端请求代码。 |
+| [<img src="https://img.shields.io/npm/v/%40snail-js%2Fapi?label=%40snail-js%2Feditor&labelColor=1e80ff&color=67C23A"></img>](./packages/editor) | 基于 Tiptap 的合同模板编辑器：真实分页、页眉页脚、变量、二维码、水印与浏览器打印。 |
+| [<img src="https://img.shields.io/npm/v/%40snail-js%2Fapi?label=%40snail-js%2Fvue&labelColor=1e80ff&color=67C23A"></img>](./packages/vue) | Vue 3 组件库：补齐 Element Plus 缺失的图标，外加验证码、复制、右键菜单与词云。 |
 | [<img src="https://img.shields.io/npm/v/%40snail-js%2Fapi?label=%40snail-js%2Fskill&labelColor=1e80ff&color=67C23A"></img>](./packages/skill) | 教 AI 助手正确编写 `@snail-js/api` 代码的 Agent Skill。 |
 | [`docs`](./docs) | VitePress 文档站点。 |
 

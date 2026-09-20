@@ -1,0 +1,84 @@
+{
+  "name": "@snail-js/editor",
+  "version": "1.0.0",
+  "description": "Tiptap-based contract editor: a Word-like workspace with real pages, headers and footers, automatic pagination, variables, QR codes, a watermark and browser printing.",
+  "keywords": [
+    "vue",
+    "vue3",
+    "tiptap",
+    "editor",
+    "rich-text",
+    "contract",
+    "template",
+    "print",
+    "pagination",
+    "element-plus"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "build:types": "vue-tsc -p tsconfig.build.json",
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit",
+    "test": "node ./scripts/vitest-runner.mjs run",
+    "test:watch": "node ./scripts/vitest-runner.mjs",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@snail-js/vue": "workspace:*",
+    "@tiptap/core": "3.31.3",
+    "@tiptap/extension-bold": "3.31.3",
+    "@tiptap/extension-document": "3.31.3",
+    "@tiptap/extension-heading": "3.31.3",
+    "@tiptap/extension-image": "3.31.3",
+    "@tiptap/extension-italic": "3.31.3",
+    "@tiptap/extension-paragraph": "3.31.3",
+    "@tiptap/extension-strike": "3.31.3",
+    "@tiptap/extension-table": "3.31.3",
+    "@tiptap/extension-text": "3.31.3",
+    "@tiptap/extension-text-align": "3.31.3",
+    "@tiptap/extension-text-style": "3.31.3",
+    "@tiptap/extension-underline": "3.31.3",
+    "@tiptap/extensions": "3.31.3",
+    "@tiptap/pm": "3.31.3",
+    "@tiptap/vue-3": "3.31.3",
+    "qrcode": "1.5.4"
+  },
+  "peerDependencies": {
+    "element-plus": ">=2.9.0",
+    "vue": ">=3.5.0"
+  },
+  "devDependencies": {
+    "@element-plus/icons-vue": "2.3.2",
+    "@types/node": "24.10.1",
+    "@types/qrcode": "1.5.5",
+    "@vitejs/plugin-vue": "6.0.9",
+    "@vitest/coverage-v8": "5.0.1",
+    "element-plus": "2.14.6",
+    "sass-embedded": "1.104.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.0",
+    "vitest": "5.0.1",
+    "vue": "3.5.24",
+    "vue-tsc": "3.3.11"
+  }
+}

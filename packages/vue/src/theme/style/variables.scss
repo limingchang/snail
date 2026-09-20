@@ -1,0 +1,86 @@
+/**
+ * Design tokens for `@snail-js/vue`.
+ *
+ * ## Why custom properties and not Sass variables
+ *
+ * The package must be themeable **at runtime**: an application that loads a dark
+ * stylesheet, or that switches brand colour at the click of a button, must not have
+ * to recompile this library. A Sass variable is baked into the emitted CSS at build
+ * time, a custom property is resolved by the browser, so every token below is a
+ * custom property. There is deliberately not a single `$s-…` Sass variable left.
+ *
+ * ## Why the `--s-` prefix
+ *
+ * The legacy stylesheet used `--snail-…`, which is long for something repeated in
+ * every rule, and it mixed in eight Chinese-named Sass variables
+ * (`$snail-chinese-color-安安蓝` and friends). Those identifiers are not legal
+ * ASCII, cannot be typed by a consumer, break lint/CI in several setups, and were
+ * duplicated once as a `--snail-color-primary` entry. `--s-` is short, unambiguous
+ * inside a stylesheet, and collision-free in practice.
+ *
+ * ## Element Plus
+ *
+ * Where a value is Element Plus's own palette it is expressed as
+ * `var(--el-color-…, <fallback>)`. `@snail-js/vue` does **not** depend on Element
+ * Plus and must render correctly without it: the fallback is that value. In an
+ * application that does load Element Plus, the token silently follows the Element
+ * Plus theme instead of fighting it.
+ */
+
+:root {
+  /* ---- palette ---------------------------------------------------------- */
+  /* Element Plus aliases: the fallback is Element Plus's own default colour. */
+  --s-color-primary: var(--el-color-primary, #409eff);
+  --s-color-success: var(--el-color-success, #67c23a);
+  --s-color-warning: var(--el-color-warning, #e6a23c);
+  --s-color-danger: var(--el-color-danger, #f56c6c);
+  --s-color-info: var(--el-color-info, #909399);
+
+  /* Text ramp, mirroring Element Plus's `--el-text-color-*`. */
+  --s-color-text-primary: var(--el-text-color-primary, #303133);
+  --s-color-text-regular: var(--el-text-color-regular, #606266);
+  --s-color-text-secondary: var(--el-text-color-secondary, #909399);
+  --s-color-text-disabled: var(--el-text-color-disabled, #c0c4cc);
+  --s-color-text-inverse: #ffffff;
+
+  /* Surfaces and lines. */
+  --s-color-bg: var(--el-bg-color, #ffffff);
+  --s-color-bg-hover: var(--el-fill-color-light, #f5f7fa);
+  --s-color-bg-disabled: var(--el-fill-color-lighter, #fafafa);
+  --s-color-border: var(--el-border-color, #dcdfe6);
+  --s-color-border-light: var(--el-border-color-lighter, #ebeef5);
+  /* The context menu's old stylesheet used `rgba(0, 0, 0, 0.15)`; tokens keep it
+     adjustable without editing the component. */
+  --s-color-border-strong: rgba(0, 0, 0, 0.15);
+
+  /* ---- radius ---------------------------------------------------------- */
+  --s-radius-sm: 2px;
+  --s-radius-md: 4px;
+  --s-radius-lg: 8px;
+  --s-radius-full: 9999px;
+
+  /* ---- spacing --------------------------------------------------------- */
+  /* A 4px scale. The legacy stylesheet hard-coded 5px/8px/10px in three places. */
+  --s-space-xs: 4px;
+  --s-space-sm: 8px;
+  --s-space-md: 12px;
+  --s-space-lg: 16px;
+  --s-space-xl: 24px;
+
+  /* ---- typography ------------------------------------------------------ */
+  --s-font-size-xs: 12px;
+  --s-font-size-sm: 13px;
+  --s-font-size-md: 14px;
+  --s-font-size-lg: 16px;
+  --s-font-family: inherit;
+  --s-line-height: 1.5;
+
+  /* ---- elevation ------------------------------------------------------- */
+  --s-shadow-md: 0 6px 12px rgba(0, 0, 0, 0.175);
+
+  /* ---- z-index --------------------------------------------------------- */
+  /* Element Plus reserves 2000–2999 for its own poppers; the context menu sits
+     above them because it is opened *by* whatever is underneath. */
+  --s-z-index-context-menu: 3000;
+  --s-z-index-captcha: 3100;
+}
