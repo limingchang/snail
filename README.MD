@@ -5,6 +5,8 @@
 
 # @snail-js
 
+[官方文档 | Document](https://limingchang.github.io/snail/)
+
 中文 | [English](./README_EN.MD)
 
 `@snail-js/*` 请求工具集所在的 monorepo。

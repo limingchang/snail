@@ -1,4 +1,6 @@
-# @snail-js/cli
+# @snail-js/cli **测试中**
+
+[官方文档 | Document](https://limingchang.github.io/snail/)
 
 从 OpenAPI 3.0 / 3.1 文档生成 [`@snail-js/api`](../api) 的装饰器请求代码。
 

@@ -7,6 +7,8 @@
   <img src="https://img.shields.io/npm/v/axios?label=Axios&color=67C23A"></img>
 </p>
 
+[官方文档 | Document](https://limingchang.github.io/snail/)
+
 - **装饰器驱动** — `@Server` / `@Api` / `@Get` 定义请求，设计思想来自 Nest.js
 - **一切皆插件** — 缓存、拦截器、请求池、版本、校验、转换全是插件，核心只做三件事；提供 `stateAdapter` 选项，适配无框架、![Vue](https://img.shields.io/npm/v/vue?label=Vue&color=67C23A&labelColor=1e80ff)、![React](https://img.shields.io/npm/v/react?label=React&color=67C23A&labelColor=1e80ff)
 - **零运行时依赖** — `dependencies` 是空的；axios 是 peer 依赖，也不需要 `reflect-metadata`
