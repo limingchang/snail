@@ -1,0 +1,57 @@
+name: Deploy VitePress site to Pages
+
+on:
+  push:
+    branches: [master] # 根据你的默认分支名调整，如 master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # 获取完整历史，用于生成 lastUpdated 等信息
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9 # 指定 pnpm 版本，建议与本地一致
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm # 缓存 pnpm 的存储目录，加速依赖安装
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile # 确保使用 lockfile 中的精确版本
+
+      - name: Build with VitePress
+        run: pnpm run docs:build # 或你的实际构建命令
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,13 +1,14 @@
-# @snail-js/api
+ # @snail-js/api
 
 > 装饰器驱动、一切皆插件的 TypeScript 请求管理库，仅基于 [axios](https://axios-http.com/)。
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-1e80ff)](https://www.typescriptlang.org/)
-[![axios](https://img.shields.io/badge/axios-1.20-67C23A)](https://axios-http.com/)
-[![license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+<p>
+  <img src="https://img.shields.io/npm/v/typescript?label=TypeScript&color=67C23A&labelColor=1e80ff"></img>
+  <img src="https://img.shields.io/npm/v/axios?label=Axios&color=67C23A"></img>
+</p>
 
 - **装饰器驱动** — `@Server` / `@Api` / `@Get` 定义请求，设计思想来自 Nest.js
-- **一切皆插件** — 缓存、拦截器、请求池、版本、校验、转换全是插件，核心只做三件事；框架适配不是插件，而是 `@Server` 的 `stateAdapter` 选项
+- **一切皆插件** — 缓存、拦截器、请求池、版本、校验、转换全是插件，核心只做三件事；提供 `stateAdapter` 选项，适配无框架、![Vue](https://img.shields.io/npm/v/vue?label=Vue&color=67C23A&labelColor=1e80ff)、![React](https://img.shields.io/npm/v/react?label=React&color=67C23A&labelColor=1e80ff)
 - **零运行时依赖** — `dependencies` 是空的；axios 是 peer 依赖，也不需要 `reflect-metadata`
 - **完整的类型推断** — 从方法声明的返回类型推断 `data` 类型，无需手写泛型
 - **请求策略** — 多场景请求策略 `useRequest` / `usePagination` / `useRetriableRequest` / `useDownload` 等 hook
@@ -37,7 +38,7 @@ pnpm add @snail-js/api axios
 > TypeScript 7 已不再产出 `design:*` 元数据，本库使用自己的元数据存储。
 > 如果你从旧版本迁移，请参照[迁移指南](https://snail-js.github.io/api/guide/migration)。
 
-### 2. 定义服务
+### 2. 创建后端服务端点
 
 ```ts
 // service.ts

@@ -1,6 +1,6 @@
 <p>
-  <img src="https://img.shields.io/badge/TypeScript-1e80ff"></img>
-  <img src="https://img.shields.io/npm/v/axios?label=axios&labelColor=1e80ff&color=67C23A"></img>
+  <img src="https://img.shields.io/npm/v/typescript?label=TypeScript&color=67C23A&labelColor=1e80ff"></img>
+  <img src="https://img.shields.io/npm/v/axios?label=Axios&color=67C23A"></img>
 </p>
 
 # @snail-js

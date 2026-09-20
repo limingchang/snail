@@ -7,6 +7,7 @@ import { defineConfig } from "vitepress";
  * 构建时会校验内部链接，死链会让 `docs:build` 直接失败。
  */
 export default defineConfig({
+  base: '/snail/',
   lang: "zh-CN",
   title: "@snail-js/api",
   description:
