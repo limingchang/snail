@@ -8,8 +8,18 @@ import { DEFAULT_L1_MAX_SIZE, MemoryCacheAdapter } from "./adapters/memory";
 import { WebStorageCacheAdapter } from "./adapters/web-storage";
 import type { CacheAdapter, CacheLookup, CacheOptions } from "./type";
 
+/**
+ * {@link CacheManager} 的构造选项：`CacheOptions` 再加上一个日志器。
+ *
+ * Options for constructing a {@link CacheManager}: `CacheOptions` plus a logger.
+ */
 export interface CacheManagerOptions extends CacheOptions {
   /**
+   * 用于记录 L2 失败的日志器。
+   *
+   * 管理器运行在任何请求之外，因此没有 `ctx.logger`；插件会注入一个依据
+   * `@Server({ logLevel })` 构建的日志器。默认静默，因为缓存本身不应让应用变得嘈杂。
+   *
    * Logger for L2 failures.
    *
    * The manager runs outside any request, so it has no `ctx.logger`; the plugin
@@ -19,15 +29,59 @@ export interface CacheManagerOptions extends CacheOptions {
   logger?: SnailLogger;
 }
 
-/** `CacheOptions` with every default applied — the manager's public state. */
+/**
+ * 已应用全部默认值的 `CacheOptions`——也就是管理器的公开状态。
+ *
+ * `CacheOptions` with every default applied — the manager's public state.
+ */
 export interface ResolvedCacheOptions {
+  /**
+   * 条目存活秒数，已解析为正数。
+   *
+   * Entry lifetime in seconds, already resolved to a positive number.
+   */
   ttl: number;
+  /**
+   * L1 的 LRU 容量，已解析为正数。
+   *
+   * L1 LRU capacity, already resolved to a positive number.
+   */
   maxSize: number;
+  /**
+   * 是否启用 L1 存储。
+   *
+   * Whether the L1 store is enabled.
+   */
   l1: boolean;
+  /**
+   * 已构造好的 L2 适配器；未配置或所选环境不可用时为 `undefined`。
+   *
+   * The resolved L2 adapter, or `undefined` when unconfigured or unavailable.
+   */
   l2: CacheAdapter | undefined;
+  /**
+   * `"all"`，或已归一化为大写的请求方法列表。
+   *
+   * `"all"`, or an uppercased verb list.
+   */
   cacheFor: "all" | readonly SnailMethodType[];
+  /**
+   * 已解析的键前缀。
+   *
+   * The resolved key prefix.
+   */
   prefix: string;
+  /**
+   * 是否启用“先返回过期值再后台刷新”（默认值已应用）。
+   *
+   * Whether stale-while-revalidate is on (default applied).
+   */
   staleWhileRevalidate: boolean;
+  /**
+   * 是否把并发相同请求合并为一次（默认值已应用）。
+   *
+   * Whether concurrent identical requests are collapsed into one (default applied).
+   */
   dedupe: boolean;
 }
 
@@ -38,6 +92,27 @@ type Probe<T> = { found: true; value: T } | { found: false };
 const DEFAULT_CACHE_FOR: readonly SnailMethodType[] = ["GET"];
 
 /**
+ * 缓存插件背后的存储引擎。
+ *
+ * ## 层次
+ *
+ * - **L1** 是一个 {@link MemoryCacheAdapter}：除非 `l1: false`，否则总是存在，
+ *   受 `maxSize` 约束，也是 L2 命中后唯一的回填目标。
+ * - **L2** 是任意 {@link CacheAdapter}，通常是持久化存储。
+ *
+ * ## 适配器不管、由管理器负责的部分
+ *
+ * TTL、LRU 与标签是策略而非存储。把它们放在这里，意味着自定义 L2 适配器只需回答
+ * “get/set/delete”，完全不必知道标签是什么——这正是适配器接口小到可以架设在任何东西
+ * （IndexedDB、`localStorage`、HTTP 缓存）之上的原因。
+ *
+ * ## 新鲜度与 `staleWhileRevalidate`
+ *
+ * 新鲜度始终由本类根据它在 `set` 时记录的 `expiresAt` 判定。在 stale-while-revalidate
+ * 模式下，L1 被告知“永不过期”，好让过期副本留存下来，在插件后台刷新它期间继续对外提供；
+ * 否则 L1 会拿到真实 TTL 并自行清扫该条目。L2 始终拿到真实 TTL，这样另一个标签页
+ * （没有共享的内存索引）永远不会读到过期数据。
+ *
  * Storage engine behind the cache plugin.
  *
  * ## Layers
@@ -62,7 +137,11 @@ const DEFAULT_CACHE_FOR: readonly SnailMethodType[] = ["GET"];
  * so a second tab (which has no shared in-memory index) never reads a stale one.
  */
 export class CacheManager {
-  /** Fully resolved options, exposed so the plugin can apply the same policy. */
+  /**
+   * 完全解析后的选项，对外暴露以便插件套用同一套策略。
+   *
+   * Fully resolved options, exposed so the plugin can apply the same policy.
+   */
   readonly options: ResolvedCacheOptions;
 
   private readonly l1: MemoryCacheAdapter | undefined;
@@ -80,6 +159,15 @@ export class CacheManager {
   /** Cache key → the promise of the request currently being sent for it. */
   private readonly flight = new Map<string, Promise<unknown>>();
 
+  /**
+   * 创建一个管理器：解析全部选项，并在启用 L1 时装配 L1 存储。
+   *
+   * Creates a manager: every option is resolved and, when L1 is enabled, the L1
+   * store is assembled.
+   *
+   * @param options 选项与日志器；缺省即全部使用默认值 / Options and a logger; omitted
+   *   means "all defaults"
+   */
   constructor(options: CacheManagerOptions = {}) {
     this.logger = options.logger ?? createLogger("silent");
     this.options = resolveOptions(options, this.logger);
@@ -93,12 +181,21 @@ export class CacheManager {
       : undefined;
   }
 
-  /** Number of live **L1** entries. L2 is not enumerated, by design. */
+  /**
+   * **L1** 中的存活条目数。按设计不枚举 L2。
+   *
+   * Number of live **L1** entries. L2 is not enumerated, by design.
+   */
   get size(): number {
     return this.l1?.size ?? 0;
   }
 
   /**
+   * 读取一个新鲜的值。
+   *
+   * 过期条目（仅为 stale-while-revalidate 保留）*不会*被返回：需要提供过期数据的调用方
+   * 必须显式调用 {@link lookup}，这样常见路径就不可能意外地提供已失效的数据。
+   *
    * Read a fresh value.
    *
    * A stale entry (kept alive only for stale-while-revalidate) is *not* returned:
@@ -110,17 +207,31 @@ export class CacheManager {
     return found?.value;
   }
 
-  /** `true` when a fresh value is stored under `key`. */
+  /**
+   * 当 `key` 下存有新鲜值时为 `true`。
+   *
+   * `true` when a fresh value is stored under `key`.
+   */
   async has(key: string): Promise<boolean> {
     return (await this.get(key)) !== undefined;
   }
 
   /**
+   * 读取一个值，并同时返回它的新鲜度。
+   *
+   * `allowStale` 对应插件的 `staleWhileRevalidate` 开关：当条目已超过 TTL 但仍驻留在
+   * 存储中时，会带着 `stale: true` 返回，让调用方可以先提供它、事后再刷新。
+   *
    * Read a value together with its freshness.
    *
    * `allowStale` is the plugin's `staleWhileRevalidate` switch: when the entry is
    * past its TTL but still resident, it is returned with `stale: true` so the
    * caller can serve it now and refresh afterwards.
+   *
+   * @param key 缓存键 / Cache key
+   * @param allowStale 是否允许返回过期条目；默认 false / Whether a stale entry may be
+   *   returned; defaults to false
+   * @returns 值与新鲜度，或 `undefined` / The value with its freshness, or `undefined`
    */
   async lookup<T = unknown>(key: string, allowStale = false): Promise<CacheLookup<T> | undefined> {
     const fromL1 = await this.readL1<T>(key);
@@ -144,10 +255,21 @@ export class CacheManager {
   }
 
   /**
+   * 把值写入 L1 与 L2。
+   *
+   * `ttlSeconds` 默认为配置的 TTL，`tags` 可以为空；在这里写入的标签，就是之后
+   * `@Invalidates("tag")` 要清除的目标。
+   *
    * Store a value in L1 and L2.
    *
    * `ttlSeconds` defaults to the configured TTL and `tags` may be empty; a tag
    * written here is what `@Invalidates("tag")` later purges.
+   *
+   * @param key 缓存键 / Cache key
+   * @param value 要存储的值 / The value to store
+   * @param ttlSeconds 存活秒数；默认取配置的 TTL / Lifetime in seconds; defaults to the
+   *   configured TTL
+   * @param tags 附加到该条目上的标签；默认空 / Tags attached to the entry; empty by default
    */
   async set(
     key: string,
@@ -164,7 +286,11 @@ export class CacheManager {
     await this.writeL2(key, value, ttlSeconds);
   }
 
-  /** Remove one entry from every layer. */
+  /**
+   * 从每一层删除一个条目。
+   *
+   * Remove one entry from every layer.
+   */
   async delete(key: string): Promise<void> {
     this.forgetKey(key);
     await this.l1?.delete(key);
@@ -177,7 +303,11 @@ export class CacheManager {
     }
   }
 
-  /** Remove every entry this manager can see. */
+  /**
+   * 删除本管理器能看到的所有条目。
+   *
+   * Remove every entry this manager can see.
+   */
   async clear(): Promise<void> {
     await this.l1?.clear();
     this.expiry.clear();
@@ -193,10 +323,17 @@ export class CacheManager {
   }
 
   /**
+   * 清除所有带有 `tags` 中任意一个标签的条目。
+   *
+   * 由 `@Invalidates(...)` / `@HitSource(...)` 在请求成功后调用。这里先收集键再删除，
+   * 因为删除会改动这些键所属的标签索引。
+   *
    * Purge every entry carrying any of `tags`.
    *
    * Used by `@Invalidates(...)` / `@HitSource(...)` after a successful request.
    * Keys are collected first because deleting mutates the tags they came from.
+   *
+   * @param tags 要清除的标签 / The tags to purge
    */
   async invalidateTags(tags: readonly string[]): Promise<void> {
     const keys = new Set<string>();
@@ -209,19 +346,33 @@ export class CacheManager {
     }
   }
 
-  /** Alias of {@link clear}, spelled the way `@Invalidates("*")`-style callers expect. */
+  /**
+   * {@link clear} 的别名，其拼写迎合 `@Invalidates("*")` 风格的调用方。
+   *
+   * Alias of {@link clear}, spelled the way `@Invalidates("*")`-style callers expect.
+   */
   async invalidateAll(): Promise<void> {
     await this.clear();
   }
 
   // ── in-flight de-duplication ──────────────────────────────────────────────
 
-  /** The promise of the request currently being sent for `key`, if any. */
+  /**
+   * 当前正在为 `key` 发送的请求所对应的 promise（如果存在）。
+   *
+   * The promise of the request currently being sent for `key`, if any.
+   */
   getInFlight(key: string): Promise<unknown> | undefined {
     return this.flight.get(key);
   }
 
   /**
+   * 发布正在为 `key` 发送的请求所对应的 promise。
+   *
+   * 该条目会在 promise 敲定时自行移除，因此一个被拒绝的共享 promise 不会被之后无关的
+   * 请求取走。这次拒绝同时被标记为已观察：否则在没有跟随者等待时失败的领头请求，
+   * 会在 Node 中表现为未处理的 rejection。
+   *
    * Publish the promise of the request being sent for `key`.
    *
    * The entry removes itself when the promise settles, so a rejected shared

@@ -6,12 +6,25 @@ import type { StrategyMethod } from "./shared/method";
 import { createStrategyState } from "./shared/state";
 import type { StrategyState } from "./shared/state";
 
-/** Options accepted by {@link useRequest}. */
+/**
+ * {@link useRequest} 接受的选项。
+ *
+ * Options accepted by {@link useRequest}.
+ */
 export interface UseRequestOptions<TData> extends SnailStrategyCommonOptions {
-  /** Value `data` starts at, before the first successful send. */
+  /**
+   * `data` 的起始值，在第一次成功发送之前使用。
+   *
+   * Value `data` starts at, before the first successful send.
+   */
   initialData?: TData;
 
   /**
+   * 每次发送之前把 `data` 重置回 `initialData`。
+   *
+   * 默认关闭，因为上一份载荷在下一次请求在途时通常仍然值得渲染（刷新时不闪烁）。当一个
+   * 详情面板在加载下一条记录时绝不能显示*上一条*记录的数据时，打开它。
+   *
    * Reset `data` back to `initialData` before every send.
    *
    * Off by default because the previous payload is usually still worth rendering
@@ -23,6 +36,12 @@ export interface UseRequestOptions<TData> extends SnailStrategyCommonOptions {
 }
 
 /**
+ * {@link useRequest} 的返回值。
+ *
+ * `send` 以**解包后的载荷**（`result.data`）兑现，而不是整个 `SnailResult`：信封上的
+ * `code`/`message` 已经在 state 句柄上，想要更多的调用方仍然可以拿到 method 自己的
+ * `result`。
+ *
  * What {@link useRequest} returns.
  *
  * `send` resolves with the **unwrapped payload** (`result.data`) rather than the
@@ -34,10 +53,25 @@ export interface UseRequestResult<
   TData,
   TArgs extends readonly unknown[] = readonly unknown[]
 > extends StrategyState<TData> {
+  /**
+   * 发送请求，以解包后的载荷兑现。
+   *
+   * Send the request. Resolves with the unwrapped payload.
+   */
   send(...args: TArgs): Promise<TData>;
 }
 
 /**
+ * 用组件状态驱动一个 api 方法。
+ *
+ * hook 只拥有一个 `SnailMethod`，它由第一次 send 的参数构建，之后一直复用。这正是让响应
+ * 式句柄在重复发送之间保持稳定的原因——为什么第二个实例会破坏 UI 见 `shared/method.ts`
+ * ——而 `send("2")` 仍然会按调用覆盖参数。
+ *
+ * 一个实例也意味着同一时间只有一个请求：`SnailMethod` 在每次 `send()` 开始时重置自己的
+ * 上下文，因此第一次仍在途时发起的第二次 `send()`，会让第一次读到一个属于第二次的上下文。
+ * 请先调用 `abort()`，或改用 `useWatcher`/`useAutoRequest`——它们正是为此折叠突发调用。
+ *
  * Drive one api method from component state.
  *
  * ```ts
@@ -56,6 +90,10 @@ export interface UseRequestResult<
  * still in flight would leave the first reading a context that belongs to the
  * second. Call `abort()` first, or use `useWatcher`/`useAutoRequest`, which
  * collapse bursts for exactly this reason.
+ *
+ * @param method 代理后的 api 方法 / The proxied api method.
+ * @param options 策略选项 / Strategy options.
+ * @returns 带 state 句柄与 `send` 的结果 / The result carrying the state handles and `send`.
  */
 export function useRequest<TArgs extends readonly unknown[], TData>(
   method: StrategyMethod<TArgs, TData>,

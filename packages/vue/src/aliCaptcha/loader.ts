@@ -1,4 +1,24 @@
 /**
+ * 两种验证码产品的脚本加载。
+ *
+ * ## 契约
+ *
+ * 每个 URL 的 `<script>` 元素在**每个页面**上最多只能求值一次。阿里云验证码 2.0 的
+ * 文档对此说得很明确（「请勿重复引入，重复引入可能导致验证失败」），并且建议动态加载
+ * 而不是自行托管，因为该 bundle 会出于安全考虑在服务端更新。
+ *
+ * 旧包则完全没有契约：`AliCaptcha.vue` 每次挂载都调用 `initCaptcha(window)`（每次都
+ * 重新定义 `window.initAlicom4`），而注入的脚本、它的 10 秒超时和它的监听器从未被
+ * 清理。
+ *
+ * ## 拆分
+ *
+ * `ScriptPool` 是带引用计数、每个 key 只加载一次的状态机，它完全不了解 DOM —— 它把
+ * 「是否可用」和「开始加载」委托给 {@link ScriptLoaderEnvironment}。正因如此，最有趣
+ * 的部分（每个 key 只加载一次、共享 promise、失败后可重试、释放）才能用一个假环境在
+ * 普通 Node 进程里做单元测试，而 DOM 相关的细节则留在
+ * {@link createDomScriptEnvironment} 里。
+ *
  * Script loading for both captcha products.
  *
  * ## The contract
@@ -25,14 +45,24 @@
 
 import { AliCaptchaError } from "./error";
 
-/** The Captcha 2.0 V3 bundle on Alibaba's CDN. Not to be self-hosted. */
+/**
+ * 阿里云 CDN 上的 Captcha 2.0 V3 bundle。不要自行托管。
+ *
+ * The Captcha 2.0 V3 bundle on Alibaba's CDN. Not to be self-hosted.
+ */
 export const CAPTCHA2_SCRIPT_URL =
   "https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js";
 
-/** Give up on a script after this long. */
+/** 脚本超过这个时长就放弃加载。 / Give up on a script after this long. */
 export const DEFAULT_SCRIPT_TIMEOUT_MS = 10_000;
 
 /**
+ * 池所需的 DOM 操作，作为可替换的接缝。
+ *
+ * `start` 在脚本**可用**（其全局变量已存在）时兑现，而不只是在标签触发 `load` 时：
+ * Captcha 2.0 bundle 会在自身顶层代码执行完之后才定义 `window.initAliyunCaptcha`，
+ * 把「标签已加载」当成「SDK 就绪」，正是验证码最终调用一个未定义函数的原因。
+ *
  * The DOM work the pool needs, as a replaceable seam.
  *
  * `start` resolves when the script is *usable* (its global exists), not merely when
@@ -41,9 +71,17 @@ export const DEFAULT_SCRIPT_TIMEOUT_MS = 10_000;
  * "tag loaded" as "SDK ready" is how a captcha ends up calling an undefined function.
  */
 export interface ScriptLoaderEnvironment {
-  /** Whether the key's script is already usable in this document. */
+  /**
+   * 该 key 的脚本在当前文档里是否已经可用。
+   *
+   * Whether the key's script is already usable in this document.
+   */
   isReady: (key: string) => boolean;
-  /** Begin loading the key. Must reject with an {@link AliCaptchaError} on failure. */
+  /**
+   * 开始加载该 key。失败时必须以 {@link AliCaptchaError} 拒绝。
+   *
+   * Begin loading the key. Must reject with an {@link AliCaptchaError} on failure.
+   */
   start: (key: string) => Promise<void>;
 }
 
@@ -56,6 +94,12 @@ interface PoolRecord {
 }
 
 /**
+ * 每个 key 只加载一次、带引用计数的池。
+ *
+ * 对同一个 key，`acquire` 返回给每个调用者的都是**同一个** promise，所以一个页面上
+ * 五个验证码仍然只注入一个标签、只等待一次加载。当记录已就绪且无人持有时，`release`
+ * 会把它删除；之后的 `acquire` 会走 `isReady()` 短路，而不是再次加载。
+ *
  * A load-once-per-key pool with reference counting.
  *
  * `acquire` returns the *same* promise to every caller for a key, so five captchas on
@@ -66,14 +110,30 @@ interface PoolRecord {
 export class ScriptPool {
   private readonly records = new Map<string, PoolRecord>();
 
+  /**
+   * 用给定的环境接缝创建池；池本身不直接接触 DOM。
+   *
+   * Creates the pool around the given environment seam; the pool touches no DOM itself.
+   */
   constructor(private readonly environment: ScriptLoaderEnvironment) {}
 
-  /** Keys currently tracked by the pool. Zero after the last release of a ready key. */
+  /**
+   * 池当前跟踪的 key 数量。已就绪的 key 在最后一次 release 之后归零。
+   *
+   * Keys currently tracked by the pool. Zero after the last release of a ready key.
+   */
   get size(): number {
     return this.records.size;
   }
 
-  /** Borrow the key's script, starting the load if nobody has yet. */
+  /**
+   * 借用该 key 的脚本；如果还没有人加载，就由本次调用发起加载。
+   *
+   * Borrow the key's script, starting the load if nobody has yet.
+   *
+   * @param key 脚本的池键，通常是脚本 URL / The pool key, normally the script URL.
+   * @returns 脚本可用时兑现的 promise / Resolves when the script is usable.
+   */
   acquire(key: string): Promise<void> {
     const existing = this.records.get(key);
     if (existing) {
@@ -103,7 +163,13 @@ export class ScriptPool {
     return record.promise;
   }
 
-  /** Give the key's script back. Safe to call more than once per lease. */
+  /**
+   * 归还该 key 的脚本。对同一份租约重复调用是安全的。
+   *
+   * Give the key's script back. Safe to call more than once per lease.
+   *
+   * @param key 脚本的池键，通常是脚本 URL / The pool key, normally the script URL.
+   */
   release(key: string): void {
     const record = this.records.get(key);
     if (!record) return;
@@ -112,26 +178,39 @@ export class ScriptPool {
   }
 }
 
-/** A borrowed script; `release` returns it to the pool. */
+/**
+ * 一份借来的脚本；`release` 把它还回池中。
+ *
+ * A borrowed script; `release` returns it to the pool.
+ */
 export interface ScriptLease {
-  /** Resolves when the script is usable. */
+  /** 脚本可用时兑现。 / Resolves when the script is usable. */
   promise: Promise<void>;
-  /** Idempotent release. */
+  /** 幂等的释放。 / Idempotent release. */
   release: () => void;
 }
 
-/** One acquire request. */
+/** 一次 acquire 请求。 / One acquire request. */
 export interface ScriptRequest {
-  /** Absolute or relative URL of the script. Doubles as the pool key. */
+  /**
+   * 脚本的绝对或相对 URL。它同时充当池键。
+   *
+   * Absolute or relative URL of the script. Doubles as the pool key.
+   */
   src: string;
   /**
+   * SDK 全局变量是否存在。
+   *
+   * 该检查与 URL 绑定，所以请求同一个 URL 的两个调用者必须对「它定义了哪个全局变量」
+   * 保持一致（事实上确实一致：一个 URL 对应一个产品）。
+   *
    * Whether the SDK global exists.
    *
    * The check is associated with the URL, so two callers asking for the same URL must
    * agree about which global it defines (they do: one URL, one product).
    */
   isReady: () => boolean;
-  /** Override the default timeout. */
+  /** 覆盖默认超时。 / Override the default timeout. */
   timeoutMs?: number;
 }
 
@@ -163,11 +242,19 @@ function createDomScriptEnvironment(): ScriptLoaderEnvironment {
 const pagePool = new ScriptPool(createDomScriptEnvironment());
 
 /**
+ * 为整个页面借用其中一个验证码脚本。
+ *
+ * 在浏览器之外返回一个已拒绝的 promise 而不是抛出异常，这样在服务端渲染期间初始化的
+ * 组件可以上报 `error` 事件，而不是让渲染崩溃。
+ *
  * Borrow one of the captcha scripts for the whole page.
  *
  * Returns a rejected promise outside a browser rather than throwing, so a component
  * that initialises during server rendering can report an `error` event instead of
  * crashing the render.
+ *
+ * @param request 要借用的脚本请求 / The script request to borrow.
+ * @returns 一份带幂等 `release` 的租约 / A lease with an idempotent `release`.
  */
 export function acquireScript(request: ScriptRequest): ScriptLease {
   if (typeof document === "undefined" || !document.head) {

@@ -4,6 +4,18 @@ import type { SnailContext } from "../../core/context";
 import type { DtoType, PropertyTypeSpec } from "./type";
 
 /**
+ * JSON → 类的水合引擎。
+ *
+ * 刻意手写：`class-transformer` 会成为 axios 之外的第二份运行时依赖，而
+ * `reflect-metadata` 在这里毫无帮助——TypeScript 7 从不发射 `design:type`，因此**没有
+ * 任何**库能在缺少编译器插件的情况下发现属性类型。本插件读取的声明（`@PropertyType`）
+ * 因此不是权宜之计，而是运行时唯一可用的真相来源。
+ *
+ * ## 模型
+ *
+ * 基本类型、`null` 或深度超限的值原样返回；数组会为每一项生成实例；DTO 上若存在静态
+ * `fromJSON`，它直接胜出；否则新建实例并只填充已声明的属性。
+ *
  * The JSON → class hydration engine.
  *
  * Hand-written on purpose: `class-transformer` would be a second runtime
@@ -24,18 +36,38 @@ import type { DtoType, PropertyTypeSpec } from "./type";
  * ```
  */
 
-/** Depth used when the caller does not set `maxDepth`. */
+/**
+ * 调用方未设置 `maxDepth` 时使用的深度。
+ *
+ * Depth used when the caller does not set `maxDepth`.
+ */
 export const DEFAULT_MAX_DEPTH = 32;
 
-/** Options accepted by {@link hydrate}. */
+/**
+ * {@link hydrate} 接受的选项。
+ *
+ * Options accepted by {@link hydrate}.
+ */
 export interface HydrateOptions {
-  /** Keep JSON keys the DTO does not declare. Defaults to `false`. */
+  /**
+   * 保留 DTO 未声明的 JSON 键。默认 `false`。
+   *
+   * Keep JSON keys the DTO does not declare. Defaults to `false`.
+   */
   keepUnknown?: boolean;
 
-  /** Maximum object depth to descend. Defaults to {@link DEFAULT_MAX_DEPTH}. */
+  /**
+   * 向下递归的最大对象深度。默认 {@link DEFAULT_MAX_DEPTH}。
+   *
+   * Maximum object depth to descend. Defaults to {@link DEFAULT_MAX_DEPTH}.
+   */
   maxDepth?: number;
 
-  /** Forwarded to a DTO's `static fromJSON(raw, ctx)`. */
+  /**
+   * 转发给 DTO 的 `static fromJSON(raw, ctx)`。
+   *
+   * Forwarded to a DTO's `static fromJSON(raw, ctx)`.
+   */
   ctx?: SnailContext;
 }
 
@@ -243,6 +275,11 @@ function hydrateInto<T>(
 }
 
 /**
+ * 把普通 JSON 载荷变成 `DtoClass` 的实例。
+ *
+ * 基本类型、`null`、未知的类或过深的值都会原样返回而不是被包装：调用方要的是一个类实例，
+ * 但一个看起来不像实例的响应，保持原样比变成一个空实例更有用。
+ *
  * Turn a plain JSON payload into an instance of `DtoClass`.
  *
  * A primitive, `null`, an unknown class or an over-deep value is returned
@@ -253,6 +290,11 @@ function hydrateInto<T>(
  * const user = hydrate(raw, UserDto);
  * user instanceof UserDto; // true
  * ```
+ *
+ * @param raw 原始 JSON 载荷 / The raw JSON payload.
+ * @param DtoClass 要水合成的 DTO 类 / The DTO class to hydrate into.
+ * @param options 水合选项 / Hydration options.
+ * @returns `DtoClass` 的实例，或原样返回的 `raw` / An instance of `DtoClass`, or `raw` unchanged.
  */
 export function hydrate<T>(
   raw: unknown,

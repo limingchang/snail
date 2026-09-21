@@ -1,4 +1,24 @@
 /**
+ * 打印中面向 DOM 的那一半。
+ *
+ * ## 流水线
+ *
+ * 1. 读取文档自身的页面设置，并把它变成一段 `@media print` 块；
+ * 2. 把该块注入编辑器自己的 `<head>` —— 单个 `<style>` 元素，每次打印都复用，绝不用 iframe，
+ *    也绝不开新窗口，所以打印快照就是实时文档，应用的样式表、字体和图片都已就位；
+ * 3. 等待 `document.fonts.ready` 以及编辑器里的每一个 `<img>`，因为在网页字体完成切换之前
+ *    取得的打印快照显示的是回退字体的度量，并会让每一页发生重排（旧扩展什么都不等 ——
+ *    缺陷 35）；
+ * 4. 运行 `onBeforePrint`，设置 `document.title`，让「另存为 PDF」给出一个像样的文件名，然后
+ *    调用 `window.print()`；
+ * 5. 在 `afterprint` 时恢复标题并运行 `onAfterPrint`。
+ *
+ * ## 为什么没有 `alert()`，也不拒绝打印
+ *
+ * 旧扩展会比较各页的纸张，`alert()` 一段中文然后直接返回、不打印。用户要的是纸，却只得到一个
+ * 对话框和别的什么都没有，根本无从继续；这里文档会用第一页的纸张打印，不一致则通过
+ * {@link PrintExtensionOptions.onWarning} 上报。
+ *
  * The DOM-facing half of printing.
  *
  * ## The pipeline
@@ -33,6 +53,11 @@ import type { PrintStylesResult } from "./styles";
 import type { PrintExtensionOptions, PrintPageSetup, PrintWarning } from "./typing";
 
 /**
+ * 等待单张图片的毫秒数。
+ *
+ * 损坏的图片并非在所有引擎里都会触发 `load` *或* `error`，而一个卡住的 `data:` URL 解码器
+ * 也不该能把打印对话框永远挂住。
+ *
  * How long to wait for one image.
  *
  * A broken image never fires `load` *or* `error` in every engine, and a `data:` URL decoder
@@ -40,20 +65,28 @@ import type { PrintExtensionOptions, PrintPageSetup, PrintWarning } from "./typi
  */
 export const PRINT_IMAGE_TIMEOUT_MS = 3000;
 
-/** How long to wait for `document.fonts.ready`. */
+/** 等待字体就绪的毫秒数。 / How long to wait for `document.fonts.ready`. */
 export const PRINT_FONT_TIMEOUT_MS = 3000;
 
-/** `true` when there is a DOM to print. The extension is SSR-safe, so this is checked. */
+/**
+ * 有可打印的 DOM 时为 `true`。该扩展对 SSR 安全，所以这里做了检查。
+ *
+ * `true` when there is a DOM to print. The extension is SSR-safe, so this is checked.
+ */
 export function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
 }
 
-/** Narrow an unknown value to a non-null object record. */
+/** 把未知值收窄为非 null 的对象记录。 / Narrow an unknown value to a non-null object record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Read a paper format attribute, accepting a named size or a custom `{ width, height }`. */
+/**
+ * 读取纸张格式属性，接受命名尺寸或自定义的 `{ width, height }`。
+ *
+ * Read a paper format attribute, accepting a named size or a custom `{ width, height }`.
+ */
 export function readPaperFormat(value: unknown): PaperFormat | undefined {
   if (typeof value === "string") {
     // Validated against the table rather than cast: `resolvePaperSize` would silently fall
@@ -77,6 +110,11 @@ export function readPaperFormat(value: unknown): PaperFormat | undefined {
 }
 
 /**
+ * 读取某一个 `page` 节点的设置。
+ *
+ * 属性名就是 `typings/editor.ts` 里 `TemplatePageSetup` 固定的那两个（`paperFormat`、
+ * `orientation`），这是页面扩展与所有在编辑器之外渲染模板的代码之间的契约。
+ *
  * Read one `page` node's setup.
  *
  * The attribute names are the ones `TemplatePageSetup` in `typings/editor.ts` fixes
@@ -91,6 +129,11 @@ export function readPageSetup(attrs: Record<string, unknown>): PrintPageSetup {
 }
 
 /**
+ * 每一页的设置，按文档顺序。
+ *
+ * 用 `descendants` 而不是顶层 `forEach`：页面究竟是文档自己的子节点还是位于某个包裹节点内部，
+ * 是页面扩展的决定，而这个决定改变时打印扩展不该被迫跟着改。
+ *
  * Every page's setup, in document order.
  *
  * `descendants` rather than a top-level `forEach`: whether pages are the document's own
@@ -111,6 +154,11 @@ export function collectPageSetups(doc: ProseMirrorNode): PrintPageSetup[] {
 }
 
 /**
+ * 把扩展自身的覆盖项施加到文档的页面设置上。
+ *
+ * `PrintOptions.paperFormat`/`orientation` 的文档说明是默认取「文档自身的页面设置」，所以显式
+ * 给出的选项对每一页都生效 —— 这也正是让一篇混合文档能作为统一文档打印的原因。
+ *
  * Apply the extension's own overrides to the document's page setup.
  *
  * `PrintOptions.paperFormat`/`orientation` are documented as defaulting to "the document's
@@ -130,7 +178,11 @@ export function withOptionOverrides(
   }));
 }
 
-/** The setup `@page` will actually declare: the first page's. */
+/**
+ * `@page` 实际会声明的设置：第一页的。
+ *
+ * The setup `@page` will actually declare: the first page's.
+ */
 export function usedSetup(pages: PrintPageSetup[]): Required<PrintPageSetup> {
   const first = pages[0];
   return {
@@ -140,6 +192,10 @@ export function usedSetup(pages: PrintPageSetup[]): Required<PrintPageSetup> {
 }
 
 /**
+ * `promise` 敲定时结算，或者过了 `ms` 毫秒结算 —— 以先到者为准。
+ *
+ * 定时器总会被清除，所以即便图片很快返回也不会留下挂起的超时。
+ *
  * Settle when `promise` does, or after `ms` — whichever comes first.
  *
  * The timer is always cleared, so a fast image leaves no pending timeout behind.
@@ -155,7 +211,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<void> {
   });
 }
 
-/** Wait for the fonts the layout depends on. */
+/** 等待排版所依赖的字体。 / Wait for the fonts the layout depends on. */
 export async function waitForFonts(): Promise<void> {
   const ready = document.fonts?.ready;
   if (!ready) return;
@@ -165,7 +221,7 @@ export async function waitForFonts(): Promise<void> {
   await withTimeout(ready, PRINT_FONT_TIMEOUT_MS);
 }
 
-/** Wait for one image to be paintable. */
+/** 等待一张图片可被绘制。 / Wait for one image to be paintable. */
 export async function waitForImage(image: HTMLImageElement): Promise<void> {
   if (typeof image.decode === "function") {
     // `decode()` "resolves once the image is decoded and is safe to be appended to the DOM"
@@ -190,13 +246,18 @@ export async function waitForImage(image: HTMLImageElement): Promise<void> {
   });
 }
 
-/** Wait for every `<img>` under `root`. */
+/** 等待 `root` 下的每一个 `<img>`。 / Wait for every `<img>` under `root`. */
 export async function waitForImages(root: ParentNode): Promise<void> {
   const images = Array.from(root.querySelectorAll("img"));
   await Promise.all(images.map((image) => waitForImage(image)));
 }
 
 /**
+ * 注入（或刷新）那唯一一份打印样式表。
+ *
+ * 一个带稳定 id 的元素，反复复用：打印两次的使用方，或同一页面上的两个编辑器，都无法累积
+ * 样式表，而最后打印的那个编辑器就是文档打印时所用页面设置的来源。
+ *
  * Inject (or refresh) the single print stylesheet.
  *
  * One element with a stable id, reused: a host that prints twice, or two editors in one page,
@@ -219,7 +280,11 @@ export function injectPrintStyles(css: string): HTMLStyleElement {
   return style;
 }
 
-/** Build the warning for a mixed document, from the stylesheet that was already built. */
+/**
+ * 为一篇混合纸张的文档构造警告，取自已经构建好的样式表。
+ *
+ * Build the warning for a mixed document, from the stylesheet that was already built.
+ */
 export function mixedPageSetupWarning(
   pages: PrintPageSetup[],
   result: PrintStylesResult
@@ -244,6 +309,11 @@ export function mixedPageSetupWarning(
 }
 
 /**
+ * 打印文档。
+ *
+ * 普通失败绝不抛出：调用它的命令在工作完成之前就返回了，所以失败唯一能去的地方是
+ * `options.onError`。
+ *
  * Print the document.
  *
  * Never throws for an ordinary failure: the command that calls this returns before the work

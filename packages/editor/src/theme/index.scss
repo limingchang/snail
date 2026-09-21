@@ -5,13 +5,22 @@
  * Split in two because the two halves have different lifetimes:
  *
  * - `variables.scss` declares the `--se-*` palette and the scoped `--el-*` overrides;
- * - `base.scss` consumes them for the editor chrome.
+ * - `base.scss` consumes them for the editor chrome;
+ * - `element.scss` pulls in the Element Plus component CSS the editor renders.
  *
  * Nothing here is `@use`d by the components — a component's `<style scoped>` reads the
  * custom properties at runtime, which is what lets a consumer retheme an instance by
  * setting the variables on their own `.s-editor-scope` wrapper without recompiling
  * anything.
+ *
+ * The Element Plus half is loaded **first**: it is plain CSS (no variables to resolve), and putting
+ * it first means this package's own rules win wherever the two describe the same element — the
+ * palette deliberately re-points several `--el-*` tokens.
+ *
+ * All four are `@use`, not `@import`: Sass requires every `@use` to precede any other rule, so a
+ * local `@import` here would force the page stylesheet above it and lose that ordering.
  */
+@use "./element";
 @use "./variables";
 @use "./base";
 

@@ -1,4 +1,29 @@
 /**
+ * `@snail-js/api/plugins`——内置的可选插件。
+ *
+ * ## 为什么单独作为一个入口
+ *
+ * 这里没有任何东西属于核心。把插件挡在 `@snail-js/api/plugins` 之后，意味着只导入根入口
+ * 的应用完全不必为它们付出代价——没有缓存、没有校验，也没有 JSON→类的水合。每个插件都
+ * 有自己的目录和 barrel，因此打包工具可以丢掉某个应用从未调用过的那些。
+ *
+ * ## 框架适配器不在这里，也不需要
+ *
+ * 本 barrel 里的每个插件都与框架无关，所以导入它永远不会把 Vue、React 或 zod 拉进产物。
+ * 框架的选择是一项**服务端选项**而不是插件：在 `@Server()` 上声明 `stateAdapter` 即可。
+ * 核心读取该选项来在 `method.meta` 上构建句柄，`use*` 策略则从传给它的方法上读取它；
+ * 一份声明同时驱动两者，而且因为它是按服务端设置的，两个服务端可以使用不同的框架。
+ *
+ * ## 注册顺序无关紧要
+ *
+ * 插件按 `priority` 排序，而不是按 `use()` 的调用顺序（优先级表见下）。每个区间都导出为
+ * 常量——`INTERCEPTOR_PRIORITY`、`VERSIONING_PRIORITY`、`TRANSFORM_PRIORITY`、
+ * `VALIDATE_PRIORITY`、`CACHE_PRIORITY`、`POOL_PRIORITY`——所以插件可以相对邻居定位自己
+ * （`CACHE_PRIORITY + 1`），而不必硬编码一个魔法数字。正向钩子按优先级从高到低执行，因此
+ * 拦截器在缓存计算哈希之前看到请求，而排在最后的请求池只会拦下缓存无法应答的请求；回卷
+ * 钩子方向相反，所以缓存先存下原始信封，再轮到校验与转换。推理见
+ * `docs/guide/plugin-lifecycle.md` §2.1。
+ *
  * `@snail-js/api/plugins` — the built-in optional plugins.
  *
  * ```ts

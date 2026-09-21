@@ -29,10 +29,13 @@ describe("DEFAULT_EDITOR_LOCALE", () => {
     expect(text).not.toContain("别名");
   });
 
-  it("explains the missing-furniture case instead of blaming the footer", () => {
-    const missing = DEFAULT_EDITOR_LOCALE.page.pageNumberMissing;
-    expect(missing).toContain("页眉");
-    expect(missing).toContain("页脚");
+  it("names the three regions and the option that removes a placement", () => {
+    // The placement controls are `<side>:<slot>` and "不显示" is the value that removes the number
+    // or the logo, so these four strings are load-bearing rather than decoration.
+    expect(DEFAULT_EDITOR_LOCALE.page.slotLeft).toBe("左");
+    expect(DEFAULT_EDITOR_LOCALE.page.slotCenter).toBe("中");
+    expect(DEFAULT_EDITOR_LOCALE.page.slotRight).toBe("右");
+    expect(DEFAULT_EDITOR_LOCALE.page.pageNumberHidden).not.toBe("");
   });
 
   it("has labels for the controls the panels gained", () => {
@@ -43,5 +46,7 @@ describe("DEFAULT_EDITOR_LOCALE", () => {
     expect(DEFAULT_EDITOR_LOCALE.table.layoutTable).not.toBe("");
     expect(DEFAULT_EDITOR_LOCALE.insert.variable).not.toBe("");
     expect(DEFAULT_EDITOR_LOCALE.insert.qrcode).not.toBe("");
+    expect(DEFAULT_EDITOR_LOCALE.page.logoUpload).not.toBe("");
+    expect(DEFAULT_EDITOR_LOCALE.page.logoTooLarge).not.toBe("");
   });
 });

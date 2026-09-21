@@ -1,4 +1,16 @@
 /**
+ * `qrcode` 节点的属性及其 HTML 编码方式。
+ *
+ * ## 编码方式
+ *
+ * 编码表见下。四个结构化属性共用一个 `data-*` 属性，这正是每个属性的 `renderHTML` 都返回
+ * `{}` 的原因：Tiptap 会把每个属性的贡献合并进同一个对象，四个写入方会互相覆盖。节点自己
+ * 的 `renderHTML`（在 `index.ts` 中）从 `node.attrs` 一次性写出这个 blob，而下面每个属性的
+ * `parseHTML` 再从它里面读回自己的字段。
+ *
+ * 这是对旧缺陷 34 的修复：旧节点只声明了 `src`、`size` 与 `position`，完全不渲染 `data-*`，
+ * 于是每次保存都会丢掉 `text`。
+ *
  * The `qrcode` node's attributes and their HTML encoding.
  *
  * ## The encoding
@@ -34,38 +46,50 @@ import {
 } from "./geometry";
 import type { QRCodeAttrs, QRCodeConfig, QRColor, QRLength, QRPosition } from "./typing";
 
-/** The marker attribute `parseHTML` matches on. */
+/** `parseHTML` 用来匹配的标记属性。 / The marker attribute `parseHTML` matches on. */
 export const QR_CODE_TYPE_ATTRIBUTE = "data-type";
 
-/** The value {@link QR_CODE_TYPE_ATTRIBUTE} must hold. */
+/**
+ * {@link QR_CODE_TYPE_ATTRIBUTE} 必须持有的值。
+ *
+ * The value {@link QR_CODE_TYPE_ATTRIBUTE} must hold.
+ */
 export const QR_CODE_TYPE_VALUE = "qrcode";
 
-/** The payload, as a plain attribute so it is readable without a JSON parse. */
+/**
+ * 载荷，作为一个普通属性，因此不做 JSON 解析也能读懂。
+ *
+ * The payload, as a plain attribute so it is readable without a JSON parse.
+ */
 export const QR_CODE_TEXT_ATTRIBUTE = "data-qrcode-text";
 
-/** The structured attributes, as one JSON blob. */
+/** 结构化属性，合并为一个 JSON blob。 / The structured attributes, as one JSON blob. */
 export const QR_CODE_CONFIG_ATTRIBUTE = "data-qrcode-config";
 
-/** The accessible label. */
+/** 无障碍标签。 / The accessible label. */
 export const QR_CODE_ALT_ATTRIBUTE = "alt";
 
-/** The generated raster. */
+/** 生成出来的位图。 / The generated raster. */
 export const QR_CODE_SRC_ATTRIBUTE = "src";
 
-/** Read the JSON blob off an element. */
+/** 从元素上读取 JSON blob。 / Read the JSON blob off an element. */
 function readConfig(element: HTMLElement): Partial<QRCodeConfig> {
   return decodeQRCodeConfig(element.getAttribute(QR_CODE_CONFIG_ATTRIBUTE));
 }
 
-/** Narrow an unknown attribute value to a string. */
+/** 把未知的属性值收窄为字符串。 / Narrow an unknown attribute value to a string. */
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-/** The attribute set, written by the node's `renderHTML` and read by its `parseHTML`. */
+/**
+ * 属性集，由节点自己的 `renderHTML` 写入、由其 `parseHTML` 读取。
+ *
+ * The attribute set, written by the node's `renderHTML` and read by its `parseHTML`.
+ */
 export function qrCodeAttributes() {
   return {
-    /** The payload. */
+    /** 载荷。 / The payload. */
     text: {
       default: QR_DEFAULT_TEXT,
       parseHTML: (element: HTMLElement): string =>
@@ -75,7 +99,7 @@ export function qrCodeAttributes() {
       })
     },
 
-    /** The generated raster. */
+    /** 生成出来的位图。 / The generated raster. */
     src: {
       default: "",
       // Read from `src` rather than a `data-*` twin: a document exported from the editor
@@ -87,7 +111,7 @@ export function qrCodeAttributes() {
       })
     },
 
-    /** The accessible label. */
+    /** 无障碍标签。 / The accessible label. */
     alt: {
       default: QR_DEFAULT_ALT,
       // An absent `alt` means "no label was given", so the default applies.
@@ -98,7 +122,7 @@ export function qrCodeAttributes() {
       })
     },
 
-    /** Rendered size. The default is the legacy extension's. */
+    /** 渲染尺寸。默认值取自旧扩展。 / Rendered size. The default is the legacy extension's. */
     size: {
       default: { ...QR_DEFAULT_SIZE } satisfies QRLength,
       parseHTML: (element: HTMLElement): QRLength | undefined => readConfig(element).size,
@@ -106,21 +130,21 @@ export function qrCodeAttributes() {
       renderHTML: () => ({})
     },
 
-    /** Offset from the page's content-box origin. */
+    /** 相对页面内容盒原点的偏移。 / Offset from the page's content-box origin. */
     position: {
       default: { ...QR_DEFAULT_POSITION } satisfies QRPosition,
       parseHTML: (element: HTMLElement): QRPosition | undefined => readConfig(element).position,
       renderHTML: () => ({})
     },
 
-    /** The raster's two colours. */
+    /** 位图的两种颜色。 / The raster's two colours. */
     color: {
       default: { ...QR_DEFAULT_COLOR } satisfies QRColor,
       parseHTML: (element: HTMLElement): QRColor | undefined => readConfig(element).color,
       renderHTML: () => ({})
     },
 
-    /** The quiet zone, in modules. */
+    /** 静区，单位为模块。 / The quiet zone, in modules. */
     margin: {
       default: QR_DEFAULT_MARGIN,
       parseHTML: (element: HTMLElement): number | undefined => readConfig(element).margin,
@@ -130,6 +154,12 @@ export function qrCodeAttributes() {
 }
 
 /**
+ * 按 ProseMirror 解析器的方式从元素上读取每一个属性。
+ *
+ * 往返的读取半边，导出是为了让测试不必启动一个真实编辑器就能驱动它：`getAttribute` 是这些
+ * 读取器用到的唯一 DOM 方法。逐个属性写出来，而不是遍历 `qrCodeAttributes()`，因为结果是
+ * 有类型的 `Partial<QRCodeAttrs>`，而接口没有索引签名可供赋值。
+ *
  * Read every attribute off an element, the way ProseMirror's parser will.
  *
  * The reader half of the round-trip, exported so the tests can drive it without a live
@@ -159,6 +189,10 @@ export function parseQRCodeAttributes(element: HTMLElement): Partial<QRCodeAttrs
 }
 
 /**
+ * 把属性补丁应用到一组基础属性上，并对结果做规范化。
+ *
+ * 这次合并*就是* `updateQRCode` 的语义，所以它放在这里，以便脱离编辑器被测试。
+ *
  * Apply an attribute patch to a base set, normalising the result.
  *
  * This merge *is* `updateQRCode`'s semantics, so it lives here where it can be tested
@@ -171,7 +205,11 @@ export function mergeQRCodeAttrs(
   return normalizeAttrs({ ...base, ...patch });
 }
 
-/** Write the four structured attributes as the single JSON blob. */
+/**
+ * 把四个结构化属性写成那一个 JSON blob。
+ *
+ * Write the four structured attributes as the single JSON blob.
+ */
 export function renderQRCodeConfig(attrs: QRCodeAttrs): Record<string, string> {
   return { [QR_CODE_CONFIG_ATTRIBUTE]: encodeQRCodeConfig(attrs) };
 }

@@ -43,6 +43,26 @@ import type {
 } from "./type";
 
 /**
+ * `SWordCloud` —— 一朵旋转的三维词云。
+ *
+ * 球面投影的观感本身就是它的卖点，已被逐字节保留（见 `model.ts`）；而*如何*
+ * 动起来的部分则全部重写：
+ *
+ * - 整朵云只用一个 `requestAnimationFrame` 循环。旧版每个标签一个 `setInterval`
+ *   （周期 `15 ms`），而且每个标签的 `style` getter 每 tick 都读一次
+ *   `offsetWidth` / `offsetHeight` —— 每秒都有 N 个定时器和 N 次强制重排。
+ * - 方向会被旋转并重新归一化，因此标签永远不会离开球面。旧循环把已经改写的
+ *   `z` 喂给下一次旋转且从不归一化：`scale = D / (D - z)` 在 `z` 逼近 `2R`
+ *   时失控，标签被甩出方框。
+ * - 尺寸只在布局变化时测量（`ResizeObserver`、字体就绪、props 变化），
+ *   绝不逐帧测量。
+ * - 颜色由词索引推导，重渲染不会打乱整朵云（旧版 `randomColor()` 是在渲染
+ *   *过程中*调用的）。
+ * - 指针悬停在云上（`pauseOnHover`）、离开视口（`IntersectionObserver`）、
+ *   标签页隐藏时循环停止；在 `prefers-reduced-motion` 下则完全停下，只静态
+ *   绘制一次。旧版 `onUnmounted` 只清掉两个定时器中的一个，组件销毁后动画
+ *   仍在跑。
+ *
  * `SWordCloud` — a rotating 3D word cloud.
  *
  * The spherical projection look is the feature and is preserved exactly (see
@@ -392,8 +412,11 @@ onBeforeUnmount(() => {
 });
 
 defineExpose<WordCloudExposed>({
+  /** 启动（或恢复）旋转循环。 / Start (or resume) the rotation loop. */
   start,
+  /** 停止循环，标签停在原地。 / Stop the loop, leaving the tags where they are. */
   stop,
+  /** 循环当前是否已排程。 / Whether the loop is currently scheduled. */
   get isRunning(): boolean {
     return running.value;
   }

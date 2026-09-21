@@ -1,4 +1,13 @@
 /**
+ * 构建水印的 DOM——扩展里唯一依赖 DOM 的部分。
+ *
+ * 这里创建的每个元素都是携带该水印的*真实*元素，这正是水印能打印出来的原因：
+ * `print-color-adjust: exact` 被记载为浏览器可以忽略的提示，而 CSS 背景在用户没有要求背景
+ * 图形时明确允许被丢弃。见 `settings.ts` 的模块注释。
+ *
+ * 元素由 widget 装饰的 `toDOM` 创建，因此它从不属于文档：它无法被复制、无法被导出、也无法被
+ * 保存（见 `index.ts`）。
+ *
  * Building the watermark's DOM — the only DOM-dependent part of the extension.
  *
  * Every element created here is a *real* element carrying the mark, which is what makes the
@@ -24,13 +33,17 @@ import {
 } from "./settings";
 import type { WatermarkSettings } from "./typing";
 
-/** The SVG namespace, needed by `createElementNS`. */
+/** SVG 命名空间，`createElementNS` 需要。 / The SVG namespace, needed by `createElementNS`. */
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
-/** The XLink namespace, for the legacy `xlink:href` an SVG `<image>` may still need. */
+/**
+ * XLink 命名空间，用于 SVG `<image>` 可能仍然需要的旧式 `xlink:href`。
+ *
+ * The XLink namespace, for the legacy `xlink:href` an SVG `<image>` may still need.
+ */
 const XLINK_NAMESPACE = "http://www.w3.org/1999/xlink";
 
-/** Write a declaration map onto an element's inline style. */
+/** 把声明表写到元素的行内样式上。 / Write a declaration map onto an element's inline style. */
 function applyDeclarations(
   element: HTMLElement | SVGElement,
   declarations: Record<string, string>
@@ -40,14 +53,14 @@ function applyDeclarations(
   }
 }
 
-/** Write an attribute map onto an element. */
+/** 把属性表写到元素上。 / Write an attribute map onto an element. */
 function applyAttributes(element: Element, attributes: Record<string, string>): void {
   for (const [name, value] of Object.entries(attributes)) {
     element.setAttribute(name, value);
   }
 }
 
-/** The single centred text mark. */
+/** 单个居中的文本水印。 / The single centred text mark. */
 function createTextMark(settings: WatermarkSettings): HTMLElement {
   const mark = document.createElement("span");
   mark.className = WATERMARK_MARK_CLASS;
@@ -56,7 +69,7 @@ function createTextMark(settings: WatermarkSettings): HTMLElement {
   return mark;
 }
 
-/** The single centred image mark. */
+/** 单个居中的图片水印。 / The single centred image mark. */
 function createImageMark(settings: WatermarkSettings): HTMLElement {
   const mark = document.createElement("img");
   mark.className = WATERMARK_MARK_CLASS;
@@ -69,6 +82,12 @@ function createImageMark(settings: WatermarkSettings): HTMLElement {
 }
 
 /**
+ * 一个瓦片。
+ *
+ * 平铺水印是一组真实的、行内 `<svg>` 元素组成的网格，**不是**重复的 CSS 背景图：背景会被打印
+ * 对话框的「背景图形」设置丢掉，而平铺水印恰恰是最需要活下来的那个——合同正是靠它让影印件
+ * 一眼就是影印件。
+ *
  * One tile.
  *
  * A tiled watermark is a grid of real inline `<svg>` elements, **not** a repeating CSS
@@ -99,6 +118,11 @@ function createTile(settings: WatermarkSettings): SVGElement {
 }
 
 /**
+ * 一页的覆盖层元素。
+ *
+ * `aria-hidden="true"` 让它不进入无障碍树，`pointer-events: none`（在容器声明里）让它无法拦截
+ * 点击——水印是装饰，而装饰绝不能获得焦点、被选中或被点击。
+ *
  * The overlay element for one page.
  *
  * `aria-hidden="true"` keeps it out of the accessibility tree and `pointer-events: none`

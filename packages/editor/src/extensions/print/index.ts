@@ -1,4 +1,28 @@
 /**
+ * `print` 扩展 —— 用编辑器自身文档里的原生 `@media print` 打印。
+ *
+ * 没有 iframe、没有 `window.open`、没有依赖（已批准的决策 5）。旧的 `browserPrint.ts` 造了一个
+ * `display: none` 的 iframe 并把页面副本写进去，那是一个*新文档*：应用的样式表不在那里，
+ * `<link media="screen">` 规则被丢弃，字体和图片必须从头再等一遍，剩下的由用户的「背景图形」
+ * 与「页眉和页脚」复选框决定。打印实时文档可以消除上述每一种失败模式。
+ *
+ * ## 两条命令
+ *
+ * - `printDocument()` —— 真正的名字。
+ * - `print()` —— 顶层组件对外 API（`SEditorExposed.print`）调用的别名，
+ *   这样组件不必知道是哪个扩展实现了打印。
+ *
+ * 两者都在流水线被*接受*后立刻返回 `true`：字体和图片必须等待，所以工作无法在一个
+ * 同步命令内完成。需要知道它何时完成（或失败）的使用方改用 `onAfterPrint`/`onError`。
+ *
+ * ## 一处有意保留的注意事项
+ *
+ * 直接按浏览器 Ctrl+P 不会走这条流水线，那样打印出来的文档只会拿到主题里静态的
+ * `@media print` 规则，而拿不到生成的 `@page` 块。使用方应把自身的打印快捷键/菜单路由到
+ * `editor.commands.printDocument()`。（理论上扩展可以用全局 `beforeprint` 监听器自我武装，
+ * 但监听器是按窗口的，同一个页面上有两个编辑器时赢的会是错误的那个 —— 静默地、
+ * 且只是偶尔发生，这比一条有文档说明的限制更糟。）
+ *
  * The `print` extension — native `@media print` in the editor's own document.
  *
  * No iframe, no `window.open`, no dependency (approved decision 5). The legacy
@@ -35,7 +59,11 @@ import type { Editor } from "@tiptap/core";
 import { isBrowser, runPrint } from "./printDocument";
 import type { PrintExtensionOptions } from "./typing";
 
-/** Re-export the contract and the pure helpers, so a host has one import. */
+/**
+ * 重新导出契约与纯函数助手，让使用方只需一处导入。
+ *
+ * Re-export the contract and the pure helpers, so a host has one import.
+ */
 export type {
   PrintExtensionOptions,
   PrintPageSetup,
@@ -58,6 +86,13 @@ export {
 } from "./styles";
 export type { PrintStylesInput, PrintStylesResult } from "./styles";
 /**
+ * 打印流水线自己的助手。
+ *
+ * `readPageSetup` 与 `readPaperFormat` 有意**不**在这里重新导出。页面扩展自己导出了一个
+ * `readPaperFormat`，而 `src/index.ts` 用 `export *` 同时重新导出两个 barrel，于是两个同名的
+ * 星号导出构成歧义错误，而不是后者覆盖前者。它们仍从 `printDocument.ts` 导出，供需要它们的
+ * 使用方使用。
+ *
  * The print pipeline's own helpers.
  *
  * `readPageSetup` and `readPaperFormat` are deliberately **not** re-exported here. The page
@@ -81,7 +116,7 @@ export {
   withTimeout
 } from "./printDocument";
 
-/** The `print` extension. */
+/** `print` 扩展。 / The `print` extension. */
 export const Print = Extension.create<PrintExtensionOptions>({
   name: "print",
 
@@ -110,6 +145,11 @@ export const Print = Extension.create<PrintExtensionOptions>({
     const extension = this;
 
     /**
+     * 接受一次打印请求并运行流水线。
+     *
+     * 没有 DOM 时（SSR 渲染或测试环境）返回 `false`，这与其他命令表达「此处无法完成」的契约
+     * 一致。
+     *
      * Accept a print request and run the pipeline.
      *
      * `false` when there is no DOM (an SSR render, or a test environment), which is the same
@@ -128,10 +168,14 @@ export const Print = Extension.create<PrintExtensionOptions>({
     };
 
     return {
-      /** Print the document. */
+      /** 打印文档。 / Print the document. */
       printDocument,
 
       /**
+       * 同一条命令，用组件对外 API 使用的名字。
+       *
+       * 做成别名而不是重新实现，这样流水线有且只有一条。
+       *
        * The same command under the name the component's exposed API uses.
        *
        * Aliased rather than re-implemented, so there is exactly one pipeline.
@@ -141,18 +185,30 @@ export const Print = Extension.create<PrintExtensionOptions>({
   }
 });
 
-/** The commands the extension adds. */
+/** 该扩展添加的命令。 / The commands the extension adds. */
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     print: {
-      /** Print the document through the browser's own dialog. `false` when there is no DOM. */
+      /**
+       * 用浏览器自带的对话框打印文档。没有 DOM 时返回 `false`。
+       *
+       * Print the document through the browser's own dialog. `false` when there is no DOM.
+       */
       printDocument: () => ReturnType;
 
-      /** Alias of {@link Commands.print.printDocument}, for `SEditorExposed.print()`. */
+      /**
+       * 供 `SEditorExposed.print()` 使用的别名，指向 {@link Commands.print.printDocument}。
+       *
+       * Alias of {@link Commands.print.printDocument}, for `SEditorExposed.print()`.
+       */
       print: () => ReturnType;
     };
   }
 }
 
-/** The default export, so `import Print from "./print"` also works. */
+/**
+ * 默认导出，因此 `import Print from "./print"` 同样可用。
+ *
+ * The default export, so `import Print from "./print"` also works.
+ */
 export default Print;

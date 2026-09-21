@@ -8,28 +8,66 @@ import { deferred } from "../utils/object";
 import { withDispose } from "./connection";
 import type { SnailLogger } from "./logger";
 
-/** Everything the HTTP streaming transport needs. */
+/**
+ * HTTP 流式传输所需的全部信息。
+ *
+ * Everything the HTTP streaming transport needs.
+ */
 export interface HttpStreamInit {
-  /** Fully qualified url. */
+  /**
+   * 完整限定的 url。
+   *
+   * Fully qualified url.
+   */
   url: string;
-  /** Options from `@HttpStream(path, options)` with its request method. */
+  /**
+   * `@HttpStream(path, options)` 的选项，并带上其请求方法。
+   *
+   * Options from `@HttpStream(path, options)` with its request method.
+   */
   options: SnailHttpStreamOptions & { method?: string };
-  /** Request payload. */
+  /**
+   * 请求负载。
+   *
+   * Request payload.
+   */
   body: unknown;
-  /** Name used in log lines. */
+  /**
+   * 日志行中使用的名称。
+   *
+   * Name used in log lines.
+   */
   name: string;
-  /** Extra headers (server-level, auth, …). */
+  /**
+   * 额外的请求头（服务器级、鉴权等）。
+   *
+   * Extra headers (server-level, auth, …).
+   */
   headers?: Record<string, string>;
-  /** Logger. */
+  /**
+   * 输出诊断信息的 logger。
+   *
+   * Logger.
+   */
   logger: SnailLogger;
 }
 
 /**
+ * 流式 HTTP 响应。
+ *
+ * 之所以用 `fetch`，是因为它把响应体以 `ReadableStream` 的形式交出来，在浏览器、
+ * Node 18+ 和 worker 中都能工作。连接对象本身可异步迭代，因此调用方可以直接写
+ * `for await (const chunk of stream)`。
+ *
  * Streaming HTTP response.
  *
  * Uses `fetch` so the response body arrives as a `ReadableStream`, which works
  * in browsers, Node 18+ and workers alike. The connection object is itself
  * async-iterable, so callers write `for await (const chunk of stream)`.
+ *
+ * @param init 创建这条流连接所需的全部信息 / Everything needed to create the stream.
+ * @returns 可异步迭代、可主动关闭的流连接 /
+ *   An async-iterable stream connection that can be closed explicitly.
  */
 export function createHttpStream(init: HttpStreamInit): SnailHttpStreamConnection {
   const { url, options, body, name, logger } = init;
@@ -85,6 +123,12 @@ export function createHttpStream(init: HttpStreamInit): SnailHttpStreamConnectio
   };
 
   /**
+   * 立即发起请求，而不是等到第一次迭代时再发起。
+   *
+   * `opened` 和 `closed` 只有在请求已经在途时才有意义：懒启动的流会让
+   * `await connection.opened` 永远挂起，这是一个陷阱。创建连接**就是**流的
+   * “发送”动作。
+   *
    * Start the request immediately rather than on first iteration.
    *
    * `opened` and `closed` are only useful if the request is already in flight — a

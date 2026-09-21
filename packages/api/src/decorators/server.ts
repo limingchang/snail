@@ -5,6 +5,13 @@ import { defineMetadata, getOwnMetadata } from "../core/metadata";
 import { SNAIL_SERVER_OPTIONS } from "../core/metadata.keys";
 
 /**
+ * 声明一个 server 类的选项。
+ *
+ * 简写形式等价于 `{ baseURL }`（示例见下）。
+ *
+ * 重复应用 `@Server` 会合并选项，且**最外层装饰器胜出**——装饰器自下而上求值，
+ * 因此写在离类最远处的那个最后应用（示例见下）。
+ *
  * Declare the options of a server class.
  *
  * ```ts

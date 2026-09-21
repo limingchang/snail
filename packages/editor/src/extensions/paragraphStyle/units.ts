@@ -1,4 +1,19 @@
 /**
+ * 段落样式值及其单位 —— 全部是纯函数。
+ *
+ * ## 这里修掉的 bug
+ *
+ * 旧的测量代码对一个计算样式做 `parseFloat(value)`（`measuror.ts:232`）：`"2em"` 变成 `2`，
+ * `"12pt"` 变成 `12`，然后两者都被当作像素。2 em 的首行缩进被量成 2 px，于是分页引擎为带缩进的
+ * 段落算出的每一个高度都是错的。这里绝不会从一个带单位的字符串里产出裸数字：长度被解析成
+ * `{ value, unit }`，而像素换算必须被告知它相对于哪个字体。
+ *
+ * ## 为什么不复用 `src/editor/cssLength.ts`
+ *
+ * 那个模块是*工具栏面板*的助手，位于组件层。扩展必须能在从不挂载工具栏的使用方里工作
+ * （各扩展是单独选择启用的），所以段落模型拥有自己的读取实现。两者只在 `px`/`pt` 换算上重叠；
+ * 这里有意思的情形（`em`/`rem` 需要字号，以及不等于 `"0"` 的 `null`）是段落特有的。
+ *
  * Paragraph style values and their units — all pure.
  *
  * ## The bug this closes
@@ -26,13 +41,27 @@ import type {
   PixelsContext
 } from "./typing";
 
-/** A CSS point is 1/72 in and CSS defines the inch as exactly 96 px. */
+/**
+ * 一个 CSS 点等于 1/72 英寸，而 CSS 把一英寸定义为正好 96 px。
+ *
+ * A CSS point is 1/72 in and CSS defines the inch as exactly 96 px.
+ */
 const PIXELS_PER_POINT = 96 / 72;
 
-/** What `em`/`rem` are relative to when nothing is known. Matches every browser's default. */
+/**
+ * 在什么都不知道时 `em`/`rem` 相对于什么。与每个浏览器的默认值一致。
+ *
+ * What `em`/`rem` are relative to when nothing is known. Matches every browser's default.
+ */
 const DEFAULT_FONT_SIZE = 16;
 
 /**
+ * 解析一个 CSS 长度。
+ *
+ * 裸数字按 `px` 读取，这是 CSS 的做法，也是 `src/editor/cssLength.ts` 为面板所做的。任何无法
+ * 识别的内容都返回 `undefined` 而不是 `NaN`：渲染出 `NaNmm` 的工具栏比保留模型自身取值的
+ * 工具栏更糟，而样式属性里的 `NaN` 会静默地让整条声明失效。
+ *
  * Parse a CSS length.
  *
  * A bare number is read as `px`, which is what CSS does, and what
@@ -58,13 +87,23 @@ export function parseParagraphLength(
   return { value, unit: (unit === undefined ? "px" : unit.toLowerCase()) as ParsedParagraphLength["unit"] };
 }
 
-/** Write a length back out, e.g. `{ value: 2, unit: "em" }` → `"2em"`. */
+/**
+ * 把长度写回去，例如 `{ value: 2, unit: "em" }` → `"2em"`。
+ *
+ * Write a length back out, e.g. `{ value: 2, unit: "em" }` → `"2em"`.
+ */
 export function formatParagraphLength(length: ParsedParagraphLength): string {
   const value = Number.isFinite(length.value) ? length.value : 0;
   return `${value}${length.unit}`;
 }
 
 /**
+ * 把长度换算成像素。
+ *
+ * `em`/`%` 使用元素自身的字号，`rem` 使用根元素的字号，两者都默认为 16 px，因为浏览器在没有
+ * 设置字体时就是这么做的。手头有元素的调用方应当传入它真实的 `fontSize` —— 这就是旧代码完全
+ * 跳过的那次换算。
+ *
  * Convert a length to pixels.
  *
  * `em`/`%` use the element's own font size and `rem` the root's, both defaulting to 16 px
@@ -93,6 +132,12 @@ export function toPixels(length: ParsedParagraphLength, context: PixelsContext =
 }
 
 /**
+ * 把计算样式的值读成像素。
+ *
+ * 供刚调用过 `getComputedStyle(element).textIndent` 且需要一个数字的工具栏面板使用：单位会被
+ * 尊重，字体上下文由调用方提供。任何无法解析的内容（`"auto"`、`"normal"`、`calc()`）返回
+ * `undefined`，这样面板可以回退到模型，而不是写入 `NaNpx`。
+ *
  * Read a computed style value into pixels.
  *
  * For a toolbar panel that has just called `getComputedStyle(element).textIndent` and needs a
@@ -109,6 +154,14 @@ export function readComputedLengthPixels(
 }
 
 /**
+ * 规范化一个样式值。
+ *
+ * - `null` 保持为 `null`（那个*移除*样式的值）；
+ * - 空字符串或只有空白的字符串变成 `null`，因为清空输入框的 UI 意思是「没有缩进」，而不是
+ *   「缩进一个空值」；
+ * - 任何既不是字符串也不是 `null` 的东西变成 `undefined`，即「根本不是一个值」，命令把它当作
+ *   「不要动这个属性」。
+ *
  * Normalise one style value.
  *
  * - `null` stays `null` (the value that *removes* a style);
@@ -125,11 +178,20 @@ export function normalizeParagraphStyleValue(value: unknown): ParagraphStyleValu
   return trimmed.length === 0 ? null : trimmed;
 }
 
-/** `true` when a value means "no style" — either `null` or the empty string. */
+/**
+ * 值表示「没有样式」时为 `true` —— 即 `null` 或空字符串。
+ *
+ * `true` when a value means "no style" — either `null` or the empty string.
+ */
 export function isEmptyParagraphStyleValue(value: unknown): boolean {
   return normalizeParagraphStyleValue(value) === null;
 }
 /**
+ * `patch` 中真正会改变 `current` 的那个子集。
+ *
+ * 什么都不会改变时为 `undefined`。「什么都没变就返回 `false`」的全部含义就在这里 —— 旧命令会
+ * 记录一条消息并返回 `false`，使用方既看不到也无法据以行动（还让该命令在链式调用里毫无用处）。
+ *
  * The subset of `patch` that would actually change `current`.
  *
  * `undefined` when nothing would change. That is the whole of "return `false` when nothing
@@ -161,6 +223,12 @@ export function changedParagraphStyleAttrs(
 }
 
 /**
+ * 一组属性渲染出的 CSS 声明。
+ *
+ * 只写出已设置的值。旧实现里 `textIndent` 的默认值 `"0"` 意味着这个映射从不为空，于是文档里的
+ * 每个段落都携带 `text-indent: 0;` —— HTML 里的噪音、每次保存都产生 diff，以及给工具栏一个
+ * 「用户设置过它」的假信号。
+ *
  * The CSS declarations an attribute set renders to.
  *
  * Only set values are written. The legacy `textIndent` default of `"0"` meant this map was
@@ -186,7 +254,11 @@ export function paragraphStyleDeclarations(attrs: ParagraphStyleAttrs): Record<s
   return declarations;
 }
 
-/** The `style` attribute value for an attribute set, or `undefined` when there is nothing. */
+/**
+ * 一组属性对应的 `style` 属性值，没有内容时为 `undefined`。
+ *
+ * The `style` attribute value for an attribute set, or `undefined` when there is nothing.
+ */
 export function paragraphStyleString(attrs: ParagraphStyleAttrs): string | undefined {
   const entries = Object.entries(paragraphStyleDeclarations(attrs));
   if (entries.length === 0) return undefined;

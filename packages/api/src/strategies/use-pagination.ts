@@ -6,6 +6,11 @@ import { createStrategyState } from "./shared/state";
 import type { StrategyState } from "./shared/state";
 
 /**
+ * 分页方法作为唯一参数接收的请求描述符。
+ *
+ * 分页由 hook 负责，因此这两个值由 hook——而不是调用方——提供。声明了额外查询字段的方法
+ * （`PageRequest & { keyword: string }`）依然匹配，因为 hook 的参数可赋值给更宽的形状。
+ *
  * The request descriptor a paginated method receives as its single argument.
  *
  * ```ts
@@ -18,21 +23,46 @@ import type { StrategyState } from "./shared/state";
  * still matches, because the hook's argument is assignable to the wider shape.
  */
 export interface PageRequest {
-  /** 1-based page number. */
+  /**
+   * 页码，1 起。
+   *
+   * 1-based page number.
+   */
   page: number;
-  /** Items per page. */
+  /**
+   * 每页条数。
+   *
+   * Items per page.
+   */
   pageSize: number;
 }
 
-/** Options accepted by {@link usePagination}. */
+/**
+ * {@link usePagination} 接受的选项。
+ *
+ * Options accepted by {@link usePagination}.
+ */
 export interface UsePaginationOptions<TData> extends SnailStrategyCommonOptions {
-  /** Page the hook starts on. Defaults to `1`. */
+  /**
+   * hook 起始页码。默认 `1`。
+   *
+   * Page the hook starts on. Defaults to `1`.
+   */
   initialPage?: number;
 
-  /** Items per page the hook starts with. Defaults to `10`. */
+  /**
+   * hook 起始的每页条数。默认 `10`。
+   *
+   * Items per page the hook starts with. Defaults to `10`.
+   */
   initialPageSize?: number;
 
   /**
+   * 从载荷中读出总行数。
+   *
+   * 默认取 `payload.total ?? payload.count ?? payload.length`——后端实际会返回的三种形状。
+   * 没有可信的总数时，hook 会退回到「短页即末页」，而当最后一页恰好满页时这就检测不出来。
+   *
    * Read the total row count out of the payload.
    *
    * Defaults to `payload.total ?? payload.count ?? payload.length` — the three
@@ -43,6 +73,10 @@ export interface UsePaginationOptions<TData> extends SnailStrategyCommonOptions 
   total?: (payload: TData) => number;
 
   /**
+   * 从载荷中读出本页的行。
+   *
+   * 默认是载荷本身（当它是数组时），否则取 `payload.list ?? payload.items`。
+   *
    * Read the page's rows out of the payload.
    *
    * Defaults to the payload itself when it is an array, otherwise
@@ -51,6 +85,11 @@ export interface UsePaginationOptions<TData> extends SnailStrategyCommonOptions 
   list?: (payload: TData) => unknown[];
 
   /**
+   * 把每一页追加到 `list`，而不是替换它。
+   *
+   * 这是无限滚动模式。默认关闭，因为带页码控件的表格需要的是*替换*行为，而追加会让数组
+   * 悄悄无限增长。
+   *
    * Append each page to `list` instead of replacing it.
    *
    * This is the infinite-scroll mode. It is off by default because the *replacing*
@@ -60,6 +99,11 @@ export interface UsePaginationOptions<TData> extends SnailStrategyCommonOptions 
   append?: boolean;
 
   /**
+   * 在后台预取下一页，并在 `next()` 时立刻提供。
+   *
+   * 每页多花一次请求，因此默认关闭；适用于用户很可能按下的「下一页」按钮。预取绝不触碰
+   * `loading`/`data`：它是投机性工作，绝不能闪出加载动画。
+   *
    * Fetch the next page in the background and serve it instantly on `next()`.
    *
    * Costs one extra request per page, so it is off by default; useful for a
@@ -69,36 +113,80 @@ export interface UsePaginationOptions<TData> extends SnailStrategyCommonOptions 
   preloadNext?: boolean;
 }
 
-/** What {@link usePagination} returns. */
+/**
+ * {@link usePagination} 的返回值。
+ *
+ * What {@link usePagination} returns.
+ */
 export interface UsePaginationResult<TData> extends StrategyState<TData> {
-  /** Current page, 1-based. */
+  /**
+   * 当前页码，1 起。
+   *
+   * Current page, 1-based.
+   */
   readonly page: SnailStateRef<number>;
 
-  /** Items per page. */
+  /**
+   * 每页条数。
+   *
+   * Items per page.
+   */
   readonly pageSize: SnailStateRef<number>;
 
-  /** Total row count, as read by the `total` extractor. */
+  /**
+   * 总行数，由 `total` 提取器读出。
+   *
+   * Total row count, as read by the `total` extractor.
+   */
   readonly total: SnailStateRef<number>;
 
-  /** Rows, accumulated or replaced according to `append`. */
+  /**
+   * 行数据，按 `append` 决定累积还是替换。
+   *
+   * Rows, accumulated or replaced according to `append`.
+   */
   readonly list: SnailStateRef<unknown[]>;
 
-  /** `true` once the last page has been loaded. */
+  /**
+   * 已加载到最后一页时为 `true`。
+   *
+   * `true` once the last page has been loaded.
+   */
   readonly isLastPage: SnailStateRef<boolean>;
 
-  /** Load the next page. A no-op at the last page. */
+  /**
+   * 加载下一页。已在最后一页时是空操作。
+   *
+   * Load the next page. A no-op at the last page.
+   */
   next(): Promise<TData | undefined>;
 
-  /** Load the previous page. A no-op at the first page. */
+  /**
+   * 加载上一页。已在第一页时是空操作。
+   *
+   * Load the previous page. A no-op at the first page.
+   */
   prev(): Promise<TData | undefined>;
 
-  /** Jump to a page, clamped into range. A no-op on the current page. */
+  /**
+   * 跳转到某一页，会被钳制到合法范围。目标就是当前页时是空操作。
+   *
+   * Jump to a page, clamped into range. A no-op on the current page.
+   */
   goTo(page: number): Promise<TData | undefined>;
 
-  /** Go back to the first page and re-fetch it. */
+  /**
+   * 回到第一页并重新获取它。
+   *
+   * Go back to the first page and re-fetch it.
+   */
   reload(): Promise<TData | undefined>;
 
-  /** Change the page size, reset to page 1 and re-fetch. */
+  /**
+   * 修改每页条数，重置到第 1 页并重新获取。
+   *
+   * Change the page size, reset to page 1 and re-fetch.
+   */
   changePageSize(pageSize: number): Promise<TData | undefined>;
 }
 
@@ -121,6 +209,11 @@ function defaultTotal<TData>(payload: TData): number {
 }
 
 /**
+ * 对一个 api 方法分页。
+ *
+ * `next()`/`prev()` 在边界上是**空操作且不发请求**：在最后一页按住「下一页」的用户绝不能
+ * 猛击服务器，而 promise 依然会兑现（以 `undefined`），因此 `await` 永远不会挂住。
+ *
  * Page through one api method.
  *
  * ```ts
@@ -135,6 +228,11 @@ function defaultTotal<TData>(payload: TData): number {
  * `next()`/`prev()` are **no-ops at the bounds and fire no request**: a user
  * holding down the "next" button at the last page must not hammer the server, and
  * the promise still resolves (with `undefined`) so an `await` never hangs.
+ *
+ * @param method 代理后的 api 方法，接收一个 {@link PageRequest} /
+ *   The proxied api method, taking a single {@link PageRequest}.
+ * @param options 分页选项 / The pagination options.
+ * @returns 带 state 句柄与分页方法的结果 / The result with state handles and the paging methods.
  */
 export function usePagination<TData>(
   method: StrategyMethod<[PageRequest], TData>,

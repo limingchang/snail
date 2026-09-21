@@ -1,4 +1,29 @@
 /**
+ * 页眉 / 页脚扩展的工厂。
+ *
+ * 旧版包里 `PageHeader` 与 `PageFooter` 有约 95% 相同，而这两份拷贝逐渐分叉：一个里属性叫
+ * `headerLing`，另一个里选项叫 `headerLine`，并且各自带着自己那份位置已失效的刷新命令
+ * （缺陷 11）。这里只有一份实现和两个名字。
+ *
+ * ## 一个条带由三个区域组成
+ *
+ * `content: "block*"` 而不是 `"pageRegion*"` 是刻意的。在区域存在之前保存的模板会把普通块
+ * 直接放在页眉里，而拒绝它们的 schema 会在解析时**丢掉用户的文字**，而不是迁移它。
+ * `pageRegion` 是 `block` 组的成员，因此两种形状都合法，而「恰好三个区域、按槽位顺序」这一
+ * 不变式由 `../page.ts` 里的规范化流程恢复（见 `utils/regions.ts`）。
+ *
+ * ## 顺序规则（缺陷 11）
+ *
+ * 当一次事务里要改动多个页面时，页面按**从后往前**的顺序访问。插入或删除页眉会移动
+ * 它之后的所有位置，所以升序遍历会拼接出失效的位置——这正是旧版 `__flush*` 命令造成的
+ * 破坏。降序访问可以让所有尚未访问的位置保持有效。
+ *
+ * ## 条带插入的位置（缺陷 43）
+ *
+ * 页眉插在正文**之前**，页脚插在正文**之后**。这不是细节：页面的内容表达式是一个
+ * 序列（`pageHeader? pageContent pageFooter?`），而两者都插到 `page.pos + 1`——
+ * 第一版的做法——会生成页脚在页眉之上的结果，那不是文档。
+ *
  * The header/footer extension factory.
  *
  * `PageHeader` and `PageFooter` were ~95 % identical in the legacy package, and the two
@@ -6,49 +31,70 @@
  * the other, and both had their own stale-position flush command (defect 11). Here there
  * is exactly one implementation and two names.
  *
+ * ## A band is three regions
+ *
+ * `content: "block*"` rather than `"pageRegion*"` on purpose. A template saved before regions
+ * existed holds ordinary blocks directly in its header, and a schema that refused them would
+ * **drop the user's text while parsing** instead of migrating it. `pageRegion` is a member of the
+ * `block` group, so both shapes are legal, and the invariant — exactly three regions, in slot
+ * order — is restored by the normaliser in `../page.ts` (see `utils/regions.ts`).
+ *
  * ## Ordering rule (defect 11)
  *
  * Whenever several pages are mutated in one transaction, the pages are visited **last to
  * first**. Inserting or deleting a header shifts every position after it, so an ascending
  * loop would splice stale positions — the corruption the legacy `__flush*` commands
  * produced. Descending visits leave all not-yet-visited positions valid.
+ *
+ * ## Where a band is inserted (defect 43)
+ *
+ * A header goes **before** the body and a footer **after** it. That is not a detail: the page's
+ * content expression is a sequence (`pageHeader? pageContent pageFooter?`), and inserting both at
+ * `page.pos + 1` — as the first version did — produced a footer above a header, which is not a
+ * document.
  */
 
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { CommandProps } from "@tiptap/core";
 import { Fragment } from "@tiptap/pm/model";
 import type { Node as PMNode, Schema } from "@tiptap/pm/model";
-import { NodeSelection, Plugin, TextSelection } from "@tiptap/pm/state";
-import type { EditorState, Transaction } from "@tiptap/pm/state";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import type { Transaction } from "@tiptap/pm/state";
 
-import {
-  DEFAULT_FOOTER_ALIGN,
-  DEFAULT_FURNITURE_HEIGHT,
-  DEFAULT_FURNITURE_LINE,
-  DEFAULT_HEADER_ALIGN
-} from "../constant/defaults";
-import type { FurnitureAttributes, FurnitureSide, TextAlign } from "../typing/headerFooter";
+import { DEFAULT_FURNITURE_HEIGHT, DEFAULT_FURNITURE_LINE } from "../constant/defaults";
+import type { FurnitureAttributes, FurnitureSide } from "../typing/headerFooter";
+import { FURNITURE_META } from "./furnitureEditing";
+import type { FurnitureMeta } from "./furnitureEditing";
 import { renderFurnitureNodeView } from "./furnitureView";
-import { collectPages, findChild, PAGE_FOOTER_NODE, PAGE_HEADER_NODE } from "./nodes";
+import {
+  collectPages,
+  findChild,
+  PAGE_CONTENT_NODE,
+  PAGE_FOOTER_NODE,
+  PAGE_HEADER_NODE
+} from "./nodes";
 import type { PageRef } from "./nodes";
+import { createRegionNodes, planBandRegions } from "./regions";
 
-/** Resolved options of a furniture extension. `side` is internal: it selects the name. */
+/**
+ * 版面配件扩展的已解析选项。`side` 是内部字段：它决定用哪个名字。
+ *
+ * Resolved options of a furniture extension. `side` is internal: it selects the name.
+ */
 interface FurnitureOptions {
   side: FurnitureSide;
   height: number;
-  align: TextAlign;
   showLine: boolean;
   HTMLAttributes: Record<string, string>;
 }
 
-/** The names one side contributes. */
+/** 一侧贡献的名字集合。 / The names one side contributes. */
 interface FurnitureNames {
   node: string;
   dataType: string;
   add: string;
   remove: string;
   height: string;
-  align: string;
 }
 
 const NAMES: Record<FurnitureSide, FurnitureNames> = {
@@ -57,20 +103,23 @@ const NAMES: Record<FurnitureSide, FurnitureNames> = {
     dataType: "page-header",
     add: "addHeader",
     remove: "removeHeader",
-    height: "setHeaderHeight",
-    align: "setHeaderAlign"
+    height: "setHeaderHeight"
   },
   bottom: {
     node: PAGE_FOOTER_NODE,
     dataType: "page-footer",
     add: "addFooter",
     remove: "removeFooter",
-    height: "setFooterHeight",
-    align: "setFooterAlign"
+    height: "setFooterHeight"
   }
 };
 
 /**
+ * 创建页眉（`side: "top"`）或页脚（`side: "bottom"`）扩展。
+ *
+ * 两者都是 `isolating` 的，因此在页眉内部的点击绝不会把选区扩展到它之外；两者也都容忍
+ * 没有它们的页面——这是旧版 `createPage` 根本无法构建的状态（缺陷 9）。
+ *
  * Create the header (`side: "top"`) or footer (`side: "bottom"`) extension.
  *
  * Both are `isolating`, so a click inside the header never extends a selection out of it,
@@ -90,7 +139,6 @@ export function createPageFurniture(side: FurnitureSide): Node<FurnitureOptions>
       return {
         side,
         height: DEFAULT_FURNITURE_HEIGHT,
-        align: side === "top" ? DEFAULT_HEADER_ALIGN : DEFAULT_FOOTER_ALIGN,
         showLine: DEFAULT_FURNITURE_LINE,
         HTMLAttributes: {}
       };
@@ -99,8 +147,9 @@ export function createPageFurniture(side: FurnitureSide): Node<FurnitureOptions>
     addAttributes() {
       return {
         height: { default: this.options.height },
-        align: { default: this.options.align },
-        // One spelling, attribute and option alike (defect 20).
+        // One spelling, attribute and option alike (defect 20). A stored template may still carry
+        // the legacy `align` attribute: it is simply not declared any more, so ProseMirror drops
+        // it — a band's alignment is per region now (`SLOT_ALIGN`).
         showLine: { default: this.options.showLine }
       };
     },
@@ -123,14 +172,9 @@ export function createPageFurniture(side: FurnitureSide): Node<FurnitureOptions>
       return renderFurnitureNodeView(side);
     },
 
-    addProseMirrorPlugins() {
-      return [furnitureClickPlugin(names)];
-    },
-
     addCommands() {
       const defaults: FurnitureAttributes = {
         height: this.options.height,
-        align: this.options.align,
         showLine: this.options.showLine
       };
 
@@ -141,9 +185,7 @@ export function createPageFurniture(side: FurnitureSide): Node<FurnitureOptions>
           removeHeader: (pageIndex?: number) => (props: CommandProps) =>
             removeFurniture(props, names, pageIndex),
           setHeaderHeight: (height: number, pageIndex?: number) => (props: CommandProps) =>
-            setFurnitureAttribute(props, names, "height", height, pageIndex),
-          setHeaderAlign: (align: TextAlign, pageIndex?: number) => (props: CommandProps) =>
-            setFurnitureAttribute(props, names, "align", align, pageIndex)
+            setFurnitureHeight(props, names, height, pageIndex)
         };
       }
 
@@ -153,98 +195,169 @@ export function createPageFurniture(side: FurnitureSide): Node<FurnitureOptions>
         removeFooter: (pageIndex?: number) => (props: CommandProps) =>
           removeFurniture(props, names, pageIndex),
         setFooterHeight: (height: number, pageIndex?: number) => (props: CommandProps) =>
-          setFurnitureAttribute(props, names, "height", height, pageIndex),
-        setFooterAlign: (align: TextAlign, pageIndex?: number) => (props: CommandProps) =>
-          setFurnitureAttribute(props, names, "align", align, pageIndex)
+          setFurnitureHeight(props, names, height, pageIndex)
       };
     }
   });
 }
 
-/** The header extension (`pageHeader` + `addHeader`/`removeHeader`/…). */
+/**
+ * 页眉扩展（`pageHeader` + `addHeader`/`removeHeader`/…）。
+ *
+ * The header extension (`pageHeader` + `addHeader`/`removeHeader`/…).
+ */
 export const PageHeader = createPageFurniture("top");
 
-/** The footer extension (`pageFooter` + `addFooter`/`removeFooter`/…). */
+/**
+ * 页脚扩展（`pageFooter` + `addFooter`/`removeFooter`/…）。
+ *
+ * The footer extension (`pageFooter` + `addFooter`/`removeFooter`/…).
+ */
 export const PageFooter = createPageFurniture("bottom");
 
 /**
- * Clicking anywhere in a header/footer band puts the caret **inside** it.
+ * 确保某个页面有 `side` 这一侧的条带，缺失时创建它（连同它的三个区域）。
  *
- * ## The problem this solves
+ * 它被 `addHeader`/`addFooter` 以及放置类命令 `setPageNumberSlot` 与 `setLogo` 共用，
+ * 因为在没有页脚的文档上「把页码放到页脚」应当*创建*页脚而不是失败。这正是这轮修复的
+ * 出发点：用户通过选择「放在哪里」来表达他需要承载它的版面配件。
  *
- * A header is a `block*` container whose content, when freshly added, is a single empty
- * paragraph. Clicking the band's padding — or, depending on the browser, the empty paragraph
- * itself — does not resolve to a *text* position: there is no text to hit, so the click maps
- * to the node boundary and ProseMirror selects the whole header (`NodeSelection`). From the
- * user's side that reads as "the header cannot be edited": there is no caret, typing replaces
- * the header instead of filling it, and clicking again does not help. The theme even carries
- * a `.ProseMirror-selectednode` rule for the band, which is this state made visible.
+ * Make sure one page has the band for `side`, creating it (with its three regions) when missing.
  *
- * ## Why the fix runs after ProseMirror, not instead of it
+ * Shared by `addHeader`/`addFooter` and by the placements — `setPageNumberSlot` and `setLogo` —
+ * because "put the number in the footer" on a document that has no footer should *create* the
+ * footer rather than fail. That is the whole point of the fix this work started from: choosing
+ * where something goes is how the user asks for the furniture that holds it.
  *
- * This handler deliberately does **not** intercept the click. It lets ProseMirror do its own
- * mapping and only intervenes in the one case that is wrong: a `NodeSelection` produced by a
- * click that landed inside a band. If the click already produced a caret in the band, nothing
- * here runs — so a future ProseMirror that maps empty bands correctly simply makes this
- * handler a no-op rather than a competing implementation.
- *
- * `TextSelection.near(..., 1)` also handles the "clicked the padding, not the paragraph" case:
- * it walks to the nearest position that can actually hold a caret.
+ * @returns 插入了一个条带时为 `true` / `true` when a band was inserted.
  */
-function furnitureClickPlugin(names: FurnitureNames): Plugin {
+export function ensureBand(
+  transaction: Transaction,
+  page: PageRef,
+  side: FurnitureSide,
+  schema: Schema,
+  attributes: FurnitureAttributes
+): boolean {
+  const names = NAMES[side];
+  const nodeType = schema.nodes[names.node];
+  if (!nodeType) return false;
+  if (findChild(page, names.node)) return false;
+
+  const band = nodeType.create(attributes, emptyFurnitureContent(schema));
+  transaction.insert(furnitureInsertPos(page, names.node), band);
+  return true;
+}
+
+/** 某一侧条带的节点类型名。 / The node type name of a band's side. */
+export function bandNodeName(side: FurnitureSide): string {
+  return NAMES[side].node;
+}
+
+/**
+ * 让每个条带始终保持恰好三个可用区域的插件。
+ *
+ * ## 为什么用插件而不只是一个命令
+ *
+ * 条带的内容表达式刻意是 `block*`：在区域出现之前保存的模板会在页眉里放普通块，
+ * 而拒绝它们的 schema 会在解析时丢掉用户的文字，而不是迁移它。这种容忍的代价是不变式
+ * 必须在某处恢复——而 `appendTransaction` 是唯一能看到*每一个*文档的地方，无论文档
+ * 从何而来：一次粘贴、调用方自己的 `setContent`，还是从服务器载入的模板。
+ *
+ * ## 它做什么，以及刻意不做什么
+ *
+ * 它会补上缺失的区域、把散落的块包进中间那个区域、把重复的槽位合并进它的第一个区域、
+ * 按左 / 中 / 右重排，并给被清空的区域一个新的段落（没有块的区域无法点击进入）。
+ * 除此之外它绝不改动区域的*内容*，而且它是幂等的：已经满足不变式的条带完全不产生事务，
+ * 所以每个条带每次变更只花一次比较。
+ *
+ * The plugin that keeps every band at exactly three usable regions.
+ *
+ * ## Why a plugin and not only a command
+ *
+ * A band's content expression is `block*`, on purpose: a template saved before regions existed
+ * holds ordinary blocks in its header, and a schema that refused them would drop the user's text
+ * while parsing rather than migrating it. The price of that tolerance is that the invariant has to
+ * be restored somewhere — and `appendTransaction` is the one place that sees *every* document,
+ * whatever produced it: a paste, a consumer's own `setContent`, a template loaded from a server.
+ *
+ * ## What it does, and what it deliberately does not
+ *
+ * It adds the missing regions, wraps stray blocks into the centre one, folds a duplicated slot
+ * into its first region, reorders to left / centre / right, and gives an emptied region a fresh
+ * paragraph (a region with no block cannot be clicked into). It never touches a region's *content*
+ * otherwise, and it is idempotent: a band that already satisfies the invariant produces no
+ * transaction at all, so this costs one comparison per band per change.
+ */
+export function createFurnitureRegionsPlugin(): Plugin {
   return new Plugin({
-    props: {
-      handleDOMEvents: {
-        click: (view, event) => {
-          // In fill mode the document is read-only: there is no caret to place.
-          if (!view.editable) return false;
+    key: furnitureRegionsPluginKey,
 
-          const target = event.target as HTMLElement | null;
-          const band = target?.closest?.(`[data-type="${names.dataType}"]`) as HTMLElement | null;
-          if (!band || !view.dom.contains(band)) return false;
+    appendTransaction: (transactions, _oldState, newState) => {
+      // Nothing was edited (a selection-only change): there is nothing to normalise.
+      if (!transactions.some((transaction) => transaction.docChanged)) return null;
+      // Note: a transaction of *ours* is normalised too. Removing a page number leaves an empty
+      // region behind, and that is exactly what needs a fresh paragraph. ProseMirror calls
+      // `appendTransaction` again for the transaction this returns, so termination rests on the
+      // plan being idempotent: the second pass finds nothing to change and returns `null`.
 
-          const tr = planFurnitureClick(view.state, view.posAtDOM(band, 0), names.node);
-          if (!tr) return false;
+      const tr = newState.tr;
+      let changed = false;
 
-          view.dispatch(tr);
-          view.focus();
-          return false;
-        }
+      // Last band first: replacing a band shifts every position after it.
+      const bands = collectPages(newState.doc)
+        .flatMap((page) =>
+          [PAGE_HEADER_NODE, PAGE_FOOTER_NODE]
+            .map((name) => findChild(page, name))
+            .filter((child): child is NonNullable<typeof child> => child !== null)
+        )
+        .reverse();
+
+      for (const band of bands) {
+        const plan = planBandRegions(band.node, band.pos);
+        if (!plan) continue;
+        tr.replaceWith(plan.from, plan.to, plan.content);
+        changed = true;
       }
+
+      if (!changed) return null;
+      // Layout repair, never an undo step: one Ctrl+Z must not restore a malformed band.
+      tr.setMeta("addToHistory", false);
+      return tr;
     }
   });
 }
 
+/** 标识区域规范化插件。 / Identifies the region-normalising plugin. */
+export const furnitureRegionsPluginKey = new PluginKey("snailFurnitureRegions");
+
 /**
- * The transaction that turns "the whole header got selected" back into "the caret is in the
- * header" — or `null` when the click produced a state that is already correct.
+ * 新建条带的初始内容：三个空区域。
  *
- * Pure and separate from the plugin so the one rule that matters is unit-tested without a DOM:
- * it fires **only** when the resulting selection is a `NodeSelection` on exactly this band
- * (`bandPos` is the position before the band, which is what `view.posAtDOM(band, 0)` reports for
- * a node view). A caret already inside the band, a node selection the user made deliberately
- * (a page number, a QR code), or a click elsewhere all return `null` — so this can only correct
- * the broken case, never compete with ProseMirror's own mapping.
+ * 完全没有区域的条带是合法的（`block*`）但没用——没有东西可点击，也没有地方可输入——
+ * 所以本包创建的每个条带都是完整的。当调用方从 schema 中移除了 `PageRegion` 时，
+ * `createRegionNodes` 返回 `undefined`，此时条带以空内容创建而不是抛错。
+ *
+ * The content a fresh band starts with: the three empty regions.
+ *
+ * A band with no regions at all is legal (`block*`) but useless — nothing to click, nothing to
+ * type into — so every band this package creates arrives complete. `createRegionNodes` returns
+ * `undefined` when the consumer removed `PageRegion` from the schema, in which case the band is
+ * created empty rather than throwing.
  */
-export function planFurnitureClick(
-  state: EditorState,
-  bandPos: number,
-  nodeName: string
-): Transaction | null {
-  if (!(state.selection instanceof NodeSelection)) return null;
+export function emptyFurnitureContent(schema: Schema): Fragment | undefined {
+  const regions = createRegionNodes(schema);
+  if (regions) return Fragment.from(regions);
 
-  const clamped = Math.min(Math.max(bandPos, 0), state.doc.content.size);
-  if (state.selection.from !== clamped) return null;
-  if (state.selection.node.type.name !== nodeName) return null;
-
-  // `clamped + 1` is inside the band: `TextSelection.near` walks to the nearest position that
-  // can actually hold a caret, which also covers a click on the band's padding rather than on
-  // its paragraph.
-  const inside = state.doc.resolve(Math.min(clamped + 1, state.doc.content.size));
-  return state.tr.setSelection(TextSelection.near(inside, 1));
+  const paragraph = schema.nodes["paragraph"];
+  return paragraph ? Fragment.from(paragraph.create()) : undefined;
 }
 
 /**
+ * 给缺少该版面配件节点的页面添加它。
+ *
+ * `pageIndex`（1 起）把改动限制在单个页面，这正是让「只有部分页面有页眉」成为受支持
+ * 的状态而不是损坏状态的原因。
+ *
  * Add the furniture node to the pages that lack it.
  *
  * `pageIndex` (1-based) limits the change to one page, which is what makes "only some
@@ -269,15 +382,26 @@ function addFurniture(
   for (let index = pages.length - 1; index >= 0; index -= 1) {
     const page = pages[index];
     if (findChild(page, names.node)) continue;
-    tr.insert(page.pos + 1, nodeType.create(templateAttributes, emptyBlockContent(state.schema)));
+
+    const band = nodeType.create(templateAttributes, emptyFurnitureContent(state.schema));
+    tr.insert(furnitureInsertPos(page, names.node), band);
     changed = true;
   }
 
-  if (changed && dispatch) dispatch(tr);
+  if (changed) {
+    // Our own command: the transaction filter must let it through without the user having to open
+    // a band first (see `utils/furnitureEditing.ts`).
+    markFurnitureCommand(tr);
+    if (dispatch) dispatch(tr);
+  }
   return changed;
 }
 
-/** Remove the furniture node from the pages that have one. Never throws when absent. */
+/**
+ * 从拥有该版面配件节点的页面中移除它；缺失时绝不抛错。
+ *
+ * Remove the furniture node from the pages that have one. Never throws when absent.
+ */
 function removeFurniture(
   props: CommandProps,
   names: FurnitureNames,
@@ -294,22 +418,29 @@ function removeFurniture(
     changed = true;
   }
 
-  if (changed && dispatch) dispatch(tr);
+  if (changed) {
+    markFurnitureCommand(tr);
+    if (dispatch) dispatch(tr);
+  }
   return changed;
 }
 
 /**
- * Set one attribute on every furniture node.
+ * 设置每个版面配件节点的框高度。
+ *
+ * 当每个节点都已经是该值时返回 `false`，这样调用方可以省掉一次重绘和一条无意义的历史
+ * 记录（旧版 `setPageFormat` 总是返回 `true`，缺陷 17）。
+ *
+ * Set the box height on every furniture node.
  *
  * Returns `false` when every node already has that value, so a caller can avoid a redraw
  * and a pointless history entry (the legacy `setPageFormat` returned `true` always,
  * defect 17).
  */
-function setFurnitureAttribute(
+function setFurnitureHeight(
   props: CommandProps,
   names: FurnitureNames,
-  key: "height" | "align",
-  value: number | TextAlign,
+  height: number,
   pageIndex: number | undefined
 ): boolean {
   const { state, tr, dispatch } = props;
@@ -319,24 +450,68 @@ function setFurnitureAttribute(
   for (const page of pages) {
     const child = findChild(page, names.node);
     if (!child) continue;
-    if (child.node.attrs[key] === value) continue;
+    if (child.node.attrs.height === height) continue;
     // Attribute steps do not shift positions, so ascending order is safe here.
-    tr.setNodeAttribute(child.pos, key, value);
+    tr.setNodeAttribute(child.pos, "height", height);
     changed = true;
   }
 
-  if (changed && dispatch) dispatch(tr);
+  if (changed) {
+    markFurnitureCommand(tr);
+    if (dispatch) dispatch(tr);
+  }
   return changed;
 }
 
-/** The pages a command targets: all of them, or the one with the given 1-based number. */
+/**
+ * 这类条带在它所属页面中的位置。
+ *
+ * 页眉在正文之前，页脚在正文之后——即页面的内容表达式所声明的序列。两种情况下正文都是
+ * 锚点：放在 `page.pos + 1` 会让页脚跑到页眉之上，而追加到页面末尾会让页脚落在旧文档
+ * 仍然存放于该处的页眉之后。
+ *
+ * Where a band of this type belongs inside its page.
+ *
+ * A header goes before the body, a footer after it — the sequence the page's content expression
+ * declares. The body is the anchor in both cases: `page.pos + 1` would put a footer above a
+ * header, and appending at the page's end would put a footer after a header that a legacy document
+ * still stores there.
+ */
+function furnitureInsertPos(page: PageRef, typeName: string): number {
+  if (typeName === PAGE_HEADER_NODE) return page.pos + 1;
+
+  const content = findChild(page, PAGE_CONTENT_NODE);
+  if (!content) return page.pos + page.node.nodeSize - 1;
+  return content.pos + content.node.nodeSize;
+}
+
+/**
+ * 把事务标记为版面配件自身的命令之一。
+ *
+ * Mark a transaction as one of the furniture's own commands.
+ */
+function markFurnitureCommand(transaction: Transaction): void {
+  // The filter lets a command through without the user having to open a band first, and the
+  // editing state is left exactly as it was.
+  transaction.setMeta(FURNITURE_META, { type: "command", command: true } satisfies FurnitureMeta);
+}
+
+/**
+ * 命令作用的页面：全部页面，或给定的 1 起编号那一页。
+ *
+ * The pages a command targets: all of them, or the one with the given 1-based number.
+ */
 function selectPages(doc: PMNode, pageIndex: number | undefined): PageRef[] {
   const pages = collectPages(doc);
   if (pageIndex === undefined) return pages;
   return pages.filter((page) => page.ordinal === pageIndex);
 }
 
-/** The attributes of the first furniture node present, used as the template for new ones. */
+/**
+ * 已存在的第一个版面配件节点的属性，用作新建节点的模板。
+ *
+ * The attributes of the first furniture node present, used as the template for new ones.
+ */
 function firstFurnitureAttributes(
   pages: PageRef[],
   typeName: string,
@@ -351,24 +526,8 @@ function firstFurnitureAttributes(
         typeof attributes.height === "number" && Number.isFinite(attributes.height)
           ? attributes.height
           : defaults.height,
-      align: isTextAlign(attributes.align) ? attributes.align : defaults.align,
       showLine: typeof attributes.showLine === "boolean" ? attributes.showLine : defaults.showLine
     };
   }
   return defaults;
-}
-
-function isTextAlign(value: unknown): value is TextAlign {
-  return value === "left" || value === "center" || value === "right" || value === "justify";
-}
-
-/**
- * A single empty paragraph, so a freshly added header is immediately typeable.
- *
- * `block*` also accepts an empty header, so this is convenience rather than a schema
- * requirement — and it is skipped when the consumer did not register `paragraph`.
- */
-function emptyBlockContent(schema: Schema): Fragment | undefined {
-  const paragraph = schema.nodes["paragraph"];
-  return paragraph ? Fragment.from(paragraph.create()) : undefined;
 }

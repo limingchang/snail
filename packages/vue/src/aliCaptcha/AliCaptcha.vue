@@ -47,6 +47,14 @@ import type {
 } from "./type";
 
 /**
+ * `AliCaptcha` —— 阿里云验证码，用一个 `product` prop 同时覆盖**两种**产品。
+ *
+ * 与旧版组件的关键差异：props 按 `product` 组成可辨识联合；PNVS 的加载脚本改由使用方
+ * 自行托管；脚本每个页面只注入一次，并由带引用计数的池共享，卸载时释放租约。
+ *
+ * `trigger` 具名插槽渲染打开验证码的按钮，插槽缺省内容是 `triggerLabel`；它只在模板里
+ * 声明，因此在这里说明。
+ *
  * `AliCaptcha` — Aliyun captcha, for **both** products behind one `product` prop.
  *
  * | | `product: "pnvs"` | `product: "captcha2"` |
@@ -76,9 +84,17 @@ import type {
  *   scene genuinely changes.
  * - **Mount/unmount repeatedly is safe**: unmount hides and destroys the instance as
  *   far as the product supports it and releases the shared script lease.
+ * - **The `trigger` slot.** A named `trigger` slot renders the button that opens the
+ *   widget; its fallback content is `triggerLabel`. It is declared in the template only,
+ *   so it is documented here.
  */
 defineOptions({ name: "AliCaptcha" });
 
+/**
+ * 组件的 props 契约，按 `product` 可辨识，见 `AliCaptchaProps`。
+ *
+ * The component's props contract, see `AliCaptchaProps`.
+ */
 const props = defineProps<AliCaptchaProps>();
 
 /**
@@ -92,6 +108,11 @@ const props = defineProps<AliCaptchaProps>();
  */
 const view = props as unknown as AliCaptchaPnvsProps | AliCaptchaCaptcha2Props;
 
+/**
+ * 组件发出的事件契约，见 `AliCaptchaEmits`。
+ *
+ * The component's emits contract, see `AliCaptchaEmits`.
+ */
 const emit = defineEmits<AliCaptchaEmits>();
 
 const uid = useId();
@@ -408,6 +429,11 @@ function resolveInstance(): object | null {
 }
 
 /**
+ * 显示验证挑战（PNVS 上是 `showCaptcha()`，Captcha 2.0 上是 `show()`）。
+ *
+ * 实例还不存在时会上报 `not-ready` 错误：与 `hide` 不同，`show` 承诺了一个可见的
+ * 效果，而静默地什么都不做正是旧版组件最擅长的失败方式。
+ *
  * Show the challenge (`showCaptcha()` on PNVS, `show()` on Captcha 2.0).
  *
  * Reports a `not-ready` error when the instance does not exist yet: unlike `hide`,
@@ -420,6 +446,10 @@ function show(): void {
 }
 
 /**
+ * 隐藏验证挑战（PNVS 上是 `hideCaptcha()`/`hide()`，Captcha 2.0 上是 `hide()`）。
+ *
+ * 实例存在之前是空操作：隐藏一个从未显示过的东西不是值得上报的错误。
+ *
  * Hide the challenge (`hideCaptcha()`/`hide()` on PNVS, `hide()` on Captcha 2.0).
  *
  * A no-op before the instance exists: hiding something that was never shown is not an
@@ -429,12 +459,20 @@ function hide(): void {
   if (instance) callMethod(instance, ["hideCaptcha", "hide"]);
 }
 
-/** Re-arm the challenge (`reset()` on PNVS, `refresh()` on Captcha 2.0). */
+/**
+ * 重新武装验证挑战（PNVS 上是 `reset()`，Captcha 2.0 上是 `refresh()`）。
+ *
+ * Re-arm the challenge (`reset()` on PNVS, `refresh()` on Captcha 2.0).
+ */
 function reset(): void {
   if (instance) callMethod(instance, ["reset", "refresh"]);
 }
 
-/** Refresh the challenge (`refresh()` on Captcha 2.0, `reset()` on PNVS). */
+/**
+ * 刷新验证挑战（Captcha 2.0 上是 `refresh()`，PNVS 上是 `reset()`）。
+ *
+ * Refresh the challenge (`refresh()` on Captcha 2.0, `reset()` on PNVS).
+ */
 function refresh(): void {
   if (instance) callMethod(instance, ["refresh", "reset"]);
 }
@@ -449,10 +487,15 @@ onBeforeUnmount(() => {
 });
 
 defineExpose<AliCaptchaExposed>({
+  /** 显示验证挑战。 / Show the challenge. */
   show,
+  /** 隐藏验证挑战。 / Hide the challenge. */
   hide,
+  /** 重新武装验证挑战。 / Re-arm the challenge. */
   reset,
+  /** 刷新验证挑战。 / Refresh the challenge. */
   refresh,
+  /** 当前的 SDK 实例；未就绪时为 `null`。 / The live SDK instance, or `null`. */
   get instance(): AliCaptchaInstance | null {
     return instance;
   }

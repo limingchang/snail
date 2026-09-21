@@ -1,8 +1,14 @@
 import type { SnailMessages } from "./types";
 
-/** English message catalogue. */
+/**
+ * 英文消息目录。
+ *
+ * 键为点分路径，模板中的 `%s` 会按位置被 `t()` 的参数替换。
+ *
+ * English message catalogue.
+ */
 const en: SnailMessages = {
-  // decorator misuse
+  // decorator misuse / 装饰器误用
   "error.decorator.method.duplicate": "method [%s] already has a request-method decorator (@Get/@Post/...)",
   "error.decorator.method.missing": "method [%s] has no request-method decorator (@Get/@Post/...), cannot send a request",
   "error.decorator.param.context": "@%s may only be used on an instance method parameter",
@@ -12,7 +18,7 @@ const en: SnailMessages = {
   "error.decorator.server.notFound": "api class [%s] is missing the @Api() decorator",
   "error.decorator.stream.duplicate": "class [%s] already has a connection decorator (@Sse/@WebSocket)",
 
-  // options
+  // options / 选项
   "error.options.server.missing": "server class [%s] is missing the @Server() decorator",
   "error.options.server.baseURL": "@Server() baseURL must be a non-empty string",
   "error.options.api.url": "@Api() url must be a string",
@@ -20,11 +26,11 @@ const en: SnailMessages = {
   "error.options.plugin.missing": "plugin [%s] depends on [%s], which has not been registered yet — call use() first",
   "error.options.plugin.exists": "plugin [%s] is already registered on server [%s]",
 
-  // hooks
+  // hooks / 生命周期钩子
   "error.hook.next.multiple": "plugin [%s] called next() more than once inside the %s hook",
   "error.hook.unknown": "unknown plugin lifecycle hook [%s]",
 
-  // request / response
+  // request / response / 请求与响应
   "error.request.failed": "[%s] request failed: %s",
   "error.request.timeout": "[%s] request timed out (%sms)",
   "error.request.cancelled": "[%s] request cancelled",
@@ -32,16 +38,16 @@ const en: SnailMessages = {
   "error.response.shape": "[%s] response does not match the agreed envelope: missing [%s]",
   "error.response.json": "[%s] failed to parse the JSON response: %s",
 
-  // path params
+  // path params / 路径参数
   "error.path.missing": "route [%s] has no value for placeholder [:%s] — add @Params('%s') to the method parameter",
 
-  // plugins
+  // plugins / 插件
   "error.plugin.validate.request": "[%s] request payload failed validation",
   "error.plugin.validate.response": "[%s] response payload failed validation",
   "error.plugin.transform": "[%s] payload transform failed: %s",
   "error.plugin.cache.adapter": "unknown cache adapter [%s]; expected one of memory, localStorage, sessionStorage, indexedDB",
 
-  // info
+  // info / 提示信息
   "info.request.start": "→ %s %s [%s]",
   "info.request.success": "← %s %s [%s] %s",
   "info.request.codeError": "← %s %s [%s] bad business code %s",

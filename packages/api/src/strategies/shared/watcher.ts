@@ -1,6 +1,21 @@
 import type { SnailStateAdapter, SnailStateRef } from "../../typings/adapter";
 
 /**
+ * 读取 `watching()` 结果中的一项。
+ *
+ * `docs/guide/plugin-lifecycle.md` 的 adapter 契约没有提供可移植的「这是 state 句柄吗？」
+ * 询问方式：Vue adapter 有 `isState`，React 的没有，plain adapter 的盒子是裸 `{ value }`
+ * 对象。因此按可信度顺序处理三种情况：
+ *
+ * 1. `adapter.isState(value)` 为真——解包它（Vue）。
+ * 2. 值是仅有一个自有键 `value` 的普通对象——正是 plain 与 React adapter 分配的形态——
+ *    解包它。
+ * 3. 其它情况就是值本身。
+ *
+ * 情况 2 是启发式的，这也是为什么当对象确实是数据而不是句柄时，
+ * `watching: () => [{ value: 1 }]` 应写成 `() => [{ value: 1 }.value]`。没有它，
+ * `() => [pageRef]`——最自然的写法——会比较 ref 对象本身，永远检测不到变化。
+ *
  * Read one entry of a `watching()` result.
  *
  * `docs/guide/plugin-lifecycle.md`'s adapter contract exposes no way to ask "is this a state
@@ -34,6 +49,11 @@ export function unwrapWatchedValue(adapter: SnailStateAdapter, value: unknown): 
 }
 
 /**
+ * 把 `watching()` 函数求值为用于比较的普通值。
+ *
+ * watcher 是用户代码，因此非数组返回值会被归一化成单元素列表，而不是盲目迭代——
+ * 展开字符串会比较它的字符，展开 `undefined` 会在 hook 内部抛错。
+ *
  * Evaluate a `watching()` function into the plain values that get compared.
  *
  * A watcher is user code, so a non-array return is normalised to a one-element
@@ -50,6 +70,11 @@ export function readWatchedValues(
 }
 
 /**
+ * 用 `Object.is` 比较两个被观察的快照。
+ *
+ * 用 `Object.is` 而不是 `===`，是为了让 `NaN` 不会在每次渲染时都被当成变化——否则一个
+ * 恰好为 `NaN` 的数值字段上的 watcher 会永远重复发送。
+ *
  * Compare two watched snapshots with `Object.is`.
  *
  * `Object.is` rather than `===` so `NaN` does not look like a change on every

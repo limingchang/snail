@@ -11,28 +11,69 @@ import { withDispose } from "./connection";
 import { backoffDelay, canRetry, resolveReconnectPolicy } from "./reconnect";
 import type { SnailLogger } from "./logger";
 
-/** Everything the SSE transport needs to open a connection. */
+/**
+ * SSE 传输层打开一条连接所需的全部信息。
+ *
+ * Everything the SSE transport needs to open a connection.
+ */
 export interface SseConnectionInit {
-  /** Fully qualified url. */
+  /**
+   * 完整的 url。
+   *
+   * Fully qualified url.
+   */
   url: string;
-  /** Options from `@Sse(path, options)`. */
+  /**
+   * 来自 `@Sse(path, options)` 的选项。
+   *
+   * Options from `@Sse(path, options)`.
+   */
   options: SnailSseOptions;
-  /** Handlers registered by the decorators. */
+  /**
+   * 由装饰器登记的处理函数。
+   *
+   * Handlers registered by the decorators.
+   */
   handlers: SnailSseHandlers;
-  /** Name used in log lines. */
+  /**
+   * 日志行里使用的名字。
+   *
+   * Name used in log lines.
+   */
   name: string;
-  /** Extra headers (server-level, auth, …). */
+  /**
+   * 额外表头（服务器级、鉴权等）。
+   *
+   * Extra headers (server-level, auth, …).
+   */
   headers?: Record<string, string>;
-  /** Logger. */
+  /**
+   * 日志器。
+   *
+   * Logger.
+   */
   logger: SnailLogger;
 }
 
 /**
+ * 基于 `fetch` 的服务端推送（Server-Sent Events）。
+ *
+ * 刻意不用 `EventSource`：它无法发送请求头、无法 `POST`、无法干净地中断，而且
+ * 按自己的一套规则自动重连。`fetch` 的流读取器四项全都支持，下面的解析器也不
+ * 过五十来行。
+ *
+ * 未提供 `reconnect` 时默认重试 3 次。连接首次成功才 resolve `opened`；重试
+ * 预算耗尽仍未连上时，`opened` 会带着最近一次真实错误 reject，而不是用泛泛的
+ * 「放弃重试」掩盖问题。
+ *
  * Server-Sent Events over `fetch`.
  *
  * `EventSource` is deliberately not used: it cannot send request headers, cannot
  * `POST`, cannot be aborted cleanly and reconnects on its own terms. A `fetch`
  * stream reader supports all four, and the parser below is ~50 lines.
+ *
+ * @param init 建立连接所需的全部信息 / Everything needed to open the connection.
+ * @returns 可关闭、可重连的 SSE 连接 / A closable, reconnecting SSE connection.
  */
 export function createSseConnection(init: SseConnectionInit): SnailSseConnection {
   const { url, options, handlers, name, logger } = init;
@@ -56,6 +97,15 @@ export function createSseConnection(init: SseConnectionInit): SnailSseConnection
   let lastError: unknown;
 
   /**
+   * 本次尝试是否至少送达过一个事件。
+   *
+   * 这一标志区分了健康连接与注定失败的连接。服务端接受请求、发送事件后再关闭流，
+   * 属于正常行为，应当用全新的重试预算重连；而接受后立刻关闭、什么都没发的服务端
+   * 说明它在空转，其重试预算必须真正耗尽。
+   *
+   * 一收到响应头就重置计数——最直觉的写法——会让预算形同虚设，并产生没有上限的
+   * 热重连循环。
+   *
    * Whether the current attempt delivered at least one event.
    *
    * This is what separates a healthy connection from a doomed one. A server that
@@ -72,7 +122,11 @@ export function createSseConnection(init: SseConnectionInit): SnailSseConnection
   const messageListeners = new Set<(message: SnailSseMessage) => void>();
   const eventListeners = new Map<string, Set<(message: SnailSseMessage) => void>>();
 
-  /** Invoke one listener set, keeping a broken listener from killing the stream. */
+  /**
+   * 调用一组监听器，同时避免某个坏监听器拖垮整条流。
+   *
+   * Invoke one listener set, keeping a broken listener from killing the stream.
+   */
   const notify = (
     listeners: Iterable<(message: SnailSseMessage) => void>,
     message: SnailSseMessage
@@ -247,6 +301,12 @@ export function createSseConnection(init: SseConnectionInit): SnailSseConnection
 }
 
 /**
+ * 解析 event-stream 响应体。
+ *
+ * 遵循实践中真正重要的 WHATWG 规则：行以 `\n`、`\r\n` 或 `\r` 结束；空行派发已
+ * 缓冲的事件；`:` 开头是注释；字段值保留第一个冒号之后的全部内容，并去掉一个前导
+ * 空格。
+ *
  * Parse an event-stream body.
  *
  * Follows the WHATWG rules that matter in practice: lines are terminated by

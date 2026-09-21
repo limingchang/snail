@@ -1,4 +1,10 @@
 /**
+ * 内置装饰器。
+ *
+ * 请求层以装饰器形式暴露的一切都从这里再导出，因此
+ * `import { Get, Post, Query } from "@snail-js/api"` 与
+ * `import { Get, Post, Query } from "@snail-js/api/decorators"` 拿到的是同一个东西。
+ *
  * Built-in decorators.
  *
  * Everything the request layer exposes as a decorator is re-exported from here,

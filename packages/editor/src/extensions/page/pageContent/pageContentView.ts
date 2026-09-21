@@ -1,4 +1,15 @@
 /**
+ * `pageContent` 的节点视图。
+ *
+ * 与本模块其他节点视图一样由两个元素组成：`dom` 是承载内边距的正文盒子，`contentDOM` 是
+ * ProseMirror 渲染各块的地方。测量器累加 *contentDOM* 的子元素，从 `dom` 读取可用高度。
+ *
+ * 这里刻意不保留任何逐节点状态：正文的内边距由 **page** 节点视图发布的 CSS 自定义属性
+ * （`--snail-page-margin-*`）驱动，因为 ProseMirror 只在节点视图**自己的**节点变化时才调用
+ * 它的 `update`：`setPageMargins` 修改 page 时，`pageContent` 节点对象并未被触碰，所以自己
+ * 去读页边距的节点视图会永远停留在旧的内边距上。继承来的自定义属性无需任何 JavaScript 就能
+ * 重新给正文排版。
+ *
  * The `pageContent` node view.
  *
  * Two elements, like every other node view in this module: `dom` is the body box that
@@ -17,7 +28,7 @@ import type { NodeViewRenderer } from "@tiptap/core";
 
 import { DATA_TYPE, PAGE_CONTENT_CLASS, PAGE_CONTENT_INNER_CLASS } from "../constant/dom";
 
-/** The `pageContent` node's node view. */
+/** `pageContent` 节点的节点视图。 / The `pageContent` node's node view. */
 export function renderPageContentNodeView(): NodeViewRenderer {
   return ({ node }) => {
     const dom = document.createElement("div");

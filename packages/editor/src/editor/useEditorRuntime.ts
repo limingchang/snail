@@ -1,4 +1,38 @@
 /**
+ * props 与一个活的 Tiptap 编辑器之间的一切。
+ *
+ * ## 这里负责什么
+ *
+ * 1. **扩展数组。** 由 {@link buildExtensions} 根据 props 构建，每个编辑器实例构建一次。
+ *    旧版 `generateExtensions` 往一个模块级的 `baseExtensions` 数组上 push（缺陷 36），
+ *    于是创建第二个编辑器 —— 或者只是重新挂载第一个 —— 会把每个扩展注册两遍，
+ *    ProseMirror 报 `Duplicate extension names found`。模块级的可变数组才是 bug；返回一个
+ *    新数组的函数才是修复。
+ *
+ * 2. **基础集合，显式列出。** `Document` 始终是多页文档，即使 `multiPage` 为 `false`：
+ *    旧函数的那条分支根本*没有*注册文档，于是 ProseMirror 抛出
+ *    `Schema is missing its top node type (doc)`（缺陷 37）。分页是可选的；文档不是。
+ *
+ * 3. **撤销/重做。** 注册了 `@tiptap/extensions` 的 `UndoRedo`。旧编辑器完全没有历史记录
+ *    （缺陷 14）。分页事务把自己标成 `addToHistory: false`，所以撤销永远不会重放一次分页。
+ *
+ * 4. **响应式。** `mode`、文档、填充数据与扩展配置都被 watch 并生效。旧组件完全没有
+ *    `watch`，所以模式、文档与扩展集合在创建时就冻结了，`props.data` 也从未被读过
+ *    （缺陷 38）。
+ *
+ * 5. **清理。** 这个 composable 添加的每个监听器都进入 {@link disposers}，并在编辑器被销毁
+ *    之前释放。旧组件在 `document` 上加了 `compositionstart`/`compositionend` 监听器却从不
+ *    移除，于是它们会在卸载之后解引用一个已销毁的编辑器（缺陷 39）；它还排入了一个事件
+ *    发射器订阅却没有退订，于是一次重新挂载之后对话框会打开两次（缺陷 40）。这个集合今天
+ *    是空的 —— 分页现在由文档驱动，而不是由输入法标志驱动 —— 但机制留在这里，这样将来加
+ *    一个也不会重新引入泄漏。
+ *
+ * ## 它刻意*不*做什么
+ *
+ * 没有事件发射器。旧工具栏通过一个模块级发射器与对话框通信，这正是重新挂载会重复订阅的
+ * 原因。这里对话框是打开它的组件的子节点，而变量扩展自己的 `onRequestEdit` 回调承载着
+ * 唯一必须跨边界的那条消息。
+ *
  * Everything between the props and a live Tiptap editor.
  *
  * ## What this owns
@@ -68,6 +102,7 @@ import { CharacterCount, Gapcursor, Placeholder, UndoRedo } from "@tiptap/extens
 import { createDocument } from "../extensions/document";
 import { LayoutMode } from "../extensions/layoutMode";
 import { Page } from "../extensions/page";
+import { migrateFurnitureContent } from "../extensions/page/utils/migrateFurniture";
 import { ParagraphStyle } from "../extensions/paragraphStyle";
 import { Print } from "../extensions/print";
 import { QRCode } from "../extensions/qrcode";
@@ -88,42 +123,69 @@ import type { QRCodeOptions } from "../extensions/qrcode";
 import type { SEditorExtensionOptions, SEditorVariableProps } from "./props";
 import { emptyDocument, parseTemplateInput } from "./template";
 
-/** The heading levels offered when the caller does not choose. */
+/**
+ * 调用方没有选择时提供的标题级别。
+ *
+ * The heading levels offered when the caller does not choose.
+ */
 const DEFAULT_HEADING_LEVELS: readonly Level[] = [1, 2, 3, 4, 5, 6];
 
-/** What `useEditorRuntime` is configured with. Every field is a getter-friendly ref. */
+/**
+ * `useEditorRuntime` 的配置。每个字段都是对 getter 友好的 ref。
+ *
+ * What `useEditorRuntime` is configured with. Every field is a getter-friendly ref.
+ */
 export interface UseEditorRuntimeOptions {
-  /** `"design"` or `"fill"`. */
+  /** `"design"` 或 `"fill"`。 / `"design"` or `"fill"`. */
   mode: MaybeRefOrGetter<EditorMode>;
 
-  /** The document. A JSON document, an HTML string or a full stored template. */
+  /**
+   * 文档。一份 JSON 文档、一个 HTML 字符串，或一份完整的已存储模板。
+   *
+   * The document. A JSON document, an HTML string or a full stored template.
+   */
   content?: MaybeRefOrGetter<TemplateContent | undefined>;
 
-  /** Fill data, keyed by variable key. Replaces the previous data on every change. */
+  /**
+   * 填充数据，按变量 key 索引。每次变化都会替换先前的数据。
+   *
+   * Fill data, keyed by variable key. Replaces the previous data on every change.
+   */
   data?: MaybeRefOrGetter<VariableFillData | undefined>;
 
-  /** Register the page extension. Default `true`. */
+  /** 注册页面扩展。默认 `true`。 / Register the page extension. Default `true`. */
   multiPage?: MaybeRefOrGetter<boolean | undefined>;
 
-  /** Structures that only apply at creation time. */
+  /** 只在创建时生效的结构。 / Structures that only apply at creation time. */
   extensions?: MaybeRefOrGetter<SEditorExtensionOptions | undefined>;
 
-  /** Page-extension options. */
+  /** 页面扩展选项。 / Page-extension options. */
   page?: MaybeRefOrGetter<PageOptions | undefined>;
 
-  /** Variable-extension options, minus `mode`/`values`. */
+  /**
+   * 变量扩展选项，去掉 `mode`/`values`。
+   *
+   * Variable-extension options, minus `mode`/`values`.
+   */
   variable?: MaybeRefOrGetter<SEditorVariableProps | undefined>;
 
-  /** QR-code-extension options. */
+  /** 二维码扩展选项。 / QR-code-extension options. */
   qrcode?: MaybeRefOrGetter<QRCodeOptions | undefined>;
 
-  /** Watermark-extension options. */
+  /** 水印扩展选项。 / Watermark-extension options. */
   watermark?: MaybeRefOrGetter<WatermarkOptions | undefined>;
 
-  /** Print-extension options. */
+  /** 打印扩展选项。 / Print-extension options. */
   print?: MaybeRefOrGetter<PrintOptions | undefined>;
 
   /**
+   * 文档已变更。
+   *
+   * 参数是**core 的** `Editor`，不是 Vue 的子类：这些回调由 Tiptap 自己的 `EditorOptions`
+   * 声明，所以 Tiptap 交给它们的就是它当时标注的类型。`@tiptap/vue-3` 的 `Editor` 继承
+   * core 的，并且没有重新声明 `EditorOptions`，所以这里不能假定那个更窄的子类类型 —— 见
+   * 下面的 `CoreEditor` 别名。
+   *
    * The document changed.
    *
    * The parameter is **core's** `Editor`, not the Vue subclass: these callbacks are
@@ -134,47 +196,81 @@ export interface UseEditorRuntimeOptions {
    */
   onUpdate?: (editor: CoreEditor) => void;
 
-  /** The selection moved. Panels use this to follow the caret. */
+  /**
+   * 选区移动了。面板用它跟随光标。
+   *
+   * The selection moved. Panels use this to follow the caret.
+   */
   onSelectionUpdate?: (editor: CoreEditor) => void;
 
-  /** The editor exists and is ready. */
+  /** 编辑器已存在并已就绪。 / The editor exists and is ready. */
   onReady?: (editor: CoreEditor) => void;
 
-  /** The user asked for a different mode from inside the component. */
+  /**
+   * 用户从组件内部要求换一个模式。
+   *
+   * The user asked for a different mode from inside the component.
+   */
   onModeChange?: (mode: EditorMode) => void;
 
-  /** A variable was clicked in design mode. `pos` is `-1` when it could not be resolved. */
+  /**
+   * 在设计模式下点了一个变量。无法解析它的位置时 `pos` 为 `-1`。
+   *
+   * A variable was clicked in design mode. `pos` is `-1` when it could not be resolved.
+   */
   onRequestVariableEdit?: (attrs: VariableAttrs, pos: number) => void;
 }
 
-/** What {@link useEditorRuntime} returns. */
+/** {@link useEditorRuntime} 返回的东西。 / What {@link useEditorRuntime} returns. */
 export interface EditorRuntime {
-  /** The editor, or `undefined` before creation. */
+  /** 编辑器；创建前为 `undefined`。 / The editor, or `undefined` before creation. */
   editor: ShallowRef<Editor | undefined>;
 
-  /** Every registered extension name — the toolbar's gate, not the `tools` list. */
+  /**
+   * 每一个已注册的扩展名 —— 工具栏的门，而不是 `tools` 列表。
+   *
+   * Every registered extension name — the toolbar's gate, not the `tools` list.
+   */
   enabledExtensions: ComputedRef<ReadonlySet<string>>;
 
-  /** The effective mode, after the deprecated `design` alias is applied. */
+  /**
+   * 生效的模式，已应用废弃的 `design` 别名。
+   *
+   * The effective mode, after the deprecated `design` alias is applied.
+   */
   mode: ComputedRef<EditorMode>;
 
-  /** Switch modes, telling the host so it can reflect it in the prop. */
+  /**
+   * 切换模式，并告知宿主，好让它反映到 prop 上。
+   *
+   * Switch modes, telling the host so it can reflect it in the prop.
+   */
   setMode: (mode: EditorMode) => void;
 
-  /** `true` when an extension of that name is registered. */
+  /** 注册了该名字的扩展时为 `true`。 / `true` when an extension of that name is registered. */
   hasExtension: (name: string) => boolean;
 
-  /** Replace the document without emitting an update. */
+  /** 替换文档，且不发出 update。 / Replace the document without emitting an update. */
   setContent: (content: TemplateContent) => void;
 
-  /** The current fill data. */
+  /** 当前的填充数据。 / The current fill data. */
   values: () => VariableFillData;
 
-  /** Destroy and rebuild the editor, e.g. after the extension config changed. */
+  /**
+   * 销毁并重建编辑器，例如扩展配置变化之后。
+   *
+   * Destroy and rebuild the editor, e.g. after the extension config changed.
+   */
   recreate: () => void;
 }
 
 /**
+ * 给一个配置对象算出确定的、抗循环的字符串。
+ *
+ * 函数变成 `"fn"` 而不是被丢掉，所以 `{ onBeforePrint }` 与 `{ onAfterPrint }` 不会得到
+ * 相同的指纹；而*换一个*回调身份仍然不会重建编辑器，这正是意图 —— 更换回调不能把用户的
+ * 选区丢掉。循环被标记出来，而不是递归下去。
+ *
  * A deterministic, cycle-safe string for a configuration object.
  *
  * Functions become `"fn"` rather than being dropped, so `{ onBeforePrint }` and
@@ -204,30 +300,49 @@ function fingerprint(value: unknown, seen = new Set<unknown>()): string {
   return `{${entries.join(",")}}`;
 }
 
-/** `true` when Tiptap can build a view right now. */
+/** Tiptap 现在就能构建视图时为 `true`。 / `true` when Tiptap can build a view right now. */
 function hasDom(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
 }
 
 /**
+ * 把 props 绑到一个活的编辑器上。
+ *
  * Bind the props to a live editor.
  *
- * @param options - the runtime configuration; see {@link UseEditorRuntimeOptions}.
- * @returns the runtime handle. It must be used inside a component's `setup`: the editor
+ * @param options 运行时配置；见 {@link UseEditorRuntimeOptions} /
+ * - the runtime configuration; see {@link UseEditorRuntimeOptions}.
+ * @returns 运行时句柄。它必须在组件的 `setup` 里使用：编辑器会在卸载时通过当前实例的
+ * 生命周期被销毁 /
+ * the runtime handle. It must be used inside a component's `setup`: the editor
  * is destroyed on unmount through the current instance's lifecycle.
  */
 export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntime {
   const editor = shallowRef<Editor | undefined>(undefined);
 
-  /** Bumped on create/destroy so {@link enabledExtensions} re-reads the manager. */
+  /**
+   * 在创建/销毁时自增，好让 {@link enabledExtensions} 重新读管理器。
+   *
+   * Bumped on create/destroy so {@link enabledExtensions} re-reads the manager.
+   */
   const generation = shallowRef(0);
 
-  /** Every listener this composable registers. Drained before the editor dies. */
+  /**
+   * 这个 composable 注册的每一个监听器。在编辑器死亡之前被排空。
+   *
+   * Every listener this composable registers. Drained before the editor dies.
+   */
   const disposers: Array<() => void> = [];
 
   const mode = computed<EditorMode>(() => toValue(options.mode) ?? "design");
 
   /**
+   * 结构指纹。
+   *
+   * `mode`、填充数据与文档是从 `options.variable`/`data` 里显式取出的，而不是整体纳入：
+   * 它们变化频繁，纳入进来会让编辑器在填写对话框里每敲一个键就重建一次 —— 正是那种让编辑器
+   * 感觉坏掉的「靠重建来重新配置」错误。
+   *
    * The structural fingerprint.
    *
    * `mode`, the fill data and the document are read out of `options.variable`/`data`
@@ -265,6 +380,12 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
   }
 
   /**
+   * 打开时使用的文档。
+   *
+   * 两个顶层节点接受的内容不同（`page+` 对 `block+`），所以一份空的多页文档与一份空的扁平
+   * 文档是*不同的*值 —— 而把页面形态的默认值交给扁平 schema 是一个 ProseMirror
+   * `Invalid content` 错误，正是缺陷 37 的镜像。
+   *
    * The document to open with.
    *
    * The two top nodes accept different content (`page+` versus `block+`), so an empty
@@ -274,11 +395,18 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
    */
   function initialContent(): TemplateContent {
     const content = toValue(options.content);
-    if (content !== undefined) return content;
-    return wantsPages() ? emptyDocument() : { type: "doc", content: [{ type: "paragraph" }] };
+    if (content === undefined) {
+      return wantsPages() ? emptyDocument() : { type: "doc", content: [{ type: "paragraph" }] };
+    }
+    // An HTML string is parsed by the schema rather than migrated; see `setContent`.
+    return typeof content === "string" ? content : migrateFurnitureContent(content).content;
   }
 
-  /** Build a fresh extension array. Never a module-level array — see the module comment. */
+  /**
+   * 构建一个全新的扩展数组。绝不用模块级数组 —— 见模块注释。
+   *
+   * Build a fresh extension array. Never a module-level array — see the module comment.
+   */
   function buildExtensions(): Extensions {
     const config = toValue(options.extensions);
     const disabled = new Set(config?.disable ?? []);
@@ -356,7 +484,11 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
     return list;
   }
 
-  /** Apply the mode to a live editor: editability, and what a variable paints. */
+  /**
+   * 把模式应用到活的编辑器上：可编辑性，以及变量绘制什么。
+   *
+   * Apply the mode to a live editor: editability, and what a variable paints.
+   */
   function applyMode(instance: Editor, next: EditorMode): void {
     instance.setEditable(next === "design");
     // The variable extension paints labels in design mode and values in fill mode; it
@@ -364,37 +496,63 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
     setVariableMode(instance, next);
   }
 
-  /** Replace the document, but only when it really differs. */
+  /**
+   * 替换文档，但只在它确实不同的时候。
+   *
+   * JSON 内容在进入时会被迁移（`migrateFurnitureContent`）：一份写于三区页眉页脚之前的
+   * 模板，在带有页面级 Logo 时会被页面节点上的内容表达式*拒绝*。HTML 字符串无法这样迁移
+   * —— 解析规则会处理它，而扁平的页眉页脚带（常见的旧形态）是合法的，会在运行时被修复。
+   *
+   * Replace the document, but only when it really differs.
+   *
+   * JSON content is migrated on the way in (`migrateFurnitureContent`): a template written before
+   * the three-region furniture would otherwise be *rejected* by the page's content expression when
+   * it carries a page-level logo. An HTML string cannot be migrated this way — the parse rules
+   * handle it, and a flat band (the common legacy shape) is legal and repaired at runtime.
+   */
   function setContent(content: TemplateContent): void {
     const instance = editor.value;
     if (!instance) return;
 
     const parsed = parseTemplateInput(content);
-    if (typeof parsed.content === "string") {
-      if (instance.getHTML() === parsed.content) return;
-    } else if (JSON.stringify(instance.getJSON()) === JSON.stringify(parsed.content)) {
+    const target =
+      typeof parsed.content === "string"
+        ? parsed.content
+        : migrateFurnitureContent(parsed.content).content;
+
+    if (typeof target === "string") {
+      if (instance.getHTML() === target) return;
+    } else if (JSON.stringify(instance.getJSON()) === JSON.stringify(target)) {
       return;
     }
 
     // `emitUpdate: false`: the change came *from* the host, so echoing it back would
     // make an `update:modelValue` loop, and it would mark the document dirty on a
     // programmatic `setTemplate`.
-    instance.commands.setContent(parsed.content, { emitUpdate: false });
+    instance.commands.setContent(target, { emitUpdate: false });
   }
 
-  /** Read the fill data straight off the extension, which owns it. */
+  /**
+   * 直接从拥有填充数据的扩展上读它。
+   *
+   * Read the fill data straight off the extension, which owns it.
+   */
   function values(): VariableFillData {
     const instance = editor.value;
     if (!instance || !hasExtension("variable")) return toValue(options.data) ?? {};
     return getVariableValues(instance);
   }
 
-  /** `true` when an extension of that name is registered. */
+  /** 注册了该名字的扩展时为 `true`。 / `true` when an extension of that name is registered. */
   function hasExtension(name: string): boolean {
     return enabledExtensions.value.has(name);
   }
 
-  /** Release everything this composable registered, then the editor itself. */
+  /**
+   * 释放这个 composable 注册的一切，然后释放编辑器本身。
+   *
+   * Release everything this composable registered, then the editor itself.
+   */
   function destroyEditor(): void {
     while (disposers.length > 0) {
       const dispose = disposers.pop();
@@ -412,7 +570,11 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
     generation.value += 1;
   }
 
-  /** Create a new editor, replacing any existing one. */
+  /**
+   * 创建一个新编辑器，替换掉已有的那个。
+   *
+   * Create a new editor, replacing any existing one.
+   */
   function createEditor(): void {
     destroyEditor();
 
@@ -442,7 +604,7 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
     editor.value = instance;
   }
 
-  /** Rebuild the editor from scratch. */
+  /** 从头重建编辑器。 / Rebuild the editor from scratch. */
   function recreate(): void {
     createEditor();
     // A rebuild loses the content the user was editing, so the document is re-applied
@@ -452,7 +614,11 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
     if (content !== undefined) setContent(content);
   }
 
-  /** Switch modes, telling the host so it can reflect it in the prop. */
+  /**
+   * 切换模式，并告知宿主，好让它反映到 prop 上。
+   *
+   * Switch modes, telling the host so it can reflect it in the prop.
+   */
   function setMode(next: EditorMode): void {
     if (mode.value === next) return;
     const instance = editor.value;
@@ -510,5 +676,9 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
   return { editor, enabledExtensions, mode, setMode, hasExtension, setContent, values, recreate };
 }
 
-/** Re-exported so `SEditor.vue` can hand a JSON document to the runtime without a cast. */
+/**
+ * 重新导出，好让 `SEditor.vue` 不必加类型断言就能把 JSON 文档交给运行时。
+ *
+ * Re-exported so `SEditor.vue` can hand a JSON document to the runtime without a cast.
+ */
 export type { JSONContent };

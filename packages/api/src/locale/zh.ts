@@ -1,8 +1,14 @@
 import type { SnailMessages } from "./types";
 
-/** Chinese (zh-CN) message catalogue. */
+/**
+ * 中文（zh-CN）消息目录。
+ *
+ * 键为点分路径，模板中的 `%s` 会按位置被 `t()` 的参数替换。
+ *
+ * Chinese (zh-CN) message catalogue.
+ */
 const zh: SnailMessages = {
-  // decorator misuse
+  // decorator misuse / 装饰器误用
   "error.decorator.method.duplicate": "方法[%s]上只能使用一个请求方式装饰器（@Get/@Post/...）",
   "error.decorator.method.missing": "方法[%s]缺少请求方式装饰器（@Get/@Post/...），无法发送请求",
   "error.decorator.param.context": "@%s 只能用于类的实例方法参数，不能用于构造函数或静态成员",
@@ -12,7 +18,7 @@ const zh: SnailMessages = {
   "error.decorator.server.notFound": "接口类[%s]缺少 @Api() 装饰器",
   "error.decorator.stream.duplicate": "类[%s]上只能使用一个连接类装饰器（@Sse/@WebSocket）",
 
-  // options
+  // options / 选项
   "error.options.server.missing": "服务类[%s]缺少 @Server() 装饰器",
   "error.options.server.baseURL": "@Server() 的 baseURL 必须是非空字符串",
   "error.options.api.url": "@Api() 的 url 必须是字符串",
@@ -20,11 +26,11 @@ const zh: SnailMessages = {
   "error.options.plugin.missing": "插件[%s]依赖的插件[%s]尚未注册，请先 use() 它",
   "error.options.plugin.exists": "插件[%s]已在服务[%s]上注册，请勿重复注册",
 
-  // hooks
+  // hooks / 生命周期钩子
   "error.hook.next.multiple": "插件[%s]的 %s 钩子多次调用了 next()",
   "error.hook.unknown": "未知的插件生命周期钩子[%s]",
 
-  // request / response
+  // request / response / 请求与响应
   "error.request.failed": "[%s] 请求失败：%s",
   "error.request.timeout": "[%s] 请求超时（%sms）",
   "error.request.cancelled": "[%s] 请求已取消",
@@ -32,16 +38,16 @@ const zh: SnailMessages = {
   "error.response.shape": "[%s] 服务端返回数据不符合约定结构：缺少字段[%s]",
   "error.response.json": "[%s] 服务端返回的 JSON 解析失败：%s",
 
-  // path params
+  // path params / 路径参数
   "error.path.missing": "路由[%s]中的占位符[:%s]没有对应的参数值，请在方法参数上添加 @Params('%s')",
 
-  // plugins
+  // plugins / 插件
   "error.plugin.validate.request": "[%s] 请求数据校验失败",
   "error.plugin.validate.response": "[%s] 响应数据校验失败",
   "error.plugin.transform": "[%s] 数据转换失败：%s",
   "error.plugin.cache.adapter": "未知的缓存适配器[%s]，可选：memory、localStorage、sessionStorage、indexedDB",
 
-  // info
+  // info / 提示信息
   "info.request.start": "→ %s %s [%s]",
   "info.request.success": "← %s %s [%s] %s",
   "info.request.codeError": "← %s %s [%s] 业务码异常 %s",

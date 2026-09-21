@@ -1,6 +1,12 @@
 import { noop } from "../../utils/object";
 
 /**
+ * 一个有界并发的异步任务队列。
+ *
+ * `useUploader` 需要它只为一个原因：用户一次拖入 200 个文件时，不能打开 200 个 socket。
+ * 队列同时负责「是否全部结束？」这个问题，因此 `upload()` 可以交回一个在整批任务排空时
+ * 兑现的 promise，而不必让调用方轮询文件列表。
+ *
  * A bounded-concurrency queue of asynchronous tasks.
  *
  * `useUploader` needs this for one reason: a user dropping 200 files must not open
@@ -9,29 +15,58 @@ import { noop } from "../../utils/object";
  * of making the caller poll the file list.
  */
 export interface TaskQueue {
-  /** Enqueue a task; it starts as soon as a slot is free. */
+  /**
+   * 把任务入队；一旦有空位就开始执行。
+   *
+   * Enqueue a task; it starts as soon as a slot is free.
+   */
   add(task: () => Promise<void>): void;
 
-  /** Resolves once nothing is running and nothing is waiting. */
+  /**
+   * 在没有任务运行、也没有任务等待时兑现。
+   *
+   * Resolves once nothing is running and nothing is waiting.
+   */
   drain(): Promise<void>;
 
-  /** Drop every task that has not started yet. Running tasks are untouched. */
+  /**
+   * 丢弃所有尚未开始的任务。正在运行的任务不受影响。
+   *
+   * Drop every task that has not started yet. Running tasks are untouched.
+   */
   clear(): void;
 
-  /** Number of tasks currently running. */
+  /**
+   * 当前正在运行的任务数。
+   *
+   * Number of tasks currently running.
+   */
   readonly active: number;
 
-  /** Number of tasks waiting for a slot. */
+  /**
+   * 正在等待空位的任务数。
+   *
+   * Number of tasks waiting for a slot.
+   */
   readonly pending: number;
 }
 
 /**
+ * 创建一个至多同时运行 `concurrency` 个任务的队列。
+ *
+ * 被拒绝的任务会被吞掉，而不是让整个队列失败：一个上传出错不该卡住其余上传，调用方本来
+ * 就能通过每个文件的状态观察到失败。`concurrency` 会被钳制到至少 1，因为零槽位的队列
+ * 永远不会排空，`drain()` 也就永远不会兑现。
+ *
  * Create a queue that runs at most `concurrency` tasks at a time.
  *
  * A task that rejects is swallowed rather than failing the queue: one broken
  * upload must not stall the remaining ones, and the caller observes the failure
  * through per-file state anyway. `concurrency` is clamped to at least 1, because a
  * queue with zero slots would never drain and `drain()` would never resolve.
+ *
+ * @param concurrency 并发上限。默认 `1` / Maximum concurrency. `1` by default.
+ * @returns 新建的任务队列 / The new task queue.
  */
 export function createTaskQueue(concurrency = 1): TaskQueue {
   const limit = Number.isFinite(concurrency) ? Math.max(1, Math.floor(concurrency)) : 1;

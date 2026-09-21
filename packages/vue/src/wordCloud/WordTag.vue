@@ -7,6 +7,20 @@ import { ref } from "vue";
 import type { WordTagFrame, WordTagHandle } from "./type";
 
 /**
+ * `SWordTag` —— 词云里的一个词。
+ *
+ * 它刻意保持「笨」：不持有定时器、旋转状态和测量循环。父级词云在同一个
+ * `requestAnimationFrame` 回调里算好每个标签的一帧，然后逐个句柄调用
+ * {@link place}。
+ *
+ * 这种反转正是对旧 `wordTag.vue` 的修复：旧版*每个标签*一个 `setInterval`
+ * （一朵云 N 个定时器，``up to 200 Hz``），而且它的 `style` 计算属性每 tick
+ * 都读 `offsetWidth` / `offsetHeight` —— 每个标签每帧一次强制重排，读操作
+ * 还夹在样式写操作之间，浏览器无法批处理。
+ *
+ * 根元素是静态的：只有 `transform`、`opacity`、`font-size`、`font-weight`
+ * 和 `z-index` 由父级命令式写入。
+ *
  * `SWordTag` — one word in the cloud.
  *
  * It is deliberately dumb: it owns no timer, no rotation state and no measurement
@@ -25,14 +39,26 @@ import type { WordTagFrame, WordTagHandle } from "./type";
 defineOptions({ name: "SWordTag" });
 
 defineProps<{
-  /** Word text. */
+  /**
+   * 词语文本。
+   *
+   * Word text.
+   */
   text: string;
-  /** Resolved colour; already picked from the palette or pinned by the caller. */
+  /**
+   * 已解析的颜色；已经从调色板中选出，或由使用方固定。
+   *
+   * Resolved colour; already picked from the palette or pinned by the caller.
+   */
   color: string;
 }>();
 
 const emit = defineEmits<{
-  /** The tag was clicked; the native event is forwarded unchanged. */
+  /**
+   * 标签被点击；原生事件原样转发。
+   *
+   * The tag was clicked; the native event is forwarded unchanged.
+   */
   click: [event: MouseEvent];
 }>();
 
@@ -76,9 +102,13 @@ function onClick(event: MouseEvent): void {
 }
 
 defineExpose<WordTagHandle>({
+  /** 应用一帧，一次写完不回读。 / Apply one frame; write-only, never read back. */
   place,
+  /** 当前渲染尺寸，单位为像素。 / Current rendered size in pixels. */
   measure,
+  /** 清除内联字号，便于重新测量。 / Drop the inline font size before measuring. */
   reset,
+  /** 标签元素；挂载前为 `null`。 / The tag element, or `null` before mount. */
   get element(): HTMLElement | null {
     return tagRef.value;
   }

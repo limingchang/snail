@@ -4,6 +4,13 @@ import { noop } from "../utils/object";
 import { bindRef, resolveStateAdapter } from "./shared/adapter";
 
 /**
+ * 一个能报告自己解析出的事件的连接。
+ *
+ * `SnailConnection` 刻意只暴露 `close`/`connected`/`opened`/`closed`，因为消息被投递给端点类
+ * 上 `@SseEvent()` 处理器的连接不需要别的接口面。`useSSE` 没有那样的类，因此它在连接上寻找
+ * 这个扩展，找不到就在端点上找。两者都没有时，`connected` 仍能跟踪传输层，但 `messages`
+ * 会一直是空的——见 {@link useSSE} 的说明。
+ *
  * A connection that can report the events it parsed.
  *
  * `SnailConnection` deliberately exposes only `close`/`connected`/`opened`/
@@ -14,13 +21,26 @@ import { bindRef, resolveStateAdapter } from "./shared/adapter";
  * `messages` stays empty — see the note on {@link useSSE}.
  */
 export interface SseConnectionTap {
-  /** Register a message listener. Returns an unsubscribe function. */
+  /**
+   * 注册消息监听器。返回取消订阅函数。
+   *
+   * Register a message listener. Returns an unsubscribe function.
+   */
   onMessage?(listener: (message: SnailSseMessage) => void): () => void;
 }
 
-/** A `SnailSseEndpoint` that can also hand out messages directly. */
+/**
+ * 还能直接交出消息的 `SnailSseEndpoint`。
+ *
+ * A `SnailSseEndpoint` that can also hand out messages directly.
+ */
 export interface SseEndpoint extends SnailSseEndpoint {
   /**
+   * 为这个端点开启的连接注册消息监听器。
+   *
+   * 优先于 {@link SseConnectionTap}，因为它可以在 `open()` 之前调用一次，这是确保连接与订阅
+   * 之间没有消息丢失的唯一办法。
+   *
    * Register a message listener for the connections this endpoint opens.
    *
    * Preferred over {@link SseConnectionTap} because it can be called once, before
@@ -30,9 +50,19 @@ export interface SseEndpoint extends SnailSseEndpoint {
   subscribe?(listener: (message: SnailSseMessage) => void): () => void;
 }
 
-/** Options accepted by {@link useSSE}. */
+/**
+ * {@link useSSE} 接受的选项。
+ *
+ * Options accepted by {@link useSSE}.
+ */
 export interface UseSseOptions {
   /**
+   * 本 hook 句柄使用的 state adapter。
+   *
+   * 默认取创建该端点的 server 的 `stateAdapter`，回退到 `SnailAdapter`。
+   * `Service.createSse()` 把它的 server 记录在返回的端点上，正是为了让这里可以继承，而不必
+   * 重复。
+   *
    * State adapter for this hook's handles.
    *
    * Defaults to the `stateAdapter` of the server that created the endpoint, falling
@@ -42,12 +72,20 @@ export interface UseSseOptions {
   adapter?: SnailStateAdapter;
 
   /**
+   * hook 创建时立刻打开连接。默认 `false`，与 `SnailSseEndpoint`「`open()` 之前不连接」
+   * 的契约一致。
+   *
    * Open the connection as soon as the hook is created. Defaults to `false`,
    * matching `SnailSseEndpoint`'s "nothing connects until `open()`" contract.
    */
   immediate?: boolean;
 
   /**
+   * 缓冲消息上限。默认 `100`，超出时丢弃最旧的。
+   *
+   * 刻意设界：一条跑上几小时的 SSE 流配上无界数组就是内存泄漏，最终会让标签页卡死，而任何
+   * 视图也渲染不了十万行。
+   *
    * Maximum buffered messages. Defaults to `100`, dropping the oldest first.
    *
    * Bounded on purpose: an SSE feed that runs for hours with an unbounded array
@@ -56,37 +94,81 @@ export interface UseSseOptions {
    */
   maxMessages?: number;
 
-  /** Keep only the messages this returns `true` for. */
+  /**
+   * 只保留返回 `true` 的消息。
+   *
+   * Keep only the messages this returns `true` for.
+   */
   filter?: (message: SnailSseMessage) => boolean;
 
-  /** Called for every accepted message, after the buffer was updated. */
+  /**
+   * 每条被接受的消息都会调用，在缓冲区更新之后。
+   *
+   * Called for every accepted message, after the buffer was updated.
+   */
   onMessage?: (message: SnailSseMessage) => void;
 }
 
-/** What {@link useSSE} returns. */
+/**
+ * {@link useSSE} 的返回值。
+ *
+ * What {@link useSSE} returns.
+ */
 export interface UseSseResult {
-  /** Buffered messages, oldest first. */
+  /**
+   * 缓冲的消息，最旧的在前。
+   *
+   * Buffered messages, oldest first.
+   */
   readonly messages: SnailStateRef<SnailSseMessage[]>;
 
-  /** The most recent accepted message. */
+  /**
+   * 最近一条被接受的消息。
+   *
+   * The most recent accepted message.
+   */
   readonly lastMessage: SnailStateRef<SnailSseMessage | undefined>;
 
-  /** `true` between a successful connect and the next close. */
+  /**
+   * 从连接成功到下一次关闭之间为 `true`。
+   *
+   * `true` between a successful connect and the next close.
+   */
   readonly connected: SnailStateRef<boolean>;
 
-  /** Why the connection failed, or why a filter/handler threw. */
+  /**
+   * 连接失败的原因，或过滤器/处理器抛出的错误。
+   *
+   * Why the connection failed, or why a filter/handler threw.
+   */
   readonly error: SnailStateRef<unknown>;
 
-  /** Connect. A no-op while an open connection is already live. */
+  /**
+   * 建立连接。已有连接存活时是空操作。
+   *
+   * Connect. A no-op while an open connection is already live.
+   */
   open(): void;
 
-  /** Disconnect, stop the reconnect loop and detach the listener. */
+  /**
+   * 断开连接、停止重连循环并摘下监听器。
+   *
+   * Disconnect, stop the reconnect loop and detach the listener.
+   */
   close(): void;
 
-  /** Empty the message buffer. Leaves the connection alone. */
+  /**
+   * 清空消息缓冲。不影响连接。
+   *
+   * Empty the message buffer. Leaves the connection alone.
+   */
   clear(): void;
 
-  /** Resolved values, subscribing the current component when the adapter supports it. */
+  /**
+   * 解析后的值；adapter 支持时会订阅当前组件。
+   *
+   * Resolved values, subscribing the current component when the adapter supports it.
+   */
   bind(): {
     messages: SnailSseMessage[];
     lastMessage: SnailSseMessage | undefined;
@@ -116,6 +198,21 @@ function attachTap(
 }
 
 /**
+ * 把 Server-Sent Events 端点当作响应式状态消费。
+ *
+ * ## 消息接入点
+ *
+ * `Service.createSse()` 返回的对象只有一个成员 `open()`，它解析出的消息被派发给装饰过的类
+ * 的方法（`@SseEvent()`），而不是调用方。因此 `useSSE` 接受额外实现了 `subscribe(listener)`
+ * 的端点，或实现了 `onMessage(listener)` 的连接。两者都在不改变核心契约的前提下扩展它；
+ * 两者都没实现的端点仍然可靠地报告 `connected`/`error`，只是永远不填充 `messages`。
+ *
+ * ## 绝不产生未处理的拒绝
+ *
+ * 失败的 SSE 连接正是通过被拒绝的 `opened` promise 报告的，而应用里不会有别的东西去 await
+ * 它。这里同时处理了 `opened` 和 `closed`，因此一个死掉的服务器不会用未处理的拒绝把进程
+ * 拖垮。
+ *
  * Consume a Server-Sent Events endpoint as reactive state.
  *
  * ```ts
@@ -142,6 +239,11 @@ function attachTap(
  * nothing else in the application will ever await it. Both `opened` and `closed`
  * are handled here, so a dead server cannot take the process down with an
  * unhandled rejection.
+ *
+ * @param endpoint 要消费的 SSE 端点 / The SSE endpoint to consume.
+ * @param options SSE 选项 / The SSE options.
+ * @returns 消息、连接状态与 `open`/`close` 等操作 / Messages, connection state and the
+ *   `open`/`close` operations.
  */
 export function useSSE(endpoint: SseEndpoint, options: UseSseOptions = {}): UseSseResult {
   // `endpoint` is passed so the hook inherits the server's adapter: `createSse`

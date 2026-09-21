@@ -7,7 +7,11 @@ import type {
 import { defineMetadata, getOwnMetadata } from "../core/metadata";
 import { SNAIL_REQUEST_METHOD } from "../core/metadata.keys";
 
-/** Options accepted by every request-method decorator. */
+/**
+ * 每个请求方法装饰器都接受的选项。
+ *
+ * Options accepted by every request-method decorator.
+ */
 export interface RequestMethodOptions extends SnailMethodDecoratorOptions {}
 
 /**
@@ -60,20 +64,52 @@ function createRequestMethod(method: SnailMethodType) {
   };
 }
 
-/** `GET` request. */
+/**
+ * `GET` 请求。
+ *
+ * `GET` request.
+ */
 export const Get = createRequestMethod("GET");
-/** `POST` request. */
+/**
+ * `POST` 请求。
+ *
+ * `POST` request.
+ */
 export const Post = createRequestMethod("POST");
-/** `PUT` request. */
+/**
+ * `PUT` 请求。
+ *
+ * `PUT` request.
+ */
 export const Put = createRequestMethod("PUT");
-/** `DELETE` request. */
+/**
+ * `DELETE` 请求。
+ *
+ * `DELETE` request.
+ */
 export const Delete = createRequestMethod("DELETE");
-/** `PATCH` request. */
+/**
+ * `PATCH` 请求。
+ *
+ * `PATCH` request.
+ */
 export const Patch = createRequestMethod("PATCH");
-/** `HEAD` request. */
+/**
+ * `HEAD` 请求。
+ *
+ * `HEAD` request.
+ */
 export const Head = createRequestMethod("HEAD");
-/** `OPTIONS` request. */
+/**
+ * `OPTIONS` 请求。
+ *
+ * `OPTIONS` request.
+ */
 export const Options = createRequestMethod("OPTIONS");
 
-/** Alias kept for symmetry with `axios.request` style naming. */
+/**
+ * 为与 `axios.request` 风格命名对称而保留的别名。
+ *
+ * Alias kept for symmetry with `axios.request` style naming.
+ */
 export const Request = createRequestMethod;

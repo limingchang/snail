@@ -3,50 +3,28 @@
  * 两种模式是同一个组件的两种用法，而 `mode` 是**响应式**的：
  * 切换之后编辑器就地重绘，文档一个字节都没有变，所以切回设计模式是免费的。
  *
- * 换行、缩进、页码、水印都不必重新加载模板：这里用的是同一个 `SEditor` 实例。
+ * 换行、缩进、页码、水印都不必重新加载模板：这里用的是同一个 `SEditor` 实例，装的也是
+ * 「快速上手」里那份 `createStarterDocument()`，所以切换时看到的是同一份合同。
  */
 import { ref } from "vue";
-import { SEditor } from "@snail-js/editor";
-import type { EditorMode, TemplateContent } from "@snail-js/editor";
+import type { Editor } from "@tiptap/core";
+import { createStarterDocument, SEditor } from "@snail-js/editor";
+import type { EditorMode, TemplateContent, VariableFillData } from "@snail-js/editor";
 
 const mode = ref<EditorMode>("design");
 
-const doc = ref<TemplateContent>({
-  type: "doc",
-  content: [
-    {
-      type: "page",
-      content: [
-        {
-          type: "pageContent",
-          content: [
-            {
-              type: "paragraph",
-              content: [
-                { type: "text", text: "甲方：" },
-                { type: "variable", attrs: { label: "甲方名称", key: "partyA", data: { type: "text" } } },
-                { type: "text", text: "，签署日期：" },
-                {
-                  type: "variable",
-                  attrs: {
-                    label: "签署日期",
-                    key: "signDate",
-                    data: { type: "date", format: "YYYY年MM月DD日" }
-                  }
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
+const doc = ref<TemplateContent>(createStarterDocument());
+
+const values = ref<VariableFillData>({
+  contractNo: "SN-2026-0001",
+  amount: 136000,
+  amountInWords: 136000
 });
 
-const values = ref<Record<string, string>>({
-  partyA: "杭州某某科技有限公司",
-  signDate: "2026-03-01"
-});
+/** 二维码位图是异步生成的，编辑器就绪后画一次。 */
+function onReady(editor: Editor): void {
+  editor.commands.regenerateQRCode();
+}
 </script>
 
 <template>
@@ -57,7 +35,7 @@ const values = ref<Record<string, string>>({
     </button>
   </div>
   <div class="demo-editor-stage">
-    <SEditor v-model="doc" :mode="mode" :data="values" :tools="[]" />
+    <SEditor v-model="doc" :mode="mode" :data="values" :tools="[]" @ready="onReady" />
   </div>
 </template>
 

@@ -3,7 +3,13 @@
     <div class="s-tool-table__group">
       <!-- A popover rather than a dropdown: the grid is a target, and a dropdown item
            cannot express "which cell was hovered". -->
-      <el-popover placement="bottom-start" trigger="click" :width="220" @show="resetHover">
+      <el-popover
+        placement="bottom-start"
+        trigger="click"
+        :width="POPOVER_WIDTH"
+        popper-class="s-editor-popper"
+        @show="resetHover"
+      >
         <template #reference>
           <el-button size="small">
             <SIcon :icon="IconTable" />
@@ -25,7 +31,13 @@
         </div>
       </el-popover>
 
-      <el-popover placement="bottom-start" trigger="click" :width="240" @show="resetHover">
+      <el-popover
+        placement="bottom-start"
+        trigger="click"
+        :width="POPOVER_WIDTH"
+        popper-class="s-editor-popper"
+        @show="resetHover"
+      >
         <template #reference>
           <el-button size="small">
             <SIcon :icon="IconLayout" />
@@ -68,6 +80,26 @@
 
 <script setup lang="ts">
 /**
+ * `ToolTable` —— 表格区块：插入网格，以及八个单元格/行/列操作。
+ *
+ * ## 为什么它自成一块面板
+ *
+ * 这些控件以前住在 `insert` 面板里，把两件不同的事混在一起：「往文档里放一个新东西」（变量、
+ * 二维码、图片、分页符）和「改动光标已经所在的那张表」。把它们拆开意味着编辑表格时表格操作
+ * 一次点击即可到达，而不是藏在一个不相干的标签页后面，同时也让 `insert` 面板只讲插入。
+ *
+ * ## 网格
+ *
+ * `el-popover` 加一个 8×8 的悬停目标，是 Element Plus 里唯一能把「插入一个 3×5 的表格」
+ * 表达为一个手势的做法。「2×2 / 3×3 …」这样的下拉既更长也更不精确，而且旧版工具本来就用了
+ * 网格 —— 做法是对的，坏掉的是它周围的机制。
+ *
+ * ## 用 `can()` 决定禁用
+ *
+ * 每个操作的 `:disabled` 都取自 Tiptap 自己的 `editor.can()`，并在每次选区变化时重新求值，
+ * 因此按钮绝不会声称它能做它做不到的事。旧版模板把整条链内联重复了一遍，还完全没有可用性
+ * 检查。
+ *
  * `ToolTable` — the table section: the insert grids and the eight cell/row/column operations.
  *
  * ## Why this is its own pane
@@ -112,20 +144,46 @@ import {
 import { mergeEditorLocale } from "../../editor/locale";
 import type { ToolProps } from "../../editor/props";
 import { useEditorSelection } from "../../editor/useEditorSelection";
+import { ElPopover, ElButton, ElDivider } from "element-plus";
 
 defineOptions({ name: "ToolTable" });
 
+/**
+ * 本面板的 props：编辑器实例与语言覆盖，二者都来自 `ToolProps`，默认均为 `undefined`。
+ *
+ * This panel's props: the editor and the locale override, both from `ToolProps` and both
+ * defaulting to `undefined`.
+ */
 const props = withDefaults(defineProps<ToolProps>(), { editor: undefined, locale: undefined });
 
 const t = computed(() => mergeEditorLocale(props.locale));
 
-/** The grid is 8×8, as in the legacy tool. */
+/** 网格为 8×8，与旧版工具一致。 / The grid is 8×8, as in the legacy tool. */
 const GRID = 8;
+
+/**
+ * 单元格的边长，单位像素。
+ *
+ * 弹出层的宽度由它推导而不是写死：旧版面板在 135px 的网格外要了 220px，右侧留下 85px 空白，
+ * 面板因此看起来是坏的。`24` 是 Element Plus 自己的 popper 内边距（每侧 12px）。
+ *
+ * One cell's edge, in pixels.
+ *
+ * The popover's width is derived from this rather than hard-coded: the legacy panel asked for
+ * 220px around a 135px grid and left 85px of empty space on the right, which is what made the
+ * panel look broken. `24` is Element Plus's own popper padding (12px per side).
+ */
+const CELL_SIZE = 18;
+const POPOVER_WIDTH = GRID * CELL_SIZE + (GRID - 1) + 24;
 
 const hoveredRows = ref(1);
 const hoveredColumns = ref(1);
 
-/** Bumped on every selection/document change so the `can()` computeds re-evaluate. */
+/**
+ * 在每次选区或文档变化时自增，好让 `can()` 计算属性重新求值。
+ *
+ * Bumped on every selection/document change so the `can()` computeds re-evaluate.
+ */
 const revision = ref(0);
 
 useEditorSelection(
@@ -149,13 +207,19 @@ function resetHover(): void {
   hoveredColumns.value = 1;
 }
 
-/** Insert a normal table. */
+/** 插入一个普通表格。 / Insert a normal table. */
 function insertTable(rows: number, columns: number): void {
   props.editor?.chain().focus().insertTable({ rows, cols: columns, withHeaderRow: true }).run();
   resetHover();
 }
 
 /**
+ * 插入一个布局表格。
+ *
+ * 它按内容构造而不是走 `insertTable`，因为布局表格是带 `layoutMode: true` 的
+ * `table`/`tableRow` 组合 —— 布局模式扩展的全局属性读的正是它，据此把边框切成虚线。单元格
+ * 是空段落：布局表格是排版定位的工具，所以不该以填充文字开头。
+ *
  * Insert a layout table.
  *
  * Built as content rather than through `insertTable` because a layout table is a
@@ -193,6 +257,11 @@ interface TableOperation {
 }
 
 /**
+ * 八个表格操作。
+ *
+ * 声明成数据，这样每个按钮就是一次 `v-for`，而它的 `enabled` 判定条件就写在它所守卫的命令
+ * 旁边 —— 旧版模板把整条链内联重复，正因如此，一个没有处理函数的按钮才能上线而无人察觉。
+ *
  * The eight table operations.
  *
  * Declared as data so each button is one `v-for` iteration and its `enabled` predicate is
@@ -304,8 +373,12 @@ const TABLE_OPERATIONS = computed<readonly TableOperation[]>(() => {
   }
 
   &__cell {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
+    // The border and both fills come from `--se-*` tokens. They are only defined inside
+    // `.s-editor-scope`, so this popover carries `popper-class="s-editor-popper"` — without it
+    // the declaration is invalid at computed-value time and the grid draws nothing at all.
+    box-sizing: border-box;
     border: 1px solid var(--se-color-cell-border);
     background-color: var(--se-color-paper);
     cursor: pointer;

@@ -7,19 +7,49 @@ interface StoredRecord {
   expiresAt: number;
 }
 
-/** Options accepted by {@link IndexedDBCacheAdapter}. */
+/**
+ * {@link IndexedDBCacheAdapter} 接受的选项。
+ *
+ * Options accepted by {@link IndexedDBCacheAdapter}.
+ */
 export interface IndexedDBCacheAdapterOptions {
-  /** Database name. Defaults to `"snail-js-api"`. */
+  /**
+   * 数据库名称。默认 `"snail-js-api"`。
+   *
+   * Database name. Defaults to `"snail-js-api"`.
+   */
   databaseName?: string;
 
-  /** Object store name, and therefore the namespace. Defaults to `"cache"`. */
+  /**
+   * 对象仓库名称，也就是命名空间。默认 `"cache"`。
+   *
+   * Object store name, and therefore the namespace. Defaults to `"cache"`.
+   */
   storeName?: string;
 
-  /** Schema version, bumped when the store layout changes. */
+  /**
+   * 架构版本，在仓库结构变化时递增。
+   *
+   * Schema version, bumped when the store layout changes.
+   */
   version?: number;
 }
 
 /**
+ * 基于 IndexedDB 的 L2 适配器。
+ *
+ * ## 为什么每个方法都降级而不是 reject
+ *
+ * IndexedDB 在 Node 中不存在，在隐私浏览模式下也可能不可用。L2 存储只是一种优化：
+ * 即使它缺失，请求也必须成功（并且结果正确）。因此每个公开方法都以“没有存储任何东西”
+ * 或空操作结束，而不是抛错；连接是延迟打开的，所以导入本模块——或构造适配器——
+ * 都不会触碰任何全局对象。
+ *
+ * ## 为什么超时存在每条记录里，而不是建索引
+ *
+ * 用 TTL 索引的话，读取一个已过期的键仍然需要第二次查询。记录自带 `expiresAt`，
+ * 于是新鲜度检查就只是对已取回的值做一次纯内存比较。
+ *
  * L2 adapter over IndexedDB.
  *
  * ## Why every method degrades instead of rejecting
@@ -44,13 +74,25 @@ export class IndexedDBCacheAdapter implements CacheAdapter {
   private database: IDBDatabase | undefined;
   private opening: Promise<IDBDatabase> | undefined;
 
+  /**
+   * 创建一个 IndexedDB 适配器；此时不会打开数据库。
+   *
+   * Creates an IndexedDB adapter without opening the database yet.
+   *
+   * @param options 适配器选项（`databaseName`、`storeName`、`version`）
+   *   / Adapter options (`databaseName`, `storeName`, `version`)
+   */
   constructor(options: IndexedDBCacheAdapterOptions = {}) {
     this.databaseName = options.databaseName ?? "snail-js-api";
     this.storeName = options.storeName ?? "cache";
     this.version = options.version ?? 1;
   }
 
-  /** `false` when the environment has no IndexedDB at all. */
+  /**
+   * 当环境完全没有 IndexedDB 时为 `false`。
+   *
+   * `false` when the environment has no IndexedDB at all.
+   */
   get available(): boolean {
     try {
       return typeof globalThis.indexedDB !== "undefined";
@@ -59,6 +101,15 @@ export class IndexedDBCacheAdapter implements CacheAdapter {
     }
   }
 
+  /**
+   * 读取一个值；已过期的记录会在读取时被删除。
+   *
+   * Reads a value; an expired record is deleted while it is read.
+   *
+   * @param key 缓存键 / Cache key
+   * @returns 存储的值；缺失、已过期或读取失败时为 `undefined` / The stored value, or
+   *   `undefined` when absent, expired or the read failed
+   */
   async get<T = unknown>(key: string): Promise<T | undefined> {
     try {
       const database = await this.open();
@@ -76,6 +127,17 @@ export class IndexedDBCacheAdapter implements CacheAdapter {
     }
   }
 
+  /**
+   * 存储一个值。环境没有 IndexedDB 时是空操作；真正的写入错误（配额、事务中止）
+   * 会向上抛出，由管理器记录。
+   *
+   * Stores a value. A no-op when the environment has no IndexedDB; a real write
+   * error (quota, aborted transaction) propagates for the manager to log.
+   *
+   * @param key 缓存键 / Cache key
+   * @param value 要存储的值 / The value to store
+   * @param ttlSeconds 存活秒数；`<= 0` 表示永不过期 / Lifetime in seconds; `<= 0` means no expiry
+   */
   async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
     // A missing global is an environment fact, not a failure: no-op so a Node
     // test can construct and exercise the adapter. A *real* write error (quota,
@@ -94,6 +156,12 @@ export class IndexedDBCacheAdapter implements CacheAdapter {
     });
   }
 
+  /**
+   * 删除一个键；任何失败都被吞掉，因为删除本身就不存在的东西不算失败。
+   *
+   * Removes a key; any failure is swallowed, because deleting something that is
+   * not there is not a failure.
+   */
   async delete(key: string): Promise<void> {
     try {
       const database = await this.open();
@@ -105,6 +173,11 @@ export class IndexedDBCacheAdapter implements CacheAdapter {
     }
   }
 
+  /**
+   * 清空本适配器使用的对象仓库；任何失败都被吞掉。
+   *
+   * Clears the object store this adapter uses; any failure is swallowed.
+   */
   async clear(): Promise<void> {
     try {
       const database = await this.open();
@@ -116,6 +189,11 @@ export class IndexedDBCacheAdapter implements CacheAdapter {
     }
   }
 
+  /**
+   * 对象仓库中的全部键；读取失败时返回空数组。
+   *
+   * Every key in the object store, or an empty array when the read fails.
+   */
   async keys(): Promise<string[]> {
     try {
       const database = await this.open();

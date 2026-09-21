@@ -1,4 +1,22 @@
 /**
+ * 公式引擎。
+ *
+ * ## 为什么是手写的
+ *
+ * 旧版包没有公式类型，但它在 `variableParser` 里有同一形状的问题：模板数据可信到足以驱动文档
+ * 改动。公式*表达式*也是模板数据——它随客户保存的 JSON 文件一起到来——所以用 `eval` 或
+ * `new Function` 来求值会让「打开一个模板」等同于「运行一个程序」。下面的词法器只接受数字、
+ * 四个运算符、括号、逗号、带点的键以及 `FORMULA_FUNCTIONS` 里的名字；其他任何内容都是词法
+ * 错误。从表达式到 JavaScript 求值之间没有任何路径，这是由构造方式保证的，而不是靠黑名单
+ * （所以 `constructor` 就是一个普通变量名，而 `Math.constructor("x")` 会失败，因为字符串
+ * 字面量不是记号）。
+ *
+ * ## 错误也是值
+ *
+ * 这里的任何东西都不会把异常抛过 API 边界：格式错误的表达式或除以零都会以
+ * {@link FormulaError} 字符串的形式返回。带坏公式的模板必须仍然能打开，所以渲染永远不能
+ * 依赖可能被忘记的 `try/catch`——见 `resolveVariable`，它把这个字符串变成 `VariableIssue`。
+ *
  * The formula engine.
  *
  * ## Why this is hand-written
@@ -31,21 +49,41 @@ import type {
 } from "../../typings/variable";
 import { FORMULA_FUNCTIONS } from "../../typings/variable";
 
-/** A formula failure, in the language a fill dialog can print. */
+/**
+ * 一次公式失败，用填写对话框可以直接打印的语言描述。
+ *
+ * A formula failure, in the language a fill dialog can print.
+ */
 export interface FormulaError {
-  /** Machine-readable kind. `syntax` covers the tokenizer and the parser alike. */
+  /**
+   * 机器可读的种类。`syntax` 同时涵盖词法器和语法分析器。
+   *
+   * Machine-readable kind. `syntax` covers the tokenizer and the parser alike.
+   */
   code: "syntax" | "cycle" | "unknown" | "invalid";
 
-  /** Human-readable, already usable as a `VariableIssue.message`. */
+  /**
+   * 供人阅读的文本，已经可以直接用作 `VariableIssue.message`。
+   *
+   * Human-readable, already usable as a `VariableIssue.message`.
+   */
   message: string;
 }
 
-/** A successful evaluation, or the error that prevented one. */
+/**
+ * 一次成功的求值，或者阻止求值的那条错误。
+ *
+ * A successful evaluation, or the error that prevented one.
+ */
 export type FormulaResult =
   | { ok: true; value: number }
   | { ok: false; error: FormulaError };
 
-/** One expression token. No string or boolean literal exists, so none can be executed. */
+/**
+ * 一个表达式记号。不存在字符串或布尔字面量，所以没有任何东西可以被执行。
+ *
+ * One expression token. No string or boolean literal exists, so none can be executed.
+ */
 export type FormulaToken =
   | { kind: "number"; value: number }
   | { kind: "identifier"; name: string }
@@ -54,31 +92,54 @@ export type FormulaToken =
   | { kind: "rparen" }
   | { kind: "comma" };
 
-/** `true` for a name in {@link FORMULA_FUNCTIONS}. */
+/**
+ * 名称在 {@link FORMULA_FUNCTIONS} 中时返回 `true`。
+ *
+ * `true` for a name in {@link FORMULA_FUNCTIONS}.
+ */
 export function isFormulaFunction(name: string): name is FormulaFunction {
   return (FORMULA_FUNCTIONS as readonly string[]).includes(name);
 }
 
-/** A tokenizer/parser failure. Internal: {@link evaluateFormula} converts it to a value. */
+/**
+ * 词法器或语法分析器的失败。内部使用：{@link evaluateFormula} 会把它转成值。
+ *
+ * A tokenizer/parser failure. Internal: {@link evaluateFormula} converts it to a value.
+ */
 class FormulaSyntaxError extends Error {}
 
-/** ProseMirror positions and CJK text are not at issue here; keep the messages short and stable. */
+/**
+ * 这里不涉及 ProseMirror 位置与 CJK 文本；保持消息简短而稳定。
+ *
+ * ProseMirror positions and CJK text are not at issue here; keep the messages short and stable.
+ */
 const syntaxError = (message: string): FormulaSyntaxError => new FormulaSyntaxError(message);
 
-/** Characters that may start an identifier. Kept explicit: `\w` in a JS regex is ASCII-only anyway. */
+/**
+ * 可以作为标识符开头的字符。刻意逐个列出：JS 正则里的 `\w` 反正只匹配 ASCII。
+ *
+ * Characters that may start an identifier. Kept explicit: `\w` in a JS regex is ASCII-only anyway.
+ */
 const IDENTIFIER_START = /[A-Za-z_]/;
 
-/** Identifier continuation, including the dot of a dotted path. */
+/**
+ * 标识符的后续字符，包含带点路径中的点。
+ *
+ * Identifier continuation, including the dot of a dotted path.
+ */
 const IDENTIFIER_PART = /[A-Za-z0-9_.]/;
 
-/** Digit, or a dot that begins a fraction. */
+/** 数字，或开始小数部分的点。 / Digit, or a dot that begins a fraction. */
 const NUMBER_PART = /[0-9.]/;
 
 /**
+ * 把表达式变成记号序列。
+ *
  * Turn an expression into tokens.
  *
- * @throws {FormulaSyntaxError} on a character outside the grammar or a malformed
- * number. Callers use {@link evaluateFormula} or {@link referencedKeys} instead.
+ * @throws {FormulaSyntaxError} 遇到语法之外的字符或格式错误的数字时抛出 /
+ *   on a character outside the grammar or a malformed number. Callers use
+ *   {@link evaluateFormula} or {@link referencedKeys} instead.
  */
 export function tokenizeExpression(expression: string): FormulaToken[] {
   const tokens: FormulaToken[] = [];
@@ -163,6 +224,14 @@ export function tokenizeExpression(expression: string): FormulaToken[] {
 }
 
 /**
+ * 两个被接受的布尔字面量的数值含义。
+ *
+ * `true`/`false` 是数字之外唯一的字面量，因为布尔变量用在 `IF` 里时它们读起来好得多，而且
+ * 两者都不可执行。它们是*常量*而不是变量，有三个地方必须对此保持一致：{@link referencedKeys}
+ * 会略过它们（没有东西提供它们），{@link evaluateFormula} 会把它们预置进操作数映射，而
+ * 解析器的裸名字分支会回退到它们。当只有解析器知道这件事时，`IF(true, 10, 20)` 会以
+ * `unknown variable "true"` 失败。
+ *
  * The numeric meaning of the two accepted boolean literals.
  *
  * `true`/`false` are the only literals beyond numbers, because a boolean variable used
@@ -179,6 +248,14 @@ function booleanLiteral(name: string): number | undefined {
 }
 
 /**
+ * 表达式会读取的键。
+ *
+ * 它有两个用途：在求值之前解析公式的操作数，以及检测依赖环。函数名会被排除——`SUM(a)` 里的
+ * `SUM` 指的是函数，绝不是变量——布尔字面量也一样，它们是常量。因此这两个集合里的名字都
+ * 不可能成为环的一部分。
+ *
+ * 格式错误的表达式返回 `[]`：没有值得解析的东西，而且调用方已经报告了语法错误。
+ *
  * The keys an expression reads.
  *
  * Used for two things: resolving a formula's operands before evaluating it, and
@@ -213,13 +290,18 @@ export function referencedKeys(expression: string): string[] {
 }
 
 /**
+ * 用已经解析好的操作数对 `formula.expression` 求值。
+ *
  * Evaluate `formula.expression` against already-resolved operands.
  *
- * @param formula - the stored configuration; only `expression` is read here.
- * @param resolve - looks a key up. Returning `undefined` reports `unknown`; the
- * caller decides whether an absent key is a variable that has not been filled in
- * or a key that does not exist at all.
- * @returns the numeric result, or a {@link FormulaError}. Never throws.
+ * @param formula 存储的配置；这里只读取 `expression` /
+ *   - the stored configuration; only `expression` is read here.
+ * @param resolve 查找一个键。返回 `undefined` 会报告 `unknown`，由调用方决定一个缺失的键是
+ *   尚未填写的变量，还是根本不存在的键 /
+ *   looks a key up. Returning `undefined` reports `unknown`; the caller decides whether an
+ *   absent key is a variable that has not been filled in or a key that does not exist at all.
+ * @returns 数值结果，或一个 {@link FormulaError}。从不抛错 /
+ *   the numeric result, or a {@link FormulaError}. Never throws.
  */
 export function evaluateFormula(
   formula: FormulaVariableData,
@@ -278,6 +360,12 @@ export function evaluateFormula(
 }
 
 /**
+ * 作用于扁平记号表的递归下降解析器。
+ *
+ * 解析器在任何操作数被解析*之前*就构建好，并且在该节点的每次求值中复用（`IF` 的分支只在被
+ * 选中时才求值——见 {@link ExpressionParser.parsePrimary}），这就是短路求值不需要第二趟
+ * AST 遍历的原因。
+ *
  * A recursive-descent parser over a flat token list.
  *
  * The parser is built *before* any operand is resolved and is reused for each
@@ -289,6 +377,11 @@ class ExpressionParser {
   private index = 0;
 
   /**
+   * 正在被解析的记号表。
+   *
+   * 声明为字段并在构造函数里赋值，而不是写成构造函数参数属性：参数属性不是可擦除语法，只做
+   * 类型剥离的 TypeScript 加载器（Node 自带的那个，验证工具用的就是它）会拒绝它们。
+   *
    * The token list being parsed.
    *
    * Declared as a field and assigned in the constructor rather than as a constructor
@@ -301,7 +394,11 @@ class ExpressionParser {
     this.tokens = tokens;
   }
 
-  /** `expression` — the whole program, with a trailing-token check. */
+  /**
+   * `expression` —— 整个程序，并检查是否有剩余记号。
+   *
+   * `expression` — the whole program, with a trailing-token check.
+   */
   parseProgram(): (keys: ReadonlyMap<string, number>) => number {
     const expression = this.parseAdditive();
     if (!this.atEnd()) {
@@ -311,7 +408,11 @@ class ExpressionParser {
     return expression;
   }
 
-  /** `additive` — `term (("+" | "-") term)*`, left-associative. */
+  /**
+   * `additive` —— `term (("+" | "-") term)*`，左结合。
+   *
+   * `additive` — `term (("+" | "-") term)*`, left-associative.
+   */
   private parseAdditive(): (keys: ReadonlyMap<string, number>) => number {
     let left = this.parseMultiplicative();
     for (;;) {
@@ -324,7 +425,11 @@ class ExpressionParser {
     }
   }
 
-  /** `multiplicative` — `unary (("*" | "/") unary)*`, left-associative. */
+  /**
+   * `multiplicative` —— `unary (("*" | "/") unary)*`，左结合。
+   *
+   * `multiplicative` — `unary (("*" | "/") unary)*`, left-associative.
+   */
   private parseMultiplicative(): (keys: ReadonlyMap<string, number>) => number {
     let left = this.parseUnary();
     for (;;) {
@@ -346,7 +451,11 @@ class ExpressionParser {
     }
   }
 
-  /** `unary` — `"-" unary | "+" unary | primary`, so `--a` and `-(a+b)` both parse. */
+  /**
+   * `unary` —— `"-" unary | "+" unary | primary`，所以 `--a` 与 `-(a+b)` 都能解析。
+   *
+   * `unary` — `"-" unary | "+" unary | primary`, so `--a` and `-(a+b)` both parse.
+   */
   private parseUnary(): (keys: ReadonlyMap<string, number>) => number {
     const operator = this.matchOperator("-", "+");
     if (operator) {
@@ -356,7 +465,11 @@ class ExpressionParser {
     return this.parsePrimary();
   }
 
-  /** `primary` — number | key | function call | `"(" expression ")"`. */
+  /**
+   * `primary` —— 数字 | 键 | 函数调用 | `"(" expression ")"`。
+   *
+   * `primary` — number | key | function call | `"(" expression ")"`.
+   */
   private parsePrimary(): (keys: ReadonlyMap<string, number>) => number {
     const token = this.next();
     if (!token) throw syntaxError("unexpected end of expression");
@@ -379,6 +492,10 @@ class ExpressionParser {
   }
 
   /**
+   * 名字后面跟着 `(` 时是调用，否则是变量引用。
+   *
+   * 正因如此，一个变量完全可以叫 `SUM`，而 `SUM(a, b)` 仍然表示那个函数。
+   *
    * A name is a call when a `(` follows it, and a variable reference otherwise.
    *
    * This is what lets a variable legitimately be called `SUM` while `SUM(a, b)`
@@ -407,7 +524,11 @@ class ExpressionParser {
     return this.buildCall(name, args);
   }
 
-  /** Comma-separated arguments, stopping before the `)`. An empty list is allowed (`SUM()`). */
+  /**
+   * 以逗号分隔的参数，在 `)` 之前停下。允许空列表（`SUM()`）。
+   *
+   * Comma-separated arguments, stopping before the `)`. An empty list is allowed (`SUM()`).
+   */
   private parseArguments(): Array<(keys: ReadonlyMap<string, number>) => number> {
     const args: Array<(keys: ReadonlyMap<string, number>) => number> = [];
     const next = this.peek();
@@ -425,6 +546,11 @@ class ExpressionParser {
   }
 
   /**
+   * 把参数列表绑定到一个函数实现上。
+   *
+   * 参数个数在这里、在解析时就检查，所以模板作者是在对话框里看到「ROUND() 参数数量不对」，
+   * 而不是等到渲染时。
+   *
    * Bind an argument list to a function implementation.
    *
    * Arity is checked here, at parse time, so a template author sees "ROUND() 参数数量不对"
@@ -522,7 +648,7 @@ class ExpressionParser {
   }
 }
 
-/** Render a token for an error message. */
+/** 为错误信息渲染一个记号。 / Render a token for an error message. */
 function describe(token: FormulaToken): string {
   switch (token.kind) {
     case "number":
@@ -541,6 +667,11 @@ function describe(token: FormulaToken): string {
 }
 
 /**
+ * 把任意的填写值强制转换为公式操作数。
+ *
+ * `boolean` 刻意变成 `1`/`0`，而不是看起来像数字的字符串：一份存了 `"true"` 的合同不能悄悄
+ * 变成 `NaN`，而 `Number("")` 是 `0`，这正是「还没有值」的合理读法。
+ *
  * Coerce an arbitrary fill value into a formula operand.
  *
  * `boolean` is deliberately `1`/`0` rather than numeric-looking strings: a contract
@@ -559,7 +690,11 @@ export function toFormulaOperand(value: VariableValue): number {
   return 0;
 }
 
-/** A convenience for callers that hold `VariableFillData` rather than a resolver function. */
+/**
+ * 方便那些持有 `VariableFillData` 而不是解析函数的调用方。
+ *
+ * A convenience for callers that hold `VariableFillData` rather than a resolver function.
+ */
 export function evaluateFormulaWithFill(
   formula: FormulaVariableData,
   fill: VariableFillData
@@ -571,6 +706,12 @@ export function evaluateFormulaWithFill(
 }
 
 /**
+ * 把一个值读成布尔值。
+ *
+ * 供 `boolean` 类型使用，它背后没有公式：存下来的值可能来自表单控件（真正的布尔）、来自
+ * JSON（字符串）或来自数字输入框，而这三者对文档来说含义相同。`undefined` 与 `null` 读作
+ * `false`，与旧版默认的「否」一致。
+ *
  * Read a value as a boolean.
  *
  * Used by the `boolean` type, which has no formula behind it: the stored value may

@@ -29,7 +29,12 @@ pnpm add element-plus vue
 ```
 
 `element-plus`（`>=2.9.0`）和 `vue`（`>=3.5.0`）是 peer 依赖：由使用方提供，本包不重复安装
-一份，避免同一页面出现两个 Element Plus 实例。样式必须单独引入：
+一份，避免同一页面出现两个 Element Plus 实例。
+
+### 只需引入本包一个样式文件
+
+组件内部**按需 import 自己用到的 Element Plus 组件**（`<script setup>` 的局部注册），组件样式也
+由本包的样式表一起下发：
 
 ```ts
 import "@snail-js/editor/style.css";
@@ -38,13 +43,21 @@ import "@snail-js/editor/style.css";
 ```ts
 // main.ts
 import { createApp } from "vue";
-import ElementPlus from "element-plus";
-import "element-plus/dist/index.css";
 import "@snail-js/editor/style.css";
 import App from "./App.vue";
 
-createApp(App).use(ElementPlus).mount("#app");
+createApp(App).mount("#app");
 ```
+
+**不需要** `app.use(ElementPlus)`，也**不需要** `import "element-plus/dist/index.css"`：
+
+- 全局注册整份 Element Plus 会让每个用到合同编辑器的页面都打进整套组件（约 1MB 的 JS/CSS）；
+- 本包只声明自己渲染的那些组件与样式，`element-plus` 仍然是使用方提供的那一份，不会出现两个实例；
+- 如果使用方本来就全局注册了 Element Plus（很多项目如此），两者并存也没有冲突：这里的 import 解析到
+  的是同一份依赖。
+
+Element Plus 组件自身的文案（颜色选择器的「确定 / 清空」等）由编辑器内部的 `el-config-provider`
+提供，默认中文；使用方全局注册了别的语言包时，用 `element-locale` prop 传进来即可覆盖。
 
 ## 快速上手
 
@@ -329,11 +342,14 @@ import { Page, Variable, QRCode, Watermark, Print } from "@snail-js/editor";
 const extensions = [Page, Variable, QRCode, Watermark, Print];
 ```
 
-### `Page` / `PageContent` / `PageHeader` / `PageFooter` / `PageLogo` / `PageNumber`
+### `Page` / `PageContent` / `PageHeader` / `PageFooter` / `PageRegion` / `PageLogo` / `PageNumber`
 
 页面模块是文档的骨架。`Page` 是一个 Node，它的 `content` 是**根据实际注册了哪些家具节点
-动态算出来的表达式**（`(pageHeader | pageContent | pageFooter | pageLogo)*`），
-所以砍掉页眉不会留下一个「content 表达式里有不存在的节点」的 schema。
+动态算出来的表达式**，所以砍掉页眉不会留下一个「content 表达式里有不存在的节点」的 schema。
+
+表达式是一条**顺序**（`pageHeader? pageContent pageFooter?`），不是联合：联合只能表达「这些节点里
+任意一个、任意顺序、任意个数」，于是同时插入页眉和页脚时，顺序取决于命令谁先跑 —— 页脚跑到页眉
+前面，那就不是文档了。顺序表达式让「存成错误顺序」不可能：插错位置会被 ProseMirror 拒绝。
 
 `Page.configure()` 的选项：
 
@@ -344,8 +360,9 @@ const extensions = [Page, Variable, QRCode, Watermark, Print];
 | `margins` | 四边 `"20mm"` | 逐边对象或 CSS 简写字符串（`"10mm 20mm"`）。单位永远写在字符串里 |
 | `header` | 注册 `PageHeader` | 传 `false` 把页眉从 schema 里拿掉 |
 | `footer` | 注册 `PageFooter` | 同上 |
-| `logo` | 注册 `PageLogo` | 同上 |
-| `pageNumber` | 注册 `PageNumber` | 同上；它是页眉/页脚内容里的内联节点 |
+| `region` | 注册 `PageRegion` | 页眉 / 页脚的左中右三格；只在 `content: "block*"` 的家具里存在 |
+| `logo` | 注册 `PageLogo` | 传 `false` 把 Logo 从 schema 里拿掉；`maxBytes` 默认 200 KB |
+| `pageNumber` | 注册 `PageNumber` | 同上；它是某一格**段落里的内联节点** |
 | `pagination` | `PageContent` 默认开启 | `{ autoPagination?, tolerance? }`，或 `false` 保留节点但不自动切页 |
 | `HTMLAttributes` | `{}` | 加在 `<section>` 上 |
 
@@ -355,8 +372,25 @@ const extensions = [Page, Variable, QRCode, Watermark, Print];
 Page.configure({ header: false, footer: false, logo: false })
 ```
 
-节点：`page`、`pageContent`、`pageHeader`、`pageFooter`、`pageLogo`、`pageNumber`。
+节点：`page`、`pageContent`、`pageRegion`、`pageHeader`、`pageFooter`、`pageLogo`、`pageNumber`。
 详见下一节。
+
+#### 自动分页的节奏（为什么粘贴一大段不会卡死）
+
+分页是**测量 + 移动**的循环：每个「移动」都是一次事务，而每次事务都会重画那一页。一次性贴进几十页
+内容时，旧实现会在**同一帧里**做上百次这样的循环 —— 主线程被占满，感受上就是卡死；输入法输入多个
+汉字时，它还会在**拼写未结束**时改文档，浏览器于是重启拼写、再触发变更、再分页。
+
+现在有三道约束：
+
+- **每次 pass 有时间预算**（`DEFAULT_PASS_BUDGET_MS`，默认 12 ms，< 一帧）：用超了就带着
+  `interrupted: true` 收手，插件在**下一帧**继续 —— 浏览器有机会在两次 pass 之间绘制，所以大粘贴
+  是「分几帧排完」而不是「卡住」；
+- **拼写期间不动文档**：`compositionstart` 到 `compositionend` 之间跳过，结束后补跑一次；
+- **连续自我调度的上限**（`MAX_CONSECUTIVE_PASSES`）：预算让 pass 能要求下一帧，这个阀门保证一个
+  真的稳定不下来的排版不会无限空转；任何一次用户编辑都会把计数清零，所以正常的排版工作不会被砍断。
+
+`MAX_STEPS`（单次 pass 的硬上限）仍在，它防的是「某个节点视图测量出错」这种异常。
 
 ### `Variable`
 
@@ -464,35 +498,61 @@ Word 那样的页眉 / 页脚在这里就是 `page` 的**子节点**：`pageHead
 排版、对齐。一页没有页眉也是合法状态（`addHeader` 是幂等的，
 `removeHeader` 在没有页眉时不报错）。
 
-家具节点的属性：`height`（**CSS 像素**，默认 50，页眉右对齐、页脚居中）、
-`align`、`showLine`（家具与正文之间画一条线，默认关）。
+家具节点的属性：`height`（**CSS 像素**，默认 50）、`showLine`（家具与正文之间画一条线，默认关）。
 
 命令：
 
 | 命令 | 作用 |
 | --- | --- |
-| `addHeader(pageIndex?)` / `addFooter(pageIndex?)` | 给还没有页眉 / 页脚的页加上（默认所有页）；已存在的页会沿用第一份家具的属性 |
+| `addHeader(pageIndex?)` / `addFooter(pageIndex?)` | 给还没有页眉 / 页脚的页加上（默认所有页）；已存在的页会沿用第一份家具的属性。新家具自带左 / 中 / 右三个空区域，并且**按 header → 正文 → footer 的顺序**插入 |
 | `removeHeader(pageIndex?)` / `removeFooter(pageIndex?)` | 移除 |
-| `setHeaderHeight(h, pageIndex?)` / `setFooterHeight(h, pageIndex?)` | 设高度 |
-| `setHeaderAlign(a, pageIndex?)` / `setFooterAlign(a, pageIndex?)` | 设对齐 |
-| `applyPageNumberFormat(format)` | 把每一页页码的格式设为 `format`；这一页还没有页码时**顺手建一个**（优先页脚，没有页脚就用页眉）。没有家具可放、或格式本来就一样时返回 `false` |
-| `addLogo(attrs?, pageIndex?)` / `removeLogo(pageIndex?)` / `setLogoPosition(position, pageIndex?)` | Logo（`src`、`width` 默认 `30mm`、`height` 默认 `auto`、`position` 左 / 中 / 右、`offsetX` / `offsetY` 毫米） |
+| `setHeaderHeight(h, pageIndex?)` / `setFooterHeight(h, pageIndex?)` | 设高度（对三个区域一起生效） |
+| `setPageNumberSlot(side, slot)` | 把页码放进 `页眉 / 页脚 × 左 / 中 / 右` 中的一格；缺的页眉、页脚或区域会**先建出来** |
+| `applyPageNumberFormat(format)` | 改每一页页码的格式；还没有页码的页会在**默认位置（页脚中间）**建一个 |
+| `removePageNumber()` | 移除所有页码，被占用的区域随之恢复可编辑 |
+| `setLogo(placement, attrs?, pageIndex?)` | 把 Logo 放进某一格（`attrs`：`src`、`width` 默认 `30mm`、`height` 默认 `auto`） |
+| `removeLogo(pageIndex?)` / `setLogoSize(attrs, pageIndex?)` | 移除 / 改尺寸 |
 
 `pageIndex` 是 1 起的页码，省略就作用于所有页 —— 「只有部分页有页眉」是被支持的状态，
 不是坏掉的状态。
 
-**页眉 / 页脚点一下就能编辑。** 家具的内容是普通块，光标进去以后选中、排版、对齐都和正文一样。
-唯一要补的是「刚加上去的空页眉」：里面只有一个空段落，点在它的留白上时浏览器可能把**整块页眉**
-当成一个节点选中，看起来就像「页眉点不进去，一打字整块页眉被替换」。这里在 ProseMirror 自己的
-映射之后再补一步 —— 只有当这次点击的结果正好是**选中了这个家具节点**时，才把选区改成家具内部的
-文本选区（`planFurnitureClick`）；光标已经在里面、你选中了页码或二维码、点击落在别处，全都不动。
-所以它只修正坏掉的那一种结果，不和 ProseMirror 抢映射。
+### 页眉页脚是「左中右三段」
+
+一个页眉 / 页脚不是一整块，而是 `pageRegion` 的三个区域：**左 / 中 / 右各一格，各自可编辑**，
+各自按位置对齐（左格左对齐、中格居中、右格右对齐 —— 这就是 `SLOT_ALIGN`）。
+
+- **为什么必须是文档节点。** 「每格可编辑」「页码只占其中一格」「那一格不能再编辑」每一句都是对
+  **文档**的陈述：CSS 分栏说不清光标在哪一格，页码也只能是文本的兄弟节点而不是「放进某一格」。
+- **不变量由一处保证。** 区域缺失、重复、顺序不对（旧模板就是这种），都由 `planBandRegions`
+  一次性补成三格：散落的块进中间那格、重复的槽位合进第一格、空掉的那格补一个段落（没有段落就点不进去）。
+- **旧模板能打开。** `content` 仍然是 `block*`：一份在区域存在之前保存的模板，页眉里放的是普通块，
+  schema 收得下，运行时再被规范化 —— 而不是在解析时把用户的文字丢掉。唯一的例外是**挂在 `page` 上的
+  旧版 logo**，它会让新页面结构直接解析失败，所以由 `migrateFurnitureContent` 在进编辑器之前搬到
+  `position` 指定的那一格。
+
+### 双击才编辑
+
+页眉页脚是家具：它在每一页重复，而且写正文时误点进去从来不是用户的意图。所以：
+
+- **双击某个区域**进入编辑，光标落在里面，该区域变成可编辑，透明度 1；
+- 已经在编辑时，**单击同一页眉 / 页脚的另一格**即可切换；
+- **点正文或按 `Esc`** 退出，透明度回到 0.8；
+- **填写模式与打印始终是 1**（那是输出，不是编辑）；
+- **放着页码或 Logo 的那一格永远不可编辑**：里面是原子节点，没有可输入的文本，让光标进得去只会
+  提供一个误删的机会。
+
+拦截分两层，因为任何一层单独都有洞：CSS 让没在编辑的区域 `pointer-events: none; user-select: none`
+（点击放不进光标），事务过滤器再拒绝「没打开页眉时改到了家具」的文档变更（`Ctrl+A`、跨页眉的粘贴、
+使用方自己的命令都走这里）。撤销 / 重做和分页事务带 `addToHistory: false`，照常放行。
 
 ### 页码是一个节点
 
 页码是内联原子节点 `pageNumber`，属性只有一个 `format`，默认 `第{page}页，共{total}页`。
 `{page}` 是当前页、`{total}` 是总页数，两者都在**渲染时**替换；`#` 与 `&`（以及
 `$index` / `$total`）是等价的写法，同样认得，所以一个存了很久的模板不会突然印不出数字。
+
+它是**内联**节点，所以永远住在某一格里的段落中 —— 直接放进区域（`block*`）会是非法文档，
+写入时会自动补一个段落。
 
 关键是：**节点里没有数字。** 标签由所在 `page` 的 `index` 现算，
 `index` 缺失或过旧时退化为「它是第几个 page」。所以：
@@ -505,19 +565,28 @@ Word 那样的页眉 / 页脚在这里就是 `page` 的**子节点**：`pageHead
 结果是默认文档里点「新页面」直接抛异常，而且 `__flush*` 在每一页上都盖 `index = 1`
 从不重排 —— 结构一变页码就全错。
 
-### 页码格式：选一个格式就是「要页码」
+### 页码格式与位置
 
-「页面」页签里的页码格式下拉列的是 `第{page}页，共{total}页`、`{page}`、`{page} / {total}`
-这类常用写法，旁边 `?` 图标的提示里写着可用的占位符（`{page}` 当前页、`{total}` 总页数，
-`#` 与 `&` 等价）。选中一个格式走 `applyPageNumberFormat(format)`，它**不只是改属性**：
+「页面」页签里是两个下拉：**位置**（页眉 / 页脚的左中右六格，外加「不显示」）和**格式**
+（`第{page}页，共{total}页`、`{page}`、`{page} / {total}` 等，也可以自己输入）。格式旁边 `?` 图标的
+提示里写着可用的占位符。它们背后是两条命令，规则一致：
 
-1. 优先放进每一页的**页脚**，这一页没有页脚就用**页眉**；两者都没有的页不动；
-2. 每页只放一个 —— 已经有页码的页只改它的 `format`，不会又多出一个；
-3. 从后往前改，因为插入会移动它后面的位置（旧版 `__flush*` 从前往后盖，位置一错页码全错）。
+1. **每页只有一个页码**：移动到新格子会删掉旧的那个，并且**保留原来的格式**；
+2. **缺什么建什么**：「放到页脚中间」在一份没有页脚的文档上会先把页脚建出来 —— 选位置就是在表达
+   「我要这个家具」；
+3. **从后往前改**，并且每次编辑后都从**当前事务的文档**重新读位置（旧版 `__flush*` 从前往后盖，
+   位置一错页码全错）。
 
-这条命令存在的理由是一个真实的死路：**刚打开的页脚里是空的**，没有页码节点可改，于是
-「开启页脚 → 选页码格式」只能得到一句「没有页脚节点」。选格式本身就是添加页码的方式，所以
-缺的那个由它建出来，而不是让用户自己先想办法插一个。
+选格式本身就是添加页码的方式，所以「开启页脚 → 选格式」这条路上不会再出现「没有页脚节点」的死路：
+缺的那个由命令建出来。
+
+### Logo
+
+Logo 用的是**同一套模型**：`setLogo({ side, slot }, { src })` 把它放进某一格，那一格随之不可编辑，
+同一时刻只有一个 Logo（换位置会移动它、保留图片本身）。图片以 `data:` URL 存进文档 —— 模板是**一份**
+可独立打开的产物，指向一个打开模板时可能不存在的文件不算模板 —— 所以文件大小就是文档大小：
+扩展默认拒绝超过 **200 KB** 的图片（`Page.configure({ logo: { maxBytes } })` 可改），面板上的
+「选择图片」用的就是同一个上限。
 
 ### 插入页码
 
@@ -609,7 +678,7 @@ editor.chain().focus().insertPageNumber("第{page}页 / 共{total}页").run();
 | 段落 | `paragraph` | `paragraphStyle` | 样式（正文 / H1–H6）、对齐、行距、**首行缩进 N 字符**、段前 / 段后 |
 | 插入 | `insert` | `variable` / `qrcode` / `page` / `image` 任一 | **插入变量**、**插入二维码**、新页面、分页、插入图片 |
 | 表格 | `table` | `table` | 插入表格（8×8 网格）、插入布局表、合并 / 取消合并、加删行列 |
-| 页面 | `page` | `page` | 纸张、方向、页边距、页眉页脚、页码、logo |
+| 页面 | `page` | `page` | 纸张、方向、页边距、页眉页脚开关、页眉页脚高度、**页码位置 + 格式**、**Logo 上传 + 位置** |
 | 变量 | `variable` | `variable` | 文档里的变量列表，编辑 / 移除 |
 | 二维码 | `qrcode` | `qrcode` | 二维码内容、尺寸、位置、颜色、边距 |
 | 水印 | `watermark` | `watermark` | 文字 / 图片、角度、透明度、灰度、平铺 |
@@ -620,6 +689,13 @@ editor.chain().focus().insertPageNumber("第{page}页 / 共{total}页").run();
 - **插入与表格是两个页签。** 它们曾经是同一个：表格工具住在「插入」里，于是那个页签同时表达
   「往里放一个新东西」和「改你正踩着的这张表」。拆开之后，光标在表格里时一步就能点到表格操作，
   「插入」只描述插入。`table` 不再是 `insert` 的别名，`DEFAULT_TOOLS` 里两者都在。
+- **「分页」只在「插入」里。** 「页面」页签里也曾经有一个「插入分页符」，于是同一个动作有两个入口，
+  而且那个按钮在纵向排列里被拉到整行宽，看起来就是坏的。现在只保留「插入」里的那个 —— 它所属的
+  页签正是在回答「往文档里放一个新东西」。
+- **字体颜色和背景色的图标是大写「A」。** Word 的样子：A 下面一条色条（字体颜色），A 坐在一块
+  色块上（字体背景色），选中的颜色会立刻反映到图标上。之所以是 CSS 画的字符而不是 SVG 图标：
+  Element Plus 的 `el-color-picker` **没有触发器插槽**，SVG 只能叠在一个透明 picker 上 —— 一个控件
+  两个元素，能点的看不见、看得见的点不到。字符 A 就是真正的触发器，颜色跟随只用一个 CSS 变量。
 - **字体颜色和背景色是同一个 `textStyle` mark 的属性**，和字体、字号一样作用于选区。它们本来就
   已经注册（`TextStyleKit` 默认包含 `Color` 与 `BackgroundColor`，只有显式传 `false` 才关掉），
   以前缺的只是控件。颜色面板里的「清空」写的是 `null`，于是走 `unsetColor` —— 而不是往文档里写一条

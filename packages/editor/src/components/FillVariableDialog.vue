@@ -153,6 +153,26 @@
 
 <script setup lang="ts">
 /**
+ * `FillVariableDialog` —— **填充**对话框。
+ *
+ * ## 它由模板渲染，而不是按固定的字段清单渲染
+ *
+ * 已载入文档里的每个变量一个字段，配上该变量*类型*所暗示的控件并应用它自己的配置：`number`
+ * 得到作者设定的精度和边界，`money` 得到货币符号，`select` 得到作者的选项列表，`image` 得到
+ * 允许的类型和大小上限。旧版组件根本没有填充对话框 —— 它用写死的 `{ key1: "张三" }` 假装
+ * 填充，而且从不读自己的 `data` prop（缺陷 38）。
+ *
+ * ## 校验归解析器管
+ *
+ * `validateFill` 决定什么会阻止提交，而 `resolveDocumentVariables` 同时提供公式结果*和*公式
+ * 问题，所以公式引用了不存在的变量的模板，会在用户还没输入任何东西之前就报在公式自己的字段
+ * 上。两者都是文档自身渲染时所用的同一批函数，因此对话框与纸面不可能互相矛盾。
+ *
+ * ## `formula` 与 `system` 是只读的
+ *
+ * 它们由文档计算，而不是用户输入。它们仍然会被*展示*出来，并附上说明 —— 一个看不到合计值的
+ * 填充操作员没有任何办法核对它。
+ *
  * `FillVariableDialog` — the **fill** dialog.
  *
  * ## It is rendered from the template, not from a fixed field list
@@ -182,7 +202,6 @@
 import { computed, ref, watch } from "vue";
 
 import type { UploadFile } from "element-plus";
-import { ElMessage } from "element-plus";
 
 import { resolveDocumentVariables, validateFill } from "../extensions/variable";
 import type { ResolvedVariable } from "../extensions/variable";
@@ -197,8 +216,15 @@ import type {
 
 import { mergeEditorLocale } from "../editor/locale";
 import type { EditorLocale } from "../editor/locale";
+import { ElMessage, ElDialog, ElEmpty, ElForm, ElFormItem, ElInput, ElInputNumber, ElSwitch, ElDatePicker, ElSelect, ElOption, ElButton, ElUpload } from "element-plus";
 
 /**
+ * 一个变量及其位置。
+ *
+ * 在结构上等同于变量扩展的 `PositionedVariable`，但这里刻意只声明对话框用到的两个字段而不是
+ * 导入它：对话框的输入就是一个朴素的 `{ pos, attrs }` 对，`collectDocumentVariables` 返回的
+ * 是它，`validateFill`/`resolveDocumentVariables` 接受的也是它。
+ *
  * A variable with its position.
  *
  * Structurally `PositionedVariable` from the variable extension, and deliberately declared
@@ -212,6 +238,12 @@ interface FillVariable {
 }
 
 /**
+ * 图片变量上传时用的 `accept` 属性。
+ *
+ * 之所以写成辅助函数而不是模板里的内联 `??`：在嵌套的 `v-if`/`v-else` 分支里，模板检查器
+ * 无法跟上 `variable.attrs.data` 的判别收窄，所以模板不是可以假定 `data.type === "image"`
+ * 的地方。
+ *
  * The `accept` attribute for an image variable's upload.
  *
  * A helper rather than an inline `??` in the template: inside a nested `v-if`/`v-else`
@@ -227,22 +259,30 @@ defineOptions({ name: "FillVariableDialog" });
 
 const props = withDefaults(
   defineProps<{
-    /** Whether the dialog is open. `v-model:open`. */
+    /** 对话框是否打开。`v-model:open`。 / Whether the dialog is open. `v-model:open`. */
     open: boolean;
 
-    /** Every variable in the document. */
+    /** 文档里的每一个变量。 / Every variable in the document. */
     variables?: readonly FillVariable[];
 
-    /** The current fill data, used to seed the form. */
+    /** 当前的填充数据，用于播种表单。 / The current fill data, used to seed the form. */
     values?: VariableFillData;
 
-    /** The 1-based page being filled, for a `system` variable. */
+    /**
+     * 正在填充的页码，从 1 开始，供 `system` 变量使用。
+     *
+     * The 1-based page being filled, for a `system` variable.
+     */
     page?: number;
 
-    /** How many pages the document has, for a `system` variable. */
+    /**
+     * 文档有多少页，供 `system` 变量使用。
+     *
+     * How many pages the document has, for a `system` variable.
+     */
     total?: number;
 
-    /** Partial locale overrides. */
+    /** 部分语言覆盖。 / Partial locale overrides. */
     locale?: Partial<EditorLocale>;
   }>(),
   {
@@ -255,8 +295,9 @@ const props = withDefaults(
 );
 
 const emits = defineEmits<{
+  /** 对话框是否打开，`v-model:open`。 / Whether the dialog is open, `v-model:open`. */
   "update:open": [open: boolean];
-  /** The user confirmed a valid set of values. */
+  /** 用户确认了一组合法的值。 / The user confirmed a valid set of values. */
   submit: [values: VariableFillData];
 }>();
 
@@ -268,6 +309,13 @@ const visible = computed({
 });
 
 /**
+ * 对话框的工作副本。
+ *
+ * `VariableValue` 是标量，而多选 `select` 会产生数组。解析器正是为这种情况记录了对数组的
+ * 容忍（`renderSelect` 用 `joinWith` 把它连起来，`validateFill` 检查每一个成员），所以数组在
+ * {@link setSelect} —— 唯一可能由控件产生它的地方 —— 被显式转换后接纳，而不是去放宽公开的
+ * `VariableFillData`，那是*使用方*存储的契约。
+ *
  * The dialog's working copy.
  *
  * `VariableValue` is scalar, and a multiple `select` produces an array. The resolver
@@ -279,12 +327,20 @@ const visible = computed({
  */
 const draft = ref<Record<string, VariableValue>>({});
 
-/** Bumped so a stroke on the signature canvas is not lost to Vue's non-reactive canvas. */
+/**
+ * 自增它，好让签名画布上的一笔不会因为 Vue 无法感知画布而丢失。
+ *
+ * Bumped so a stroke on the signature canvas is not lost to Vue's non-reactive canvas.
+ */
 const signatureRevision = ref(0);
 
 const now = new Date();
 
-/** One field per key: a contract repeats `{甲方}` and must not be asked for it twice. */
+/**
+ * 每个 key 一个字段：合同会重复出现 `{甲方}`，不能问两遍。
+ *
+ * One field per key: a contract repeats `{甲方}` and must not be asked for it twice.
+ */
 const variables = computed<readonly FillVariable[]>(() => {
   const seen = new Set<string>();
   const unique: FillVariable[] = [];
@@ -296,7 +352,11 @@ const variables = computed<readonly FillVariable[]>(() => {
   return unique;
 });
 
-/** The resolved values, plus every issue resolution produced. */
+/**
+ * 解析出的值，以及解析过程中产生的每一个问题。
+ *
+ * The resolved values, plus every issue resolution produced.
+ */
 const resolution = computed<{ byKey: Map<string, ResolvedVariable>; errors: VariableIssue[] }>(() => {
   const errors: VariableIssue[] = [];
   const system: SystemContext = {
@@ -316,7 +376,11 @@ const resolution = computed<{ byKey: Map<string, ResolvedVariable>; errors: Vari
   return { byKey, errors };
 });
 
-/** Everything wrong with the current draft, from both validators. */
+/**
+ * 当前草稿的全部问题，来自两个校验器。
+ *
+ * Everything wrong with the current draft, from both validators.
+ */
 const issues = computed<VariableIssue[]>(() => [
   ...validateFill(
     variables.value.map((variable) => ({ pos: variable.pos, attrs: variable.attrs })),
@@ -335,7 +399,11 @@ function warningFor(key: string): string {
   return issues.value.find((issue) => issue.key === key && issue.severity === "warning")?.message ?? "";
 }
 
-/** The document's own value for a `formula` or `system` variable. */
+/**
+ * 文档为 `formula` 或 `system` 变量给出的值。
+ *
+ * The document's own value for a `formula` or `system` variable.
+ */
 function displayOf(key: string): string {
   return resolution.value.byKey.get(key)?.display ?? "";
 }
@@ -344,7 +412,7 @@ function displayOf(key: string): string {
 // Field values
 // ---------------------------------------------------------------------------------
 
-/** Read a value as the string a text input wants. */
+/** 把值读成文本输入框想要的字符串。 / Read a value as the string a text input wants. */
 function asText(key: string): string {
   const value = draft.value[key];
   if (value === undefined || value === null) return "";
@@ -352,7 +420,7 @@ function asText(key: string): string {
   return String(value);
 }
 
-/** Read a value as the number a numeric input wants. */
+/** 把值读成数字输入框想要的数值。 / Read a value as the number a numeric input wants. */
 function asNumber(key: string): number {
   const value = draft.value[key];
   if (typeof value === "number") return value;
@@ -360,7 +428,7 @@ function asNumber(key: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-/** Read a value as a boolean. */
+/** 把值读成布尔值。 / Read a value as a boolean. */
 function asBoolean(key: string): boolean {
   return draft.value[key] === true;
 }
@@ -378,6 +446,11 @@ function setBoolean(key: string, value: boolean): void {
 }
 
 /**
+ * `select` 的值。
+ *
+ * 单选以标量到达，多选以数组到达；数组被原样传下去，因为下游每个读取者 —— `renderSelect`、
+ * `validateFill` —— 都能处理它。见 {@link draft} 上的说明。
+ *
  * A `select` value.
  *
  * A single choice arrives as a scalar and a `multiple` one as an array; the array is
@@ -389,6 +462,11 @@ function setSelect(key: string, value: string | number | boolean | Array<string 
 }
 
 /**
+ * 把上传的图片读进草稿，并执行作者设定的大小上限。
+ *
+ * `data` 是整个联合，并且在这里而不是在调用点收窄：模板无法穿过嵌套分支跟上判别值，而一个
+ * 接收该联合的辅助函数是能容纳这次收窄的最小位置。
+ *
  * Read an uploaded image into the draft, enforcing the author's size limit.
  *
  * `data` is the whole union and is narrowed here rather than at the call site: the template
@@ -413,7 +491,11 @@ async function onImage(key: string, file: UploadFile, data: VariableData): Promi
   }
 }
 
-/** Read a file as a data URL, so the filled document stays self-contained. */
+/**
+ * 把文件读成 data URL，使填充后的文档保持自包含。
+ *
+ * Read a file as a data URL, so the filled document stays self-contained.
+ */
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -433,12 +515,16 @@ function readAsDataUrl(file: File): Promise<string> {
 const signatureCanvas = ref<HTMLCanvasElement | null>(null);
 let drawing = false;
 
-/** The canvas 2D context, or `undefined` when the element is not ready. */
+/**
+ * 画布的 2D 上下文，元素尚未就绪时为 `undefined`。
+ *
+ * The canvas 2D context, or `undefined` when the element is not ready.
+ */
 function context(): CanvasRenderingContext2D | undefined {
   return signatureCanvas.value?.getContext("2d") ?? undefined;
 }
 
-/** The pointer position, in canvas coordinates. */
+/** 指针位置，以画布坐标表示。 / The pointer position, in canvas coordinates. */
 function pointOf(event: PointerEvent): { x: number; y: number } {
   const canvas = signatureCanvas.value;
   if (!canvas) return { x: 0, y: 0 };
@@ -483,7 +569,7 @@ function clearSignature(): void {
   signatureRevision.value += 1;
 }
 
-/** Turn the stroke into the value the document stores. */
+/** 把这一笔画成文档存储的值。 / Turn the stroke into the value the document stores. */
 function applySignature(key: string): void {
   const canvas = signatureCanvas.value;
   if (!canvas) return;
@@ -497,7 +583,11 @@ function applySignature(key: string): void {
 // Lifecycle
 // ---------------------------------------------------------------------------------
 
-/** Seed the form from the caller's data and each variable's default. */
+/**
+ * 用调用方的数据和每个变量的默认值播种表单。
+ *
+ * Seed the form from the caller's data and each variable's default.
+ */
 function reset(): void {
   const seeded: Record<string, VariableValue> = {};
   for (const variable of variables.value) {
@@ -516,7 +606,11 @@ watch(
   { immediate: true }
 );
 
-/** Confirm, refusing while an error-severity issue remains. */
+/**
+ * 确认；只要还存在 error 级问题就拒绝。
+ *
+ * Confirm, refusing while an error-severity issue remains.
+ */
 function submit(): void {
   if (blockingMessages.value.length > 0) {
     // The messages are already rendered against their fields; the footer count says how

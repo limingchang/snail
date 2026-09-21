@@ -1,4 +1,16 @@
 /**
+ * `PageContent` —— 页面正文，也是分页引擎所在之处。
+ *
+ * 节点本身很简单（`block*`、隔离、无属性）。它有两处关键部分：节点视图
+ * （`./pageContentView.ts`）和执行调度轮次的插件（`./paginator.ts`）。
+ *
+ * ## 为什么没有属性
+ *
+ * 旧版的 `pageContent` 带一个 `_updateTimestamp`，默认值为 `Date.now()`，唯一作用是强制重新
+ * 渲染。它让同一份模板每次加载都序列化出不同的结果（缺陷 43），也是那些基于过期位置的刷新
+ * 命令背后的机制（缺陷 11）。正文现在没有任何需要盖时间戳的东西：布局变化由测量驱动，页边距
+ * 位于 `page` 节点上。
+ *
  * `PageContent` — the page body, and the home of the pagination engine.
  *
  * The node itself is trivial (`block*`, isolating, no attributes). Its two interesting
@@ -22,6 +34,7 @@ import { DEFAULT_PAGINATION_TOLERANCE } from "../utils/pagination";
 import { renderPageContentNodeView } from "./pageContentView";
 import { createPaginationPlugin } from "./paginator";
 
+/** `pageContent` 节点扩展。 / The `pageContent` node extension. */
 export const PageContent = Node.create<PageContentOptions, PageContentStorage>({
   name: "pageContent",
   group: "page",

@@ -1,4 +1,16 @@
 /**
+ * `page` 节点的节点视图：纸张盒子。
+ *
+ * 旧版节点视图给 `dom` 和 `contentDOM` 返回了*同一个*元素，于是 ProseMirror 把页面的每个子节点都
+ * 直接渲染进那个元素，任何非文档内容都没有容身之处——这正是为什么加水印或 Logo 只能跟子节点映射
+ * 硬碰（重建笔记 §2、缺陷 18 和水印注意事项）。这里 `dom` 是纸张、`contentDOM` 是它内部的列，
+ * 从而留出了两种刻意**不属于**内容的东西的位置：把页面页边距传下去给正文的 CSS 自定义属性，
+ * 以及未来任何浮层（水印），后者现在有了明确的去处。
+ *
+ * Logo 已经不再是浮层：它曾是 `page` 的一个 `pageLogo` 子节点，被画进一个与 `contentDOM` 同级的
+ * `<img>`，靠 `position` 属性和毫米偏移定位。页面的子节点没有「页脚的左三分之一」，所以模型表达不了
+ * Logo 该在哪；现在 Logo 是 `pageRegion` 里的一个块，自己画自己（见 `pageLogo/pageLogo.ts`）。
+ *
  * The `page` node view: the paper box.
  *
  * ## Why `dom` and `contentDOM` are different elements
@@ -15,11 +27,17 @@
  * and the watermark caveat).
  *
  * Here `dom` is the sheet and `contentDOM` is the column inside it. That leaves room for
- * three things that are deliberately **not** content:
+ * two things that are deliberately **not** content:
  *
- * 1. the logo overlay (`pageLogo`) — absolutely positioned, a sibling of `contentDOM`;
- * 2. the CSS custom properties that carry the page's margins down to the body;
- * 3. any future overlay (a watermark), which now has an obvious home.
+ * 1. the CSS custom properties that carry the page's margins down to the body;
+ * 2. any future overlay (a watermark), which now has an obvious home.
+ *
+ * ## The logo is not an overlay any more
+ *
+ * It used to be one: a `pageLogo` child of the page, drawn into an `<img>` that was a sibling of
+ * `contentDOM`, positioned by a `position` attribute plus millimetre offsets. A page child has no
+ * "left third of the footer", so the model could not express where a logo belongs; the logo is a
+ * block inside a `pageRegion` now and draws itself (see `pageLogo/pageLogo.ts`).
  */
 
 import type { NodeViewRenderer } from "@tiptap/core";
@@ -30,23 +48,17 @@ import type { ResolvedMargins } from "../../typings/paper";
 import {
   CSS_VARIABLE,
   DATA_TYPE,
-  DEFAULT_LOGO_ATTRIBUTES,
   PAGE_CLASS,
-  PAGE_INNER_CLASS,
-  PAGE_LOGO_CLASS
+  PAGE_INNER_CLASS
 } from "./constant";
 import {
-  readCss,
-  readLogoPosition,
   readMargins,
-  readNumber,
   readOrientation,
-  readPaperFormat,
-  readString
+  readPaperFormat
 } from "./utils/attributes";
-import { findChildNode, PAGE_LOGO_NODE, readPageIndex } from "./utils/nodes";
+import { readPageIndex } from "./utils/nodes";
 
-/** The `page` node's node view. */
+/** `page` 节点的节点视图。 / The `page` node's node view. */
 export function renderPageNodeView(): NodeViewRenderer {
   return ({ node }) => {
     const dom = document.createElement("section");
@@ -58,17 +70,8 @@ export function renderPageNodeView(): NodeViewRenderer {
     content.className = PAGE_INNER_CLASS;
     dom.appendChild(content);
 
-    // The logo overlay, a *sibling* of `contentDOM` (never a child of it).
-    const logo = document.createElement("img");
-    logo.className = PAGE_LOGO_CLASS;
-    logo.setAttribute("data-type", DATA_TYPE.pageLogo);
-    logo.alt = "";
-    logo.hidden = true;
-    dom.appendChild(logo);
-
     const apply = (current: PMNode): void => {
-      const margins = applyPageGeometry(dom, current);
-      applyLogo(logo, current, margins);
+      applyPageGeometry(dom, current);
     };
     apply(node);
 
@@ -92,9 +95,16 @@ export function renderPageNodeView(): NodeViewRenderer {
 }
 
 /**
+ * 给纸张定尺寸，并把它的页边距发布为可继承的自定义属性。
+ *
+ * 页边距属于 `page` 节点，但消费它们的内边距在正文上，而只改页面属性时 ProseMirror *不会*重新渲染
+ * 正文——所以它们以自定义属性的形式传下去，正文完全不用 JavaScript 就能自己重新设定样式。
+ *
  * Size the sheet and publish its margins as inherited custom properties.
  *
- * @returns The resolved margins, so the logo overlay can align to the same box.
+ * The margins belong to the `page` node, but the padding that consumes them is on the body, which
+ * ProseMirror does *not* re-render when only the page's attributes change — so they travel down as
+ * custom properties and the body restyles itself with no JavaScript at all.
  */
 function applyPageGeometry(dom: HTMLElement, page: PMNode): ResolvedMargins {
   const size = resolvePaperSize(
@@ -116,54 +126,4 @@ function applyPageGeometry(dom: HTMLElement, page: PMNode): ResolvedMargins {
   if (dom.dataset.auto !== auto) dom.dataset.auto = auto;
 
   return margins;
-}
-
-/**
- * Draw the page's logo (if it has one) into the overlay.
- *
- * Anchoring, documented because it is the one thing a consumer cannot infer: the
- * horizontal anchor is inside the page's **content area** (`left` + `margins.left`,
- * `right` + `margins.right`, `center` across it) and the vertical `offsetY` runs down
- * from the **top edge of the sheet**, i.e. inside the header band. That combination is
- * what "a logo in the header area" means in a contract: a mark at the left of the paper
- * with right-aligned header text beside it.
- */
-function applyLogo(overlay: HTMLImageElement, page: PMNode, margins: ResolvedMargins): void {
-  const logo = findChildNode(page, PAGE_LOGO_NODE);
-  const src = logo ? readString(logo.attrs.src, "") : "";
-
-  if (src === "") {
-    if (!overlay.hidden) overlay.hidden = true;
-    if (overlay.hasAttribute("src")) overlay.removeAttribute("src");
-    return;
-  }
-
-  overlay.hidden = false;
-  if (overlay.getAttribute("src") !== src) overlay.src = src;
-  overlay.style.width = readCss(logo?.attrs.width, DEFAULT_LOGO_ATTRIBUTES.width);
-  overlay.style.height = readCss(logo?.attrs.height, DEFAULT_LOGO_ATTRIBUTES.height);
-
-  const position = readLogoPosition(logo?.attrs.position);
-  const offsetX = `${readNumber(logo?.attrs.offsetX, DEFAULT_LOGO_ATTRIBUTES.offsetX)}mm`;
-  const offsetY = `${readNumber(logo?.attrs.offsetY, DEFAULT_LOGO_ATTRIBUTES.offsetY)}mm`;
-
-  overlay.style.top = offsetY;
-
-  if (position === "right") {
-    overlay.style.left = "auto";
-    overlay.style.right = `calc(${margins.right} + ${offsetX})`;
-    overlay.style.transform = "none";
-    return;
-  }
-
-  if (position === "center") {
-    overlay.style.left = "50%";
-    overlay.style.right = "auto";
-    overlay.style.transform = `translateX(calc(-50% + ${offsetX}))`;
-    return;
-  }
-
-  overlay.style.left = `calc(${margins.left} + ${offsetX})`;
-  overlay.style.right = "auto";
-  overlay.style.transform = "none";
 }

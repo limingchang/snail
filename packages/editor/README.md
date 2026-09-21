@@ -10,14 +10,23 @@ pnpm add @snail-js/editor element-plus vue
 
 ```ts
 import { createApp } from "vue";
-import ElementPlus from "element-plus";
-import "element-plus/dist/index.css";
 
 import { SnailEditor } from "@snail-js/editor";
 import "@snail-js/editor/style.css";
 
-createApp(App).use(ElementPlus).use(SnailEditor).mount("#app");
+createApp(App).use(SnailEditor).mount("#app");
 ```
+
+`element-plus` is a **peer** dependency (you provide it, the package never bundles a second copy),
+and the editor imports the Element Plus components and component styles it actually renders. So
+there is **no** `app.use(ElementPlus)` and **no** `element-plus/dist/index.css` in the snippet: the
+one stylesheet above carries both the editor's theme and the Element Plus rules it needs. If your
+application already registers Element Plus globally, that keeps working — the imports resolve to
+your installed copy.
+
+Element Plus's own strings (the colour picker's confirm / clear buttons, a select's empty state)
+come from a `el-config-provider` the editor renders internally, defaulting to Chinese. Pass
+`element-locale` to use another language pack.
 
 `SnailEditor` registers `SEditor` globally. You can equally import the component:
 

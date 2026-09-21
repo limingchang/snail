@@ -14,11 +14,20 @@ import type { StrategyState } from "./shared/state";
 import { cancellableDelay } from "./shared/timing";
 import type { UseRequestOptions } from "./use-request";
 
-/** Options accepted by {@link useRetriableRequest}. */
+/**
+ * {@link useRetriableRequest} 接受的选项。
+ *
+ * Options accepted by {@link useRetriableRequest}.
+ */
 export interface UseRetriableRequestOptions<TData>
   extends UseRequestOptions<TData>,
     RetryOptions {
   /**
+   * 判断一次失败的尝试是否值得再试一次。
+   *
+   * 接收*下一次*尝试的序号（1 起），因此调用方除了按次数，也可以按失败原因限制重试。默认
+   * 实现除取消之外全部重试，而取消永不重试：调用方已经要求请求停止，重试等于无视该指令。
+   *
    * Decide whether one failed attempt deserves another.
    *
    * Receives the attempted number of the *next* try (1-based), so a caller can
@@ -29,18 +38,44 @@ export interface UseRetriableRequestOptions<TData>
   retryOn?: RetryPredicate;
 }
 
-/** What {@link useRetriableRequest} returns. */
+/**
+ * {@link useRetriableRequest} 的返回值。
+ *
+ * What {@link useRetriableRequest} returns.
+ */
 export interface UseRetriableRequestResult<
   TData,
   TArgs extends readonly unknown[] = readonly unknown[]
 > extends StrategyState<TData> {
+  /**
+   * 发送请求，以解包后的载荷兑现；失败时最多额外重试 `retries` 次。
+   *
+   * Send the request, resolving with the unwrapped payload. A failure is retried
+   * up to `retries` extra times.
+   */
   send(...args: TArgs): Promise<TData>;
 
-  /** Attempts made by the most recent `send()`. Starts at `0`. */
+  /**
+   * 最近一次 `send()` 已进行的尝试次数。从 `0` 开始。
+   *
+   * Attempts made by the most recent `send()`. Starts at `0`.
+   */
   readonly attempts: SnailStateRef<number>;
 }
 
 /**
+ * 一个能自我修复的请求。
+ *
+ * ## 取消才是难点
+ *
+ * hook 自己持有一个 `AbortController`，用于尝试*之间*的退避，因为那一刻没有在途请求可以
+ * 取消。`abort()` 会同时触发两者，因此在 30 秒延迟期间调用 `abort()` 会立即拒绝，而不是
+ * 让调用方的 promise 一直挂到定时器触发。取消永远不会被计为一次失败尝试，也永远不会写入
+ * `error`。
+ *
+ * 暴露 `attempts` 是因为它对遥测确实有用（「这次调用试了三次」），也因为它让重试循环无需
+ * 统计请求数就能被测试。
+ *
  * A request that heals itself.
  *
  * ```ts
@@ -60,6 +95,11 @@ export interface UseRetriableRequestResult<
  * `attempts` is exposed because it is genuinely useful for telemetry ("this call
  * needed three tries") and because it makes the retry loop testable without
  * counting requests.
+ *
+ * @param method 代理后的 api 方法 / The proxied api method.
+ * @param options 策略与重试选项 / The strategy and retry options.
+ * @returns 带 state 句柄、`send` 与 `attempts` 的结果 /
+ *   The result with state handles, `send` and `attempts`.
  */
 export function useRetriableRequest<TArgs extends readonly unknown[], TData>(
   method: StrategyMethod<TArgs, TData>,

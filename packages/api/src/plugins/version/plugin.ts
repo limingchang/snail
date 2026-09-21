@@ -9,6 +9,23 @@ import type { SnailContext } from "../../core/context";
 import type { VersioningOptions, VersioningPatch, VersioningType } from "./type";
 
 /**
+ * 版本管理插件。
+ *
+ * ## 它改写什么
+ *
+ * 只改写上下文上的这个实时请求——从不改写 `server.defaults.baseURL`，也从不改写共享的
+ * axios 实例。
+ *
+ * 改写前的实现会在第一个请求运行时把版本烤进服务端的 `baseURL`。这会泄漏：最先运行的
+ * 方法决定了该服务上后续每个请求的版本，于是调用一次 `v2` 接口就悄悄把整个应用搬到了
+ * `v2`。改为按请求从方法/类元数据解析版本之后，这种情况再也无法被表示出来。
+ *
+ * ## 优先级
+ *
+ * `50`——位于保留的版本区间内。它在拦截器（`100`）之后运行，因此看到的是拦截器产出的
+ * url；又在缓存（`-100`）之前运行，所以缓存哈希到的是带版本的 url，而不是一个会在脚下
+ * 变化的 url。
+ *
  * Version management plugin.
  *
  * ## What it rewrites
@@ -205,6 +222,8 @@ function applyVersion(ctx: SnailContext, options: ResolvedVersioning): void {
 }
 
 /**
+ * 创建版本管理插件。
+ *
  * Create the version management plugin.
  *
  * ```ts
@@ -215,6 +234,11 @@ function applyVersion(ctx: SnailContext, options: ResolvedVersioning): void {
  * the url before the request is hashed, cached and sent.
  */
 /**
+ * 保留给版本管理的优先级区间。
+ *
+ * 导出它是为了让插件可以相对它定位自己——`VERSIONING_PRIORITY - 1` 表明了意图，而字面量
+ * `49` 不能。
+ *
  * The reserved versioning band.
  *
  * Exported so a plugin can position itself relative to it — `VERSIONING_PRIORITY - 1`
@@ -223,7 +247,12 @@ function applyVersion(ctx: SnailContext, options: ResolvedVersioning): void {
 export const VERSIONING_PRIORITY = 50;
 
 /**
+ * 构建版本管理插件。
+ *
  * Create the version-management plugin.
+ *
+ * @param options 版本管理插件配置 / Versioning plugin options.
+ * @returns 版本管理插件对象 / The versioning plugin object.
  */
 export const Versioning = createPlugin<VersioningOptions>({
   name: "versioning",

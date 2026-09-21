@@ -46,6 +46,28 @@
 
 <script setup lang="ts">
 /**
+ * `ToolInsert` —— *插入*面板：变量、二维码、页面、分页符、图片。
+ *
+ * ## 为什么表格控件搬走了
+ *
+ * 这个面板以前还放着两个表格网格和八个单元格/行/列操作，把两件不同的事混在一起：「往文档里
+ * 放一个新东西」和「改动光标所在的那张表」。表格工具现在住在自己的 `table` 区块里，所以本
+ * 面板只讲插入。
+ *
+ * ## 二维码的内容
+ *
+ * 内容为空的二维码毫无价值，而扩展自己的默认文本就是空字符串，所以这个按钮会自行推导一个：
+ * 文档的第一个标题，取不到时回退到 {@link STARTER_QR_TEXT}。这样按钮点一下就有用，也绝不
+ * 会插入一个什么都没编码的码。内容之后可以在「二维码」区块里编辑，尺寸、位置、颜色和边距
+ * 也都在那里。
+ *
+ * ## 这里修好的问题
+ *
+ * - 「分页」现在会调用 `insertPageBreak`；在旧版工具栏里它**完全没有处理函数**（缺陷 21），
+ *   而它本该调用的五个命令只声明过、从未实现。
+ * - `el-input-number` 上没有 `addon-before`/`addon-after`：那个 API 并不存在，旧版页面面板
+ *   却照样调用（缺陷 42）。
+ *
  * `ToolInsert` — the *insertion* pane: a variable, a QR code, a page, a page break, an image.
  *
  * ## Why the table controls left
@@ -77,7 +99,6 @@ import type { JSONContent } from "@tiptap/core";
 
 import { Scissor } from "@element-plus/icons-vue";
 import type { UploadFile } from "element-plus";
-import { ElMessage } from "element-plus";
 
 import { SIcon } from "@snail-js/vue";
 import { IconFileUpload, IconNewPage, IconQRCode, IconVariable } from "@snail-js/vue";
@@ -86,19 +107,34 @@ import { mergeEditorLocale } from "../../editor/locale";
 import type { ToolProps } from "../../editor/props";
 import { STARTER_QR_TEXT } from "../../editor/starter";
 import { useEditorSelection } from "../../editor/useEditorSelection";
+import { ElMessage, ElButton, ElDivider, ElIcon, ElUpload } from "element-plus";
 
 defineOptions({ name: "ToolInsert" });
 
+/**
+ * 本面板的 props：编辑器实例与语言覆盖，二者都来自 `ToolProps`，默认均为 `undefined`。
+ *
+ * This panel's props: the editor and the locale override, both from `ToolProps` and both
+ * defaulting to `undefined`.
+ */
 const props = withDefaults(defineProps<ToolProps>(), { editor: undefined, locale: undefined });
 
 const emits = defineEmits<{
-  /** The user asked to insert a variable; `SEditor` owns the dialog. */
+  /**
+   * 用户要求插入一个变量；对话框由 `SEditor` 负责。
+   *
+   * The user asked to insert a variable; `SEditor` owns the dialog.
+   */
   insertVariable: [];
 }>();
 
 const t = computed(() => mergeEditorLocale(props.locale));
 
-/** Bumped on every selection/document change so the extension checks re-evaluate. */
+/**
+ * 在每次选区或文档变化时自增，好让扩展检查重新求值。
+ *
+ * Bumped on every selection/document change so the extension checks re-evaluate.
+ */
 const revision = ref(0);
 
 useEditorSelection(
@@ -108,7 +144,11 @@ useEditorSelection(
   }
 );
 
-/** `true` when an extension with this name is registered, i.e. its commands exist. */
+/**
+ * 当名为 `name` 的扩展已注册、即其命令存在时为 `true`。
+ *
+ * `true` when an extension with this name is registered, i.e. its commands exist.
+ */
 function hasExtension(name: string): boolean {
   // `revision` is read so the answer is recomputed when the extension set could have
   // changed; the manager itself is not reactive.
@@ -119,7 +159,7 @@ function hasExtension(name: string): boolean {
 const pageReady = computed(() => hasExtension("page"));
 const qrcodeReady = computed(() => hasExtension("qrcode"));
 
-/** Add a page after the current one. */
+/** 在当前页之后新增一页。 / Add a page after the current one. */
 function addNewPage(): void {
   if (!pageReady.value) {
     ElMessage.warning(t.value.notReady);
@@ -128,7 +168,11 @@ function addNewPage(): void {
   props.editor?.chain().focus().addNewPage().run();
 }
 
-/** Insert an explicit page break — the handler the legacy button never had. */
+/**
+ * 插入一个显式分页符 —— 旧版按钮从未有过的处理函数。
+ *
+ * Insert an explicit page break — the handler the legacy button never had.
+ */
 function insertPageBreak(): void {
   if (!pageReady.value) {
     ElMessage.warning(t.value.notReady);
@@ -137,7 +181,11 @@ function insertPageBreak(): void {
   props.editor?.chain().focus().insertPageBreak().run();
 }
 
-/** Depth-first search for the first heading's text in a document JSON tree. */
+/**
+ * 在文档 JSON 树里深度优先查找第一个标题的文本。
+ *
+ * Depth-first search for the first heading's text in a document JSON tree.
+ */
 function findHeadingText(node: JSONContent | undefined): string | undefined {
   if (!node) return undefined;
   if (node.type === "heading") {
@@ -155,6 +203,11 @@ function findHeadingText(node: JSONContent | undefined): string | undefined {
 }
 
 /**
+ * 插入一个内容取自文档自身标题的二维码。
+ *
+ * 从调用方看 `insertQRCode` 是同步的 —— 它返回插入是否被接受，并在后台生成位图（有在途
+ * 保护，所以双击不会插入两个码）。
+ *
  * Insert a QR code whose payload is the document's own title.
  *
  * `insertQRCode` is synchronous from the caller's side — it returns whether the insertion was
@@ -171,7 +224,11 @@ function insertQrcode(): void {
   if (!accepted) ElMessage.warning(t.value.notReady);
 }
 
-/** Read a picked file as a data URL, so the document stays self-contained. */
+/**
+ * 把选中的文件读成 data URL，使文档保持自包含。
+ *
+ * Read a picked file as a data URL, so the document stays self-contained.
+ */
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -184,7 +241,7 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-/** Insert the picked image inline. */
+/** 把选中的图片作为行内图片插入。 / Insert the picked image inline. */
 async function onImageSelected(file: UploadFile): Promise<void> {
   const editor = props.editor;
   const raw = file.raw;

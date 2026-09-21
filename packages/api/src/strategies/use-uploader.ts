@@ -6,42 +6,101 @@ import { createTaskQueue } from "./shared/queue";
 import { createStrategyState } from "./shared/state";
 import type { StrategyState } from "./shared/state";
 
-/** Lifecycle of one queued file. */
+/**
+ * 一个排队文件的生命周期。
+ *
+ * Lifecycle of one queued file.
+ */
 export type UploadFileStatus = "pending" | "uploading" | "success" | "error";
 
-/** Everything the hook tracks about one file. */
+/**
+ * hook 跟踪的单个文件的全部信息。
+ *
+ * Everything the hook tracks about one file.
+ */
 export interface UploadFileState {
-  /** Stable id, used by `retry(id)`. */
+  /**
+   * 稳定 id，供 `retry(id)` 使用。
+   *
+   * Stable id, used by `retry(id)`.
+   */
   readonly id: string;
 
-  /** The file itself. */
+  /**
+   * 文件本身。
+   *
+   * The file itself.
+   */
   readonly file: File;
 
+  /**
+   * 该文件当前的生命周期状态。
+   *
+   * The file's current lifecycle status.
+   */
   readonly status: UploadFileStatus;
 
-  /** `0`–`1`, from the transport when it reports progress, otherwise completed-or-not. */
+  /**
+   * `0`–`1`；传输层报告进度时取报告值，否则取「完成或未完成」。
+   *
+   * `0`–`1`, from the transport when it reports progress, otherwise completed-or-not.
+   */
   readonly progress: number;
 
-  /** Failure of this file. Untouched for a cancellation. */
+  /**
+   * 该文件的失败对象。取消时不会写入。
+   *
+   * Failure of this file. Untouched for a cancellation.
+   */
   readonly error: unknown;
 
-  /** Unwrapped payload of this file's successful response. */
+  /**
+   * 该文件成功响应的解包后载荷。
+   *
+   * Unwrapped payload of this file's successful response.
+   */
   readonly response: unknown;
 }
 
-/** Snapshot handed to `onProgress`. */
+/**
+ * 交给 `onProgress` 的快照。
+ *
+ * Snapshot handed to `onProgress`.
+ */
 export interface UploaderProgress {
-  /** Average progress across every queued file, `0`–`1`. */
+  /**
+   * 所有排队文件的平均进度，`0`–`1`。
+   *
+   * Average progress across every queued file, `0`–`1`.
+   */
   progress: number;
+  /**
+   * 当前的全部文件状态，按入队顺序。
+   *
+   * All current file states, in queue order.
+   */
   files: readonly UploadFileState[];
 }
 
-/** Options accepted by {@link useUploader}. */
+/**
+ * {@link useUploader} 接受的选项。
+ *
+ * Options accepted by {@link useUploader}.
+ */
 export interface UseUploaderOptions<TData> extends SnailStrategyCommonOptions {
-  /** Files in flight at once. Defaults to `3`. */
+  /**
+   * 同时在途的文件数。默认 `3`。
+   *
+   * Files in flight at once. Defaults to `3`.
+   */
   concurrency?: number;
 
   /**
+   * 允许一次 `upload()` 接受多个文件。
+   *
+   * 默认 `true`。为 `false` 时只把 `FileList` 的第一项入队，其余被丢弃——单文件头像上传
+   * 不该因为用户多选就悄悄上传 40 张度假照片。
+   *
    * Accept more than one file per `upload()` call.
    *
    * Defaults to `true`. When `false`, only the first entry of a `FileList` is
@@ -50,16 +109,33 @@ export interface UseUploaderOptions<TData> extends SnailStrategyCommonOptions {
    */
   multiple?: boolean;
 
-  /** Called whenever aggregate or per-file progress changes. */
+  /**
+   * 聚合进度或单文件进度变化时调用。
+   *
+   * Called whenever aggregate or per-file progress changes.
+   */
   onProgress?: (state: UploaderProgress) => void;
 
-  /** FormData field the file is written to. Defaults to `"file"`. */
+  /**
+   * 文件写入的 FormData 字段名。默认 `"file"`。
+   *
+   * FormData field the file is written to. Defaults to `"file"`.
+   */
   fieldName?: string;
 }
 
-/** What {@link useUploader} returns. */
+/**
+ * {@link useUploader} 的返回值。
+ *
+ * What {@link useUploader} returns.
+ */
 export interface UseUploaderResult<TData> extends StrategyState<TData> {
   /**
+   * 把文件入队，并在队列排空后兑现。
+   *
+   * 绝不拒绝：单文件失败体现在 `files[i].error` 上，一个坏文件不该中断整批——这正是
+   * 「5 个里成功了 3 个」与「什么都没发生」的区别。
+   *
    * Queue files and resolve once the queue drains.
    *
    * Never rejects: per-file failures live on `files[i].error`, and one bad file
@@ -68,13 +144,25 @@ export interface UseUploaderResult<TData> extends StrategyState<TData> {
    */
   upload(files: File | File[] | FileList | null | undefined): Promise<void>;
 
-  /** Every queued file, in queue order. */
+  /**
+   * 所有已入队的文件，按入队顺序。
+   *
+   * Every queued file, in queue order.
+   */
   readonly files: SnailStateRef<UploadFileState[]>;
 
-  /** Aggregate progress, `0`–`1`. Reaches `1` when every file succeeded. */
+  /**
+   * 聚合进度，`0`–`1`。所有文件都成功时达到 `1`。
+   *
+   * Aggregate progress, `0`–`1`. Reaches `1` when every file succeeded.
+   */
   readonly progress: SnailStateRef<number>;
 
-  /** Re-queue one failed file. */
+  /**
+   * 重新入队一个失败的文件。
+   *
+   * Re-queue one failed file.
+   */
   retry(id: string): void;
 }
 
@@ -96,6 +184,21 @@ function clamp01(value: number): number {
 }
 
 /**
+ * 以有界的并行数上传文件。
+ *
+ * ## 进度
+ *
+ * 单文件进度来自传输层，通过 axios 的 `onUploadProgress`；hook 会把它挂到每个文件**当前
+ * 生效的**请求 config 上（为什么必须在 `send()` 开始后立刻做，见 `shared/method.ts`）。
+ * 聚合值是各文件值的平均，而已完成的文件无论传输层报了多少都计为 `1`——被 mock 或基于
+ * `fetch` 的 adapter 根本不上报，没有这条规则进度条会停在 `0`。
+ *
+ * ## `data` 与 `code`
+ *
+ * state 句柄由整批共享，因此 `data` 保存的是最近一个完成文件的载荷。需要按文件的信息请用
+ * `files[i].response`。`error` 与文件列表保持一致：只要有文件处于 `error` 状态，它就保存
+ * 第一个失败文件的错误；最后一个失败被成功重试后它会自行清空。
+ *
  * Upload files with a bounded number of parallel requests.
  *
  * ```ts
@@ -121,6 +224,11 @@ function clamp01(value: number): number {
  * per-file. `error` mirrors the file list: it holds the first failed file's error
  * while any file is in the `error` state, and clears itself once the last failure
  * has been retried successfully.
+ *
+ * @param method 代理后的上传方法，接收 `FormData` / The proxied upload method, taking `FormData`.
+ * @param options 上传选项 / The upload options.
+ * @returns 带 state 句柄、`files`、`progress` 与 `retry` 的结果 /
+ *   The result with state handles, `files`, `progress` and `retry`.
  */
 export function useUploader<TData>(
   method: StrategyMethod<[FormData], TData>,

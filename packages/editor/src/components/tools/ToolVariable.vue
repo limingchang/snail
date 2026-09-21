@@ -44,6 +44,24 @@
 
 <script setup lang="ts">
 /**
+ * `ToolVariable` —— 文档里的变量，支持插入、编辑和删除。
+ *
+ * ## 为什么面板直接读文档
+ *
+ * `collectDocumentVariables` 遍历的是实时文档，所以这份清单就是事实，而不是一份必须时刻同步
+ * 的本地缓存。旧版面板只保存一个 `showVariableAttrs` ref，谁最后被点击就赋成谁，再用
+ * `Object.assign` 合并，于是面板描述的可能是已经不存在的变量，而下一次插入对话框会带着上一个
+ * 变量的状态预填打开（缺陷 27）。
+ *
+ * ## 编辑与删除按位置寻址
+ *
+ * `updateVariable(pos, attrs)` 与 `removeVariable(pos)` 接收位置，所以编辑落在用户点击的那个
+ * 变量上，而不是落在选区恰好覆盖到的东西上 —— 旧版的 `updateAttributes("variable", attrs)`
+ * 除非 `NodeSelection` 正好落在该节点上，否则悄无声息地什么都不做（缺陷 22）。
+ *
+ * 删除是立即执行且可撤销的，而不是藏在确认框后面：撤销/重做已重新注册（缺陷 14），而每次
+ * 删除都加一步确认，比按一次 `Ctrl+Z` 更糟。
+ *
  * `ToolVariable` — the document's variables, with insert, edit and remove.
  *
  * ## Why the panel reads the document
@@ -80,15 +98,30 @@ import type { VariableValue } from "../../typings/variable";
 import { mergeEditorLocale } from "../../editor/locale";
 import type { ToolProps } from "../../editor/props";
 import { useEditorSelection } from "../../editor/useEditorSelection";
+import { ElButton, ElEmpty, ElTag, ElIcon } from "element-plus";
 
 defineOptions({ name: "ToolVariable" });
 
+/**
+ * 本面板的 props：编辑器实例与语言覆盖，二者都来自 `ToolProps`，默认均为 `undefined`。
+ *
+ * This panel's props: the editor and the locale override, both from `ToolProps` and both
+ * defaulting to `undefined`.
+ */
 const props = withDefaults(defineProps<ToolProps>(), { editor: undefined, locale: undefined });
 
 const emits = defineEmits<{
-  /** The user asked for a new variable; the host opens the design dialog empty. */
+  /**
+   * 用户要求新建一个变量；宿主会打开一个空的编辑对话框。
+   *
+   * The user asked for a new variable; the host opens the design dialog empty.
+   */
   insert: [];
-  /** The user asked to edit one; `pos` addresses it in the live document. */
+  /**
+   * 用户要求编辑其中一个；`pos` 在实时文档中为它寻址。
+   *
+   * The user asked to edit one; `pos` addresses it in the live document.
+   */
   edit: [attrs: DocumentVariable["attrs"], pos: number];
 }>();
 
@@ -96,19 +129,28 @@ const t = computed(() => mergeEditorLocale(props.locale));
 
 const variables = ref<DocumentVariable[]>([]);
 
-/** Re-read the variable list from the document. */
+/** 从文档重新读取变量清单。 / Re-read the variable list from the document. */
 function sync(): void {
   variables.value = props.editor ? collectDocumentVariables(props.editor) : [];
 }
 
 useEditorSelection(() => props.editor, sync);
 
-/** A localised type name, falling back to the raw discriminant. */
+/**
+ * 类型名称的本地化文案，取不到时回退到原始判别值。
+ *
+ * A localised type name, falling back to the raw discriminant.
+ */
 function typeLabel(type: string): string {
   return t.value.variable.typeOptions[type] ?? type;
 }
 
 /**
+ * 把默认值渲染成可显示的形式。
+ *
+ * `undefined` 显示为破折号而不是空单元格，因为「没有默认值」与「默认值是空字符串」是两种不同
+ * 状态，而旧版面板把两者都显示成空白。
+ *
  * Render a default value for display.
  *
  * `undefined` is shown as an em dash rather than as an empty cell, because "no default"
@@ -121,7 +163,7 @@ function formatValue(value: VariableValue): string {
   return String(value);
 }
 
-/** Delete one variable by position. */
+/** 按位置删除一个变量。 / Delete one variable by position. */
 function remove(pos: number): void {
   props.editor?.chain().focus().removeVariable(pos).run();
   sync();

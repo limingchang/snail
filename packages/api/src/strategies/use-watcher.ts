@@ -9,9 +9,19 @@ import { createRequestScheduler } from "./shared/timing";
 import { readWatchedValues, shallowEqual } from "./shared/watcher";
 import type { UseRequestOptions, UseRequestResult } from "./use-request";
 
-/** Options accepted by {@link useWatcher}. */
+/**
+ * {@link useWatcher} 接受的选项。
+ *
+ * Options accepted by {@link useWatcher}.
+ */
 export interface UseWatcherOptions<TData> extends UseRequestOptions<TData> {
   /**
+   * 值发生变化时触发一次重新发送。
+   *
+   * 必须是返回**普通值**的函数——`() => [page.value]`。当 adapter 能识别时，state 句柄也
+   * 会被解包（见 `shared/watcher.ts`），但句柄形式只是启发式：只有 `{ value }` 对象会被
+   * 识别，因此一个恰好只有 `value` 键的真实数据对象与句柄无法区分。
+   *
    * Values that trigger a re-send when they change.
    *
    * Must be a function returning **plain values** — `() => [page.value]`. State
@@ -23,6 +33,11 @@ export interface UseWatcherOptions<TData> extends UseRequestOptions<TData> {
   watching: () => readonly unknown[];
 
   /**
+   * 等待这么多毫秒的安静期，然后发送一次。
+   *
+   * 两者都设置时优先于 `throttle`：它们表达相反的意图（「等它稳定下来」与「立刻发送，然后
+   * 每个窗口至多一次」），静默地只照顾其中一个，好过行为取决于调用顺序的混合体。
+   *
    * Wait for this many milliseconds of quiet, then send once.
    *
    * Takes precedence over `throttle` when both are set: the two express opposite
@@ -32,16 +47,29 @@ export interface UseWatcherOptions<TData> extends UseRequestOptions<TData> {
    */
   debounce?: number;
 
-  /** Send on the leading edge, then at most once per window. */
+  /**
+   * 在前沿发送，之后每个窗口至多一次。
+   *
+   * Send on the leading edge, then at most once per window.
+   */
   throttle?: number;
 }
 
-/** What {@link useWatcher} returns. */
+/**
+ * {@link useWatcher} 的返回值。
+ *
+ * What {@link useWatcher} returns.
+ */
 export interface UseWatcherResult<
   TData,
   TArgs extends readonly unknown[] = readonly unknown[]
 > extends UseRequestResult<TData, TArgs> {
   /**
+   * `send()` 是否会折叠未变化的被观察值。
+   *
+   * 默认 `true` 即为 watching 行为。设为 `false` 会让每次 `send()` 都变成无条件请求，这是
+   * 同一个 hook 继续观察字段时，手动「刷新」按钮的逃生口。
+   *
    * Whether `send()` collapses unchanged watched values.
    *
    * `true` (default) is the watching behaviour. Setting it to `false` turns every
@@ -52,6 +80,19 @@ export interface UseWatcherResult<
 }
 
 /**
+ * 当被观察的值发生变化时重新发送请求。
+ *
+ * ## 为什么 `send()` 是求值触发器
+ *
+ * `SnailStateAdapter` 只暴露 `create`/`read`/`write` 和一个可选的 `subscribe`；它没有
+ * `watch` 或 `effect`，而且核心刻意把框架响应式挡在策略层之外。因此没有任何东西可以在值
+ * 变化的*那一刻*触发。hook 于是在 `send()` 被调用时求值 `watching()`，并把未变化的快照
+ * 当作空操作，这让行为既确定又与框架无关：Vue/React 集成可以在自己的响应式副作用里调用
+ * `send()`，脚本则直接调用。
+ *
+ * `debounce`/`throttle` 随后折叠响应式副作用产生的 `send()` 突发。每个被折叠的调用方的
+ * promise 都会以那唯一一次请求的结果落定，因此不会有 `await` 被永远挂着。
+ *
  * Re-send a request when watched values move.
  *
  * ```ts
@@ -79,6 +120,11 @@ export interface UseWatcherResult<
  * `debounce`/`throttle` then collapse the *bursts* of `send()` calls a reactive
  * effect produces. Every collapsed caller's promise settles with the single
  * request's outcome, so no `await` is ever left hanging.
+ *
+ * @param method 代理后的 api 方法 / The proxied api method.
+ * @param options 策略选项，必须含 `watching` / Strategy options; `watching` is required.
+ * @returns 带 state 句柄、`send` 与 `watching` 开关的结果 /
+ *   The result with state handles, `send` and the `watching` switch.
  */
 export function useWatcher<TArgs extends readonly unknown[], TData>(
   method: StrategyMethod<TArgs, TData>,

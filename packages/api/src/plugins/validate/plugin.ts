@@ -8,6 +8,23 @@ import type { SnailContext } from "../../core/context";
 import type { ValidateOptions } from "./type";
 
 /**
+ * Zod 校验插件。
+ *
+ * ## 这种不对称是刻意的
+ *
+ * **请求不合法会中止本次调用。** 请求根本到不了网络：连自己的 schema 都过不了的请求体是
+ * 程序员的失误，而它本会引发的后端报错指向了错误的层。
+ *
+ * **响应不合法只发出警告。** 响应已经拿到，而且正是调用方要的；因为后端新增、改名或改了
+ * 某个字段的类型就把它丢掉，会把一次无害的漂移变成坏掉的页面。警告里会带上 zod 的问题
+ * 列表，所以漂移在控制台里依然可见。
+ *
+ * ## 优先级
+ *
+ * `-50`——保留给校验的区间。在正向阶段，它在版本（`50`）与适配器（`0`）塑造完请求之后、
+ * 在向缓存（`-100`）索取键之前运行；在解包阶段，它在缓存之后、适配器之前运行，因此响应
+ * 会在 transform 插件把它替换成类实例**之前**被校验。
+ *
  * Zod validation plugin.
  *
  * ## The asymmetry, and why it is deliberate
@@ -95,6 +112,8 @@ function warnOnInvalidResponse(ctx: SnailContext, schema: ZodType): void {
 }
 
 /**
+ * 创建 zod 校验插件。
+ *
  * Create the zod validation plugin.
  *
  * ```ts
@@ -105,6 +124,11 @@ function warnOnInvalidResponse(ctx: SnailContext, schema: ZodType): void {
  * `Service.use(Validate())`.
  */
 /**
+ * 保留给校验的优先级区间。
+ *
+ * 正向顺序把它放在载荷已塑造之后、缓存计算键之前；解包顺序把它放在缓存存下原始信封之后、
+ * 转换水合之前。之所以导出，是为了让别的插件可以相对它定位自己，而不是硬编码 `-50`。
+ *
  * The reserved validation band.
  *
  * Forward order places it after the payload has been shaped but before the cache
@@ -114,6 +138,14 @@ function warnOnInvalidResponse(ctx: SnailContext, schema: ZodType): void {
  */
 export const VALIDATE_PRIORITY = -50;
 
+/**
+ * 校验插件工厂，交由 `Service.use()` 安装。
+ *
+ * The validate plugin factory, handed to `Service.use()`.
+ *
+ * @param options 校验插件配置 / Validate plugin options.
+ * @returns 校验插件对象 / The validate plugin object.
+ */
 export const validatePlugin = createPlugin<ValidateOptions>({
   name: "validate",
   priority: VALIDATE_PRIORITY,

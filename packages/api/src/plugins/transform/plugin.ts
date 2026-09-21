@@ -7,6 +7,23 @@ import type { SnailContext } from "../../core/context";
 import type { DtoType, TransformOptions } from "./type";
 
 /**
+ * JSON → 类的转换插件。
+ *
+ * 在调用方（或策略）看到响应之前，就把响应的解包载荷替换为 `@Transform(DtoClass)` 声明的
+ * DTO 实例，因此 `result.data instanceof UserDto` 成立，DTO 上的方法也可调用。
+ *
+ * ## 为什么放在 `afterResponse` 而不是结果构建之后
+ *
+ * `afterResponse` 运行时，响应仍是唯一的真相来源：信封校验、`buildResult` 与 `success`
+ * 事件都读取 `ctx.response`，所以在这里改写响应意味着后续每一步——尤其是 `result.data`
+ * ——都自然一致，无需第二条代码路径。
+ *
+ * ## 优先级
+ *
+ * `0`。在解包一侧，它排在 validate 插件（`-50`）之后，这是刻意的：schema 描述的是后端
+ * 发来的 JSON，若改为校验水合后的实例，就等于拿 DTO 实例去比对 JSON schema，会在每个
+ * `Date` 上失败。
+ *
  * JSON → class transform plugin.
  *
  * Replaces the unwrapped payload of a response with instances of the DTO declared
@@ -74,6 +91,8 @@ function transformResponse(
 }
 
 /**
+ * 创建转换插件。
+ *
  * Create the transform plugin.
  *
  * ```ts
@@ -91,6 +110,11 @@ function transformResponse(
  * payload stays the plain object JSON.parse produced.
  */
 /**
+ * 转换所在的优先级区间——也是第三方插件拿到的默认值。
+ *
+ * 导出它而不是留一个字面量 `0`，是为了让意图可读：转换位于普通区间，依赖的是与注册顺序
+ * 无关的排序，而不是某个特权数字。
+ *
  * The transform band — the same default a third-party plugin gets.
  *
  * It is exported rather than left as a bare `0` so the intent is legible: transform
@@ -99,6 +123,14 @@ function transformResponse(
  */
 export const TRANSFORM_PRIORITY = 0;
 
+/**
+ * 转换插件工厂，交由 `Service.use()` 安装。
+ *
+ * The transform plugin factory, handed to `Service.use()`.
+ *
+ * @param options 转换插件配置 / Transform plugin options.
+ * @returns 转换插件对象 / The transform plugin object.
+ */
 export const transformPlugin = createPlugin<TransformOptions>({
   name: "transform",
   priority: TRANSFORM_PRIORITY,

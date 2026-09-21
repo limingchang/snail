@@ -1,4 +1,17 @@
 /**
+ * 纯解析引擎。
+ *
+ * `resolveVariable`、`resolveDocumentVariables` 与 `validateFill` 回答编辑器关于一个变量的
+ * 两个问题——「它画成什么？」与「填写数据可用吗？」——而不需要 DOM、编辑器或框架。正是这一点
+ * 让设计对话框与填写对话框保持一致，也正是节点视图在每次重绘时调用的东西。
+ *
+ * ## 不变式
+ *
+ * 这里没有解析器，也没有 `setTimeout(...setContent(...))`。文档 JSON 永远是模板；值是被
+ * *渲染*出来的。这里的每个函数都是全函数：格式错误的公式、缺失的键或不存在的值，都会产生
+ * 一个字符串，并在需要时产生一个 `VariableIssue`——绝不会抛出会中断 ProseMirror 重绘的
+ * 异常。
+ *
  * The pure resolution engine.
  *
  * `resolveVariable`, `resolveDocumentVariables` and `validateFill` answer the two
@@ -38,21 +51,40 @@ import {
 import { evaluateFormula, referencedKeys, toFormulaOperand, toPlainBoolean } from "./formula";
 import type { VariableLocale } from "./typing";
 
-/** A variable paired with its position, as {@link resolveDocumentVariables} receives it. */
+/**
+ * 一个变量与它的位置，正是 {@link resolveDocumentVariables} 收到的形状。
+ *
+ * A variable paired with its position, as {@link resolveDocumentVariables} receives it.
+ */
 export interface PositionedVariable {
+  /** 节点位置。 / The node's position. */
   pos: number;
+  /** 节点属性。 / The node's attributes. */
   attrs: VariableAttrs;
 }
 
-/** What the document, rather than the user, supplies. */
+/**
+ * 文档而不是用户提供的东西。
+ *
+ * What the document, rather than the user, supplies.
+ */
 export interface SystemContext {
-  /** The 1-based number of the page being resolved. */
+  /**
+   * 正在解析的页码，从 1 开始。
+   *
+   * The 1-based number of the page being resolved.
+   */
   page: number;
 
-  /** How many pages the document has. */
+  /** 文档一共有多少页。 / How many pages the document has. */
   total: number;
 
   /**
+   * 「现在」，由外部注入。
+   *
+   * 注入而不是从时钟读取，是为了让解析是确定性的，也让测试能钉住一个日期；它还意味着在同一次
+   * 会话里打印文档和填写文档可以共用同一个时间戳，而不是在渲染过程中互相漂移。
+   *
    * "Now", injected.
    *
    * Injected rather than read from the clock so resolution is deterministic and a
@@ -62,6 +94,11 @@ export interface SystemContext {
   now: Date;
 
   /**
+   * 可选的问题收集处，用于没有返回通道的问题。
+   *
+   * 即使公式是坏的，{@link resolveVariable} 也必须返回一个 `ResolvedVariable`，所以解释被
+   * 推送到这里。节点视图不传它（没有地方展示）；填写对话框传入一个数组，并逐字段渲染它。
+   *
    * Optional sink for problems that have no return channel.
    *
    * {@link resolveVariable} must return a `ResolvedVariable` even for a broken
@@ -71,6 +108,14 @@ export interface SystemContext {
   errors?: VariableIssue[];
 
   /**
+   * 同一文档里的其他变量，按键索引，带它们已解析的值。
+   *
+   * 单独一次 {@link resolveVariable} 调用看不到文档，但一个公式完全可以基于另一个公式计算
+   * （`total = SUM(sub1, sub2)`，其中每个小计本身也是一个公式）。把这些变量传进来，一次
+   * 调用就能解析整条链；*环*则是这条链重新进入一个已在解析中的键，它会在这里被检测出来，
+   * 而不是让程序挂住。省略这个映射时，公式的操作数只回退到填写数据，对一个不是变量的键来说
+   * 这是正确的。
+   *
    * Other variables in the same document, keyed by key, with their resolved values.
    *
    * A single {@link resolveVariable} call cannot see the document, but a formula may
@@ -84,7 +129,11 @@ export interface SystemContext {
   variables?: ReadonlyMap<string, ResolvedVariable>;
 }
 
-/** The built-in Chinese strings, used when the caller did not override them. */
+/**
+ * 内置中文文案，在调用方没有覆盖它们时使用。
+ *
+ * The built-in Chinese strings, used when the caller did not override them.
+ */
 export const DEFAULT_VARIABLE_LOCALE: VariableLocale = {
   empty: "(未填写)",
   textOverflow: "已超出长度限制",
@@ -99,17 +148,25 @@ export const DEFAULT_VARIABLE_LOCALE: VariableLocale = {
   formulaInvalid: "公式计算结果无效"
 };
 
-/** Merge a partial locale over the defaults. */
+/** 把部分文案表合并到默认值之上。 / Merge a partial locale over the defaults. */
 export function createVariableLocale(overrides?: Partial<VariableLocale>): VariableLocale {
   return { ...DEFAULT_VARIABLE_LOCALE, ...overrides };
 }
 
-/** `true` for a value that should be read from `fill`. `""` and `0` are values, `null` is not. */
+/**
+ * 该从 `fill` 读取的值返回 `true`。`""` 与 `0` 是值，`null` 不是。
+ *
+ * `true` for a value that should be read from `fill`. `""` and `0` are values, `null` is not.
+ */
 function isPresent(value: VariableValue | undefined): value is VariableValue {
   return value !== undefined && value !== null;
 }
 
-/** The value a variable resolves when the fill data supplies nothing. */
+/**
+ * 填写数据什么都没提供时，变量解析出的值。
+ *
+ * The value a variable resolves when the fill data supplies nothing.
+ */
 function fallbackValue(attrs: VariableAttrs): VariableValue {
   if (isPresent(attrs.defaultValue)) return attrs.defaultValue;
   // A type-appropriate empty rather than `undefined`: `number`/`money`/`formula`
@@ -127,7 +184,11 @@ function fallbackValue(attrs: VariableAttrs): VariableValue {
   }
 }
 
-/** Read a value as a number. Non-numeric input reads as 0 rather than `NaN`. */
+/**
+ * 把一个值读成数字。非数字输入读作 0，而不是 `NaN`。
+ *
+ * Read a value as a number. Non-numeric input reads as 0 rather than `NaN`.
+ */
 function toNumber(value: VariableValue): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "boolean") return value ? 1 : 0;
@@ -141,6 +202,15 @@ function toNumber(value: VariableValue): number {
 }
 
 /**
+ * 把一个值读成 `Date`，或读成原样打印的字面量。
+ *
+ * 完全不是日期的值——「长期」是完全正常的合同用语——会作为它自己的文本返回，而不是空字符串：
+ * 拒绝猜测是对的，但丢弃用户输入的东西就不对了。
+ *
+ * 参数写成 `VariableValue | Date`，尽管模型里没有 `Date` 成员：把活的表单值交出来的调用方
+ * 很容易传入一个 `Date`，而 `system.now` 确实就是 `Date`，所以这种情况是被处理的，而不是用
+ * 类型抹掉。
+ *
  * Read a value as a `Date`, or as the literal to print unchanged.
  *
  * A value that is not a date at all — 「长期」 is a perfectly normal contract term —
@@ -166,7 +236,11 @@ function toDateValue(
   return { literal: "" };
 }
 
-/** Render a date using its pattern, resolving the literal `"today"` when allowed. */
+/**
+ * 按模板渲染日期，允许时解析字面量 `"today"`。
+ *
+ * Render a date using its pattern, resolving the literal `"today"` when allowed.
+ */
 function renderDate(
   value: VariableValue | Date,
   format: string | undefined,
@@ -180,6 +254,11 @@ function renderDate(
 }
 
 /**
+ * 某个选项的标签。
+ *
+ * 值按字符串比较，因为存下来的选项要经过 JSON 往返：在 JSON 里 `1` 与 `"1"` 对表单控件来说
+ * 无法区分，但必须选中同一个选项。标签是*显示*，存下来的值才是*数据*。
+ *
  * The label for one choice.
  *
  * Values are compared as strings because a stored choice round-trips through JSON,
@@ -191,7 +270,11 @@ function findOptionLabel(data: SelectVariableData, value: VariableValue): string
   return data.options.find((option) => String(option.value) === wanted)?.label;
 }
 
-/** Render a `select`, joining the labels when {@link SelectVariableData.multiple} is set. */
+/**
+ * 渲染一个 `select`，在设置了 {@link SelectVariableData.multiple} 时把标签连接起来。
+ *
+ * Render a `select`, joining the labels when {@link SelectVariableData.multiple} is set.
+ */
 function renderSelect(data: SelectVariableData, value: VariableValue): string {
   const separator = data.joinWith ?? "、";
 
@@ -211,7 +294,11 @@ function renderSelect(data: SelectVariableData, value: VariableValue): string {
   return labels.join(separator);
 }
 
-/** Render `money`, optionally in Chinese financial uppercase. */
+/**
+ * 渲染 `money`，可选地渲染成中文大写。
+ *
+ * Render `money`, optionally in Chinese financial uppercase.
+ */
 function renderMoney(data: MoneyVariableData, value: VariableValue): string {
   const amount = toNumber(value);
 
@@ -232,7 +319,11 @@ function renderMoney(data: MoneyVariableData, value: VariableValue): string {
   return `${data.currency ?? ""}${formatMoney(amount, data)}`;
 }
 
-/** Render `text`, cutting at `maxLength` and marking the cut. */
+/**
+ * 渲染 `text`，在 `maxLength` 处截断并标出截断。
+ *
+ * Render `text`, cutting at `maxLength` and marking the cut.
+ */
 function renderText(value: VariableValue, maxLength: number | undefined): string {
   const text = isPresent(value) ? String(value) : "";
   if (maxLength === undefined || maxLength <= 0) return text;
@@ -243,7 +334,7 @@ function renderText(value: VariableValue, maxLength: number | undefined): string
   return `${text.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
-/** Render `boolean` as its words. */
+/** 把 `boolean` 渲染成它的词。 / Render `boolean` as its words. */
 function renderBoolean(
   data: { trueText?: string; falseText?: string },
   value: VariableValue
@@ -251,7 +342,11 @@ function renderBoolean(
   return toPlainBoolean(value) ? data.trueText ?? "是" : data.falseText ?? "否";
 }
 
-/** Render `system`, which ignores `fill` entirely. */
+/**
+ * 渲染 `system`，它完全忽略 `fill`。
+ *
+ * Render `system`, which ignores `fill` entirely.
+ */
 function renderSystem(systemKey: string, format: string | undefined, system: SystemContext): string {
   switch (systemKey) {
     case "page":
@@ -273,7 +368,11 @@ function renderSystem(systemKey: string, format: string | undefined, system: Sys
   }
 }
 
-/** Render one variable given an already-decided value. */
+/**
+ * 在值已确定的前提下渲染一个变量。
+ *
+ * Render one variable given an already-decided value.
+ */
 function renderValue(attrs: VariableAttrs, value: VariableValue, system: SystemContext): string {
   switch (attrs.data.type) {
     case "text":
@@ -301,7 +400,11 @@ function renderValue(attrs: VariableAttrs, value: VariableValue, system: SystemC
   }
 }
 
-/** Render a formula's numeric result with its precision, prefix and suffix. */
+/**
+ * 渲染公式的数值结果，带上它的精度、前缀与后缀。
+ *
+ * Render a formula's numeric result with its precision, prefix and suffix.
+ */
 function formatFormulaResult(data: FormulaVariableData, value: VariableValue): string {
   const amount = toNumber(value);
   const digits = data.precision === undefined ? undefined : Math.max(0, Math.trunc(data.precision));
@@ -311,7 +414,11 @@ function formatFormulaResult(data: FormulaVariableData, value: VariableValue): s
   return `${data.prefix ?? ""}${formatNumber(rounded, digits, false)}${data.suffix ?? ""}`;
 }
 
-/** Turn a formula failure into the message a dialog shows. */
+/**
+ * 把一次公式失败变成对话框展示的消息。
+ *
+ * Turn a formula failure into the message a dialog shows.
+ */
 function describeFormulaError(code: "syntax" | "cycle" | "unknown" | "invalid", detail: string): string {
   switch (code) {
     case "syntax":
@@ -326,6 +433,11 @@ function describeFormulaError(code: "syntax" | "cycle" | "unknown" | "invalid", 
 }
 
 /**
+ * 整份文档的解析，两个公开入口都复用它。
+ *
+ * 用类而不是闭包，因为备忘表、环栈与操作数映射必须在递归的公式查找之间共享，而把五个参数
+ * 一路传过每层递归会掩盖它们是同一份状态这一事实。
+ *
  * The resolution of a whole document, reused by both public entry points.
  *
  * A class rather than a closure because the memo, the cycle stack and the operand
@@ -335,19 +447,41 @@ function describeFormulaError(code: "syntax" | "cycle" | "unknown" | "invalid", 
 class DocumentResolver {
   private readonly byKey = new Map<string, VariableAttrs>();
 
-  /** Resolved raw values, so a formula shared by two others is evaluated once. */
+  /**
+   * 已解析的原始值，这样被另外两个公式共用的公式只求值一次。
+   *
+   * Resolved raw values, so a formula shared by two others is evaluated once.
+   */
   private readonly memo = new Map<string, VariableValue>();
 
-  /** Keys on the current resolution path. A re-entry is a cycle. */
+  /**
+   * 当前解析路径上的键。重入就是环。
+   *
+   * Keys on the current resolution path. A re-entry is a cycle.
+   */
   private readonly visiting = new Set<string>();
 
-  /** Keys this pass could not evaluate. Kept apart from `visiting` so an abandoned attempt is not retried. */
+  /**
+   * 本轮无法求值的键。与 `visiting` 分开保存，这样一次被放弃的尝试不会被重试。
+   *
+   * Keys this pass could not evaluate. Kept apart from `visiting` so an abandoned attempt
+   * is not retried.
+   */
   private readonly failed = new Set<string>();
 
-  /** Cycle keys already reported, so one bad template does not flood the dialog. */
+  /**
+   * 已经报告过的环键，这样一份坏模板不会淹没对话框。
+   *
+   * Cycle keys already reported, so one bad template does not flood the dialog.
+   */
   private readonly reported = new Set<string>();
 
   /**
+   * 要读取的填写数据。
+   *
+   * 声明为字段并在构造函数里赋值，而不是写成构造函数参数属性：它们不是可擦除语法，只做类型
+   * 剥离的 TypeScript 加载器（Node 自带的那个）会直接拒绝整个模块。
+   *
    * The fill data to read.
    *
    * Declared as fields and assigned in the constructor rather than as constructor
@@ -356,7 +490,11 @@ class DocumentResolver {
    */
   private readonly fill: VariableFillData;
 
-  /** Page numbers and the injected clock. */
+  /**
+   * 页码与注入的时钟。
+   *
+   * Page numbers and the injected clock.
+   */
   private readonly system: SystemContext;
 
   constructor(variables: readonly PositionedVariable[], fill: VariableFillData, system: SystemContext) {
@@ -376,12 +514,20 @@ class DocumentResolver {
     }
   }
 
-  /** Resolve every variable, in the order supplied. */
+  /**
+   * 按传入顺序解析每一个变量。
+   *
+   * Resolve every variable, in the order supplied.
+   */
   resolveAll(variables: readonly PositionedVariable[]): ResolvedVariable[] {
     return variables.map((variable) => this.resolveOne(variable.attrs));
   }
 
-  /** Resolve one variable, whether or not it is part of the document this instance was built from. */
+  /**
+   * 解析一个变量，无论它是否属于本实例构建时所依据的那份文档。
+   *
+   * Resolve one variable, whether or not it is part of the document this instance was built from.
+   */
   resolveOne(attrs: VariableAttrs): ResolvedVariable {
     const type = attrs.data.type;
 
@@ -402,7 +548,11 @@ class DocumentResolver {
     return { key: attrs.key, value, display: renderValue(attrs, value, this.system), type };
   }
 
-  /** The raw value a `system` variable stands for. */
+  /**
+   * `system` 变量所代表的原始值。
+   *
+   * The raw value a `system` variable stands for.
+   */
   private systemValue(attrs: VariableAttrs): VariableValue {
     if (attrs.data.type !== "system") return fallbackValue(attrs);
     switch (attrs.data.systemKey) {
@@ -420,6 +570,15 @@ class DocumentResolver {
   }
 
   /**
+   * 对一个公式求值，并顺着它的引用走进其他公式。
+   *
+   * ## 为什么一个环必须让整条链失败，而不只是闭合它的那一环
+   *
+   * `a = b + 1`、`b = a + 1` 无解，所以给其中任何一个返回数字都是虚构。早期版本在重入的键上
+   * 停下递归并让 `0` 回流上去，结果是往合同里打印了 `b = 1` 与 `a = 2`——两个毫无意义的
+   * 数字。现在重入的那个公式被标记为失败，失败向外传播，于是环上的*每一个*公式都解析为
+   * `0`，并只报告一条问题。
+   *
    * Evaluate a formula, following its references into other formulas.
    *
    * ## Why a cycle must fail the whole chain, not just the link that closed it
@@ -431,11 +590,16 @@ class DocumentResolver {
    * the failure propagates outwards so *every* formula on the cycle resolves to `0`
    * with one reported issue.
    *
-   * @param attrs - the formula variable.
-   * @param rootAttrs - the variable the issue is attributed to, so a nested failure is
-   * reported against the formula the user can see rather than against an operand.
-   * @returns the value, or `undefined` when this formula could not be evaluated. The
-   * caller turns `undefined` into `0` at the edge of the public API.
+   * @param attrs 公式变量 /
+   *   - the formula variable.
+   * @param rootAttrs 问题归属到的变量，这样嵌套的失败会报告到用户能看见的那个公式上，而不是
+   *   报告到某个操作数上 /
+   *   - the variable the issue is attributed to, so a nested failure is
+   *   reported against the formula the user can see rather than against an operand.
+   * @returns 该值；这个公式无法求值时是 `undefined`。调用方在公开 API 的边缘把 `undefined`
+   *   变成 `0` /
+   *   the value, or `undefined` when this formula could not be evaluated. The
+   *   caller turns `undefined` into `0` at the edge of the public API.
    */
   private resolveFormula(attrs: VariableAttrs, rootAttrs: VariableAttrs): VariableValue | undefined {
     if (attrs.data.type !== "formula") return fallbackValue(attrs);
@@ -475,6 +639,14 @@ class DocumentResolver {
   }
 
   /**
+   * 公式读取的某个键的数值。
+   *
+   * 优先级：填写数据 → 另一个变量的公式（递归解析）→ 变量的默认值。填写数据排在最前，因为
+   * 那才是用户输入的东西；变量的*默认值*是比计算它的公式更差的答案。
+   *
+   * `undefined` 表示「没有任何可用的东西提供这个键」，求值器会把它变成一个让整个公式失败的
+   * 错误，而不是静默的零。
+   *
    * The numeric value of one key read by a formula.
    *
    * Precedence: the fill data → another variable's formula (resolved recursively) →
@@ -510,7 +682,11 @@ class DocumentResolver {
     return undefined;
   }
 
-  /** Push one issue per root key + message pair. */
+  /**
+   * 每个「根键 + 消息」组合只推入一条问题。
+   *
+   * Push one issue per root key + message pair.
+   */
   private report(attrs: VariableAttrs, message: string): void {
     const token = `${attrs.key}:${message}`;
     if (this.reported.has(token)) return;
@@ -520,18 +696,28 @@ class DocumentResolver {
 }
 
 /**
+ * 解析一个变量。
+ *
+ * 值的优先级是 `fill[key]` → `attrs.defaultValue` → 类型对应的空值。`system` 变量两者都不看，
+ * 而是读 {@link SystemContext}；`formula` 变量则针对其他变量与填写数据对它的表达式求值。
+ *
  * Resolve one variable.
  *
  * Value precedence is `fill[key]` → `attrs.defaultValue` → a type-appropriate empty.
  * A `system` variable ignores both and reads {@link SystemContext}; a `formula`
  * variable evaluates its expression against the other variables and the fill data.
  *
- * @param attrs - the node's attributes, exactly as stored.
- * @param fill - fill data keyed by variable key.
- * @param system - page numbers, "now", and optionally the other variables and an
- * error sink.
- * @returns the resolved value. Never throws: a broken formula yields a `0` value, an
- * empty `display` and — when `system.errors` is supplied — one issue explaining it.
+ * @param attrs 节点的属性，与存储时完全一致 /
+ *   - the node's attributes, exactly as stored.
+ * @param fill 按变量键索引的填写数据 /
+ *   - fill data keyed by variable key.
+ * @param system 页码、「现在」，以及可选的其它变量与错误收集处 /
+ *   - page numbers, "now", and optionally the other variables and an
+ *   error sink.
+ * @returns 解析出的值。从不抛错：坏公式会得到 `0`、空的 `display`，并在提供了
+ *   `system.errors` 时得到一条解释它的问题 /
+ *   the resolved value. Never throws: a broken formula yields a `0` value, an
+ *   empty `display` and — when `system.errors` is supplied — one issue explaining it.
  */
 export function resolveVariable(
   attrs: VariableAttrs,
@@ -545,6 +731,12 @@ export function resolveVariable(
 }
 
 /**
+ * 解析文档里的每一个变量，按文档顺序。
+ *
+ * 这一份列表是一起解析的，而不是逐个解析，因为一个公式可能基于另一个变量的公式来计算
+ * （两个小计的 `SUM`）。解析在调用内部按键做备忘，遇到环时会以 `0` 加一条问题停下，而不是
+ * 无限递归——损坏的模板仍然能打开。
+ *
  * Resolve every variable in a document, in document order.
  *
  * The list is resolved together, not one at a time, because a formula may compute
@@ -552,11 +744,16 @@ export function resolveVariable(
  * per key inside the call and a cycle stops with `0` plus one issue instead of
  * recursing forever — a corrupt template still opens.
  *
- * @param variables - every `variable` node, with its position, in document order.
- * @param fill - fill data keyed by variable key.
- * @param system - page numbers and "now"; pass `errors` to collect formula problems.
- * @returns one {@link ResolvedVariable} per input, **in the same order**, so a
- * caller can zip them back onto positions.
+ * @param variables 每一个 `variable` 节点及其位置，按文档顺序 /
+ *   - every `variable` node, with its position, in document order.
+ * @param fill 按变量键索引的填写数据 /
+ *   - fill data keyed by variable key.
+ * @param system 页码与「现在」；传入 `errors` 可以收集公式问题 /
+ *   - page numbers and "now"; pass `errors` to collect formula problems.
+ * @returns 每个输入对应一个 {@link ResolvedVariable}，**顺序相同**，这样调用方可以把它们
+ *   重新对应到位置上 /
+ *   one {@link ResolvedVariable} per input, **in the same order**, so a
+ *   caller can zip them back onto positions.
  */
 export function resolveDocumentVariables(
   variables: PositionedVariable[],
@@ -567,6 +764,15 @@ export function resolveDocumentVariables(
 }
 
 /**
+ * 报告会阻止填写提交的问题。
+ *
+ * `severity: "error"` 会阻止提交（必填值缺失、数字超出范围、选项不在候选里、公式无法求值）；
+ * `severity: "warning"` 不会（文本超出软性的 `maxLength`）。对话框按 {@link VariableIssue.key}
+ * 归组，并逐字段展示。
+ *
+ * 与各个解析函数一样，它从不抛错：带坏公式的模板产生的是问题而不是异常，因为一个打不开模板的
+ * 对话框也没法修好它。
+ *
  * Report what would stop a fill from being submitted.
  *
  * `severity: "error"` blocks (a required value is missing, a number is out of range,
@@ -578,9 +784,12 @@ export function resolveDocumentVariables(
  * produces an issue, not an exception, because a dialog that cannot open a template
  * cannot fix it either.
  *
- * @param variables - every `variable` node, with its position.
- * @param fill - the values the user has entered so far.
- * @returns issues in document order, deduplicated per key and message.
+ * @param variables 每一个 `variable` 节点及其位置 /
+ *   - every `variable` node, with its position.
+ * @param fill 用户到目前为止输入的值 /
+ *   - the values the user has entered so far.
+ * @returns 按文档顺序排列的问题，按键与消息去重 /
+ *   issues in document order, deduplicated per key and message.
  */
 export function validateFill(variables: PositionedVariable[], fill: VariableFillData): VariableIssue[] {
   const issues: VariableIssue[] = [];
@@ -722,6 +931,12 @@ export function validateFill(variables: PositionedVariable[], fill: VariableFill
 }
 
 /**
+ * data URL 载荷的字节长度，无需解码它。
+ *
+ * `data:` URL 是 base64 或百分号编码的文本，所以它的载荷最多是长度的四分之三。这已经足够
+ * 精确，可以在解码之前就拒绝一张 40 MB 的照片；而且这也是在没有 DOM 的情况下唯一可用的度量
+ * （`atob` 是浏览器全局变量，而本模块刻意不依赖任何浏览器环境）。
+ *
  * The byte length of a data URL's payload, without decoding it.
  *
  * A `data:` URL is base64 or percent-encoded text, so its payload is at most three
@@ -738,6 +953,11 @@ function estimateDataUrlBytes(source: string): number {
 }
 
 /**
+ * 一个公式所有可能无法求值的方式，而不真正求值它。
+ *
+ * 在引用图上做深度优先遍历：`done` 标记已完成的键，`onStack` 标记正在探索的路径——这正是
+ * 「已经验证过」与「我们此刻正在它里面」的区别，而环恰恰就是后者。
+ *
  * Every way a formula can fail to evaluate, without evaluating it.
  *
  * Depth-first over the reference graph: `done` marks finished keys, `onStack` marks
@@ -802,7 +1022,11 @@ function validateFormula(
   return found;
 }
 
-/** The dependency keys of every formula, so a template editor can warn before filling. */
+/**
+ * 每个公式的依赖键，这样模板编辑器可以在填写之前给出警告。
+ *
+ * The dependency keys of every formula, so a template editor can warn before filling.
+ */
 export function formulaDependencies(variables: readonly PositionedVariable[]): Map<string, string[]> {
   const dependencies = new Map<string, string[]>();
   for (const variable of variables) {
@@ -812,7 +1036,11 @@ export function formulaDependencies(variables: readonly PositionedVariable[]): M
   return dependencies;
 }
 
-/** Flatten an `innerVariable` tree into `key → node`, for a dialog that looks a path up. */
+/**
+ * 把 `innerVariable` 树摊平成 `key → node`，供按路径查找的对话框使用。
+ *
+ * Flatten an `innerVariable` tree into `key → node`, for a dialog that looks a path up.
+ */
 export function flattenInnerVariables(nodes: readonly InnerVariableNode[]): Map<string, InnerVariableNode> {
   const flat = new Map<string, InnerVariableNode>();
   const walk = (list: readonly InnerVariableNode[]): void => {

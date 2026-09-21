@@ -120,6 +120,26 @@
 
 <script setup lang="ts">
 /**
+ * `ToolParagraph` —— 大纲级别、对齐、行距、缩进和段落间距。
+ *
+ * ## 正文不能是标题
+ *
+ * 旧版处理函数是：
+ *
+ * ```ts
+ * if (value == 0) editor.chain().focus().setNode("paragraph").run()
+ * editor.chain().focus().setHeading({ level: value }).run()   // ← runs unconditionally
+ * ```
+ *
+ * 于是选择「正文」会产出 `<h0>`（缺陷 41）。这里 `0` 表示 `setParagraph()` 并直接返回；只有
+ * 真正的级别才会去设置标题层级，而且该级别由 {@link isHeadingLevel} 收窄而不是断言。
+ *
+ * ## 行距是两种不同的东西
+ *
+ * 倍数（`"1.5"`）和固定长度（`"28pt"`）都存成同一个 CSS 字符串，所以面板必须知道眼前是哪
+ * 一种。旧版面板靠*数值*猜（`value > 1.5` 就算「倍数」），把 `2` 和 `28pt` 报成了同一种
+ * 情况。`editor/cssLength` 的 `readLineHeight` 从单位上给出答案。
+ *
  * `ToolParagraph` — outline level, alignment, line height, indent and paragraph spacing.
  *
  * ## 正文 must not be a heading
@@ -167,22 +187,41 @@ import {
   IconIndentDecrease,
   IconIndentIncrease
 } from "../icons";
+import { ElSelect, ElOption, ElButtonGroup, ElButton, ElInputNumber } from "element-plus";
 
 defineOptions({ name: "ToolParagraph" });
 
+/**
+ * 本面板的 props：编辑器实例与语言覆盖，二者都来自 `ToolProps`，默认均为 `undefined`。
+ *
+ * This panel's props: the editor and the locale override, both from `ToolProps` and both
+ * defaulting to `undefined`.
+ */
 const props = withDefaults(defineProps<ToolProps>(), { editor: undefined, locale: undefined });
 
 const t = computed(() => mergeEditorLocale(props.locale));
 
-/** The attributes `ParagraphStyle` writes, read from whichever block the caret is in. */
+/**
+ * `ParagraphStyle` 写入的属性，从光标所在的那个块读取。
+ *
+ * The attributes `ParagraphStyle` writes, read from whichever block the caret is in.
+ */
 const STYLE_TYPES = ["paragraph", "heading"] as const;
 
 const headingLevel = ref(0);
 const alignment = ref<"left" | "center" | "right" | "justify">("left");
-/** The largest first-line indent the panel offers, in characters. */
+/**
+ * 面板提供的最大首行缩进，单位为字符。
+ *
+ * The largest first-line indent the panel offers, in characters.
+ */
 const INDENT_MAX = 8;
 
-/** First-line indent in characters; `0` means "no indent". */
+/**
+ * 首行缩进，单位为字符；`0` 表示「不缩进」。
+ *
+ * First-line indent in characters; `0` means "no indent".
+ */
 const indentChars = ref(0);
 
 type LineHeightKind = "single" | "oneAndHalf" | "double" | "fixed";
@@ -195,7 +234,11 @@ const spaceBeforeUnit = ref("em");
 const spaceAfter = ref(0);
 const spaceAfterUnit = ref("em");
 
-/** The alignment glyph for each alignment. A map, so the template stays declarative. */
+/**
+ * 每种对齐方式对应的字形。用映射表，模板因此保持声明式。
+ *
+ * The alignment glyph for each alignment. A map, so the template stays declarative.
+ */
 const alignIcons: Readonly<Record<"left" | "center" | "right" | "justify", Component>> = {
   left: IconAlignLeft,
   center: IconAlignCenter,
@@ -203,12 +246,20 @@ const alignIcons: Readonly<Record<"left" | "center" | "right" | "justify", Compo
   justify: IconAlignJustify
 };
 
-/** `true` for one of the six heading levels — the narrowing `setHeading` needs. */
+/**
+ * 六个标题层级之一时为 `true` —— `setHeading` 需要的收窄。
+ *
+ * `true` for one of the six heading levels — the narrowing `setHeading` needs.
+ */
 function isHeadingLevel(value: number): value is 1 | 2 | 3 | 4 | 5 | 6 {
   return Number.isInteger(value) && value >= 1 && value <= 6;
 }
 
-/** Read the first of the style attributes that is set, from the caret's own block. */
+/**
+ * 从光标自己所在的块里，读出第一个已设置的样式属性。
+ *
+ * Read the first of the style attributes that is set, from the caret's own block.
+ */
 function readStyleAttribute(attribute: string): string | undefined {
   const editor = props.editor;
   if (!editor) return undefined;
@@ -220,6 +271,11 @@ function readStyleAttribute(attribute: string): string | undefined {
 }
 
 /**
+ * 把一个间距值读成数字加单位。
+ *
+ * 缺失或为零的间距本来就没有单位，而给「无间距」显示 `0px` 会误导人 —— 面板显示 `0` 并配上
+ * 中性单位 `em`，也就是用户若输入数值时会用的那个单位。
+ *
  * Read a spacing value into a number plus a unit.
  *
  * A missing or zero spacing has no unit at all, and showing `0px` for "no spacing" would
@@ -233,7 +289,7 @@ function readSpacing(value: string | undefined): { value: number; unit: string }
   return { value: parsed.value, unit: parsed.unit };
 }
 
-/** Re-read everything the panel displays from the caret. */
+/** 从光标处重新读取面板显示的一切。 / Re-read everything the panel displays from the caret. */
 function sync(): void {
   const editor = props.editor;
   if (!editor) return;
@@ -286,6 +342,8 @@ function sync(): void {
 useEditorSelection(() => props.editor, sync);
 
 /**
+ * 应用大纲级别。**`0` 是正文并在此止步** —— 见模块注释。
+ *
  * Apply an outline level. **`0` is 正文 and stops here** — see the module comment.
  */
 function applyStyle(value: number): void {
@@ -300,12 +358,22 @@ function applyStyle(value: number): void {
   editor.chain().focus().setHeading({ level: value }).run();
 }
 
-/** Set, not toggle: a toolbar button states the alignment, it does not invert it. */
+/**
+ * 是设置而不是切换：工具栏按钮是在陈述对齐方式，而不是把它取反。
+ *
+ * Set, not toggle: a toolbar button states the alignment, it does not invert it.
+ */
 function applyAlign(value: "left" | "center" | "right" | "justify"): void {
   props.editor?.chain().focus().setTextAlign(value).run();
 }
 
 /**
+ * 把存下来的 `text-indent` 读回成字符数。
+ *
+ * 只有 `em`/`rem`（以及裸数字，也就是旧版 `"0"` 的形态）能映射到字符数：一个 em 就是一个
+ * 中日韩字形，也正是面板提供的单位。带绝对缩进的文档 —— `24pt`、`10mm` —— 保持原样并显示
+ * 为 `0`，而不是在下次选区变化时被悄悄改写成另一种长度。
+ *
  * Read the stored `text-indent` back as a character count.
  *
  * Only `em`/`rem` (and a bare number, which is what the legacy `"0"` was) can be mapped to
@@ -326,6 +394,11 @@ function readIndentChars(raw: string | undefined): number {
 }
 
 /**
+ * 设置首行缩进，单位为字符。
+ *
+ * `null` 是移除该属性，而不是写入 `text-indent: 0em`，这样没有缩进的段落在序列化后的文档里
+ * 保持干净（扩展把该属性默认设为 `null` 也是同一个理由）。
+ *
  * Set the first-line indent, in characters.
  *
  * `null` removes the attribute rather than writing `text-indent: 0em`, so a paragraph with
@@ -346,12 +419,20 @@ function applyIndentChars(value: number | undefined): void {
     .run();
 }
 
-/** Move the indent by one character, for the two arrow buttons. */
+/**
+ * 把缩进移动一个字符，供两个箭头按钮使用。
+ *
+ * Move the indent by one character, for the two arrow buttons.
+ */
 function stepIndent(delta: number): void {
   applyIndentChars(indentChars.value + delta);
 }
 
-/** A preset's line height. `fixed` keeps the current value; the others are multiples. */
+/**
+ * 某个预设的行距。`fixed` 保留当前值，其余都是倍数。
+ *
+ * A preset's line height. `fixed` keeps the current value; the others are multiples.
+ */
 function applyLineHeightKind(value: LineHeightKind): void {
   const editor = props.editor;
   if (!editor) return;
@@ -364,7 +445,7 @@ function applyLineHeightKind(value: LineHeightKind): void {
   editor.chain().focus().setLineHeight(LINE_HEIGHT_MULTIPLES[value]).run();
 }
 
-/** The fixed line height, in whatever unit the user picked. */
+/** 固定行距，使用用户选定的单位。 / The fixed line height, in whatever unit the user picked. */
 function applyLineHeight(): void {
   const editor = props.editor;
   if (!editor) return;
@@ -373,6 +454,12 @@ function applyLineHeight(): void {
 }
 
 /**
+ * 段落间距。
+ *
+ * 每次改动都写入两侧，而不是只写被编辑的那一侧：扩展会合并传入的属性，但先从文档里把两侧读
+ * 回来，意味着无关的编辑永远不会丢掉另一侧 —— 旧版面板只应用发生变化的那个字段时，丢掉的
+ * 正是它。
+ *
  * Paragraph spacing.
  *
  * Both sides are written on every change rather than only the edited one: the extension

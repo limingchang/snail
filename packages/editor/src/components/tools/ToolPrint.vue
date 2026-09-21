@@ -109,7 +109,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import type { Editor } from "@tiptap/core";
-import { ElMessage } from "element-plus";
 import { IconPrintFill, SIcon } from "@snail-js/vue";
 
 import { formatCssLength, parseCssLength, toMillimetres } from "../../editor/cssLength";
@@ -118,8 +117,26 @@ import type { EditorLocale } from "../../editor/locale";
 import { DEFAULT_MARGINS, PAPER_SIZES, resolveMargins } from "../../typings/paper";
 import type { CssLength, NamedPaperFormat, Orientation, PaperFormat } from "../../typings/paper";
 import type { PrintOptions } from "../../typings/editor";
+import { ElMessage, ElForm, ElFormItem, ElSelect, ElOption, ElInputNumber, ElSwitch, ElInput, ElButton } from "element-plus";
 
 /**
+ * `ToolPrint` —— 工具栏的打印区块。
+ *
+ * ## 这个面板存在的唯一目的
+ *
+ * `PrintOptions` 里的距离是 **CSS 长度字符串**（`"20mm"`），而打印操作员想的是毫米。因此面板
+ * 在进出两端都通过 `editor/cssLength` 换算，绝不往模型里存裸数字。旧版页面面板正相反：它按
+ * 厘米编辑（`2.54`、`3.18`），对上的却是一个默认 20 mm 的模型，于是用 20 mm 的页面显示成
+ * 2.54 cm（缺陷 42）。
+ *
+ * ## 为什么「跟随文档设置」是一个空选项而不是默认值
+ *
+ * 每个可以不管的控件都映射到**省略的键**：扩展用交给它的东西拼出 `@page` 规则，所以
+ * `paperFormat: ""` 不会表示「没有意见」，而会表示「一个叫做空的尺寸」。
+ *
+ * 打印动作本身以 `print()` 暴露，因为填充模式的页脚有自己的「打印」按钮，不应该被迫穿过工具栏
+ * 区块去调用。
+ *
  * `ToolPrint` — the print section of the toolbar.
  *
  * ## The one rule this panel exists to respect
@@ -143,13 +160,21 @@ defineOptions({ name: "ToolPrint" });
 
 const props = withDefaults(
   defineProps<{
-    /** The running editor, `undefined` until the host has created it. */
+    /**
+     * 正在运行的编辑器，在宿主创建它之前为 `undefined`。
+     *
+     * The running editor, `undefined` until the host has created it.
+     */
     editor?: Editor;
 
-    /** The page setup the host wants printed. */
+    /** 宿主希望打印的页面设置。 / The page setup the host wants printed. */
     print?: PrintOptions;
 
-    /** Partial locale override, merged over the Chinese defaults. */
+    /**
+     * 部分语言覆盖，合并到中文默认值之上。
+     *
+     * Partial locale override, merged over the Chinese defaults.
+     */
     locale?: Partial<EditorLocale>;
   }>(),
   {
@@ -161,16 +186,29 @@ const props = withDefaults(
 
 const t = computed(() => mergeEditorLocale(props.locale));
 
-/** A named paper size, or `""` for 跟随文档设置. */
+/**
+ * 一个命名纸张尺寸，或用 `""` 表示「跟随文档设置」。
+ *
+ * A named paper size, or `""` for 跟随文档设置.
+ */
 type PaperFormatOption = NamedPaperFormat | "";
 
-/** `""` for 跟随文档设置, otherwise one of the two orientations. */
+/**
+ * `""` 表示「跟随文档设置」，否则是两种方向之一。
+ *
+ * `""` for 跟随文档设置, otherwise one of the two orientations.
+ */
 type OrientationOption = Orientation | "";
 
-/** The four sides, in the order the panel lays them out. */
+/** 四条边，按面板排布它们的顺序。 / The four sides, in the order the panel lays them out. */
 type MarginSide = "top" | "right" | "bottom" | "left";
 
 /**
+ * 选项清单，由模型自己的表推导而来。
+ *
+ * 再手写一份清单，就会让某个尺寸在界面上可选却在 `PAPER_SIZES` 里缺失（或反过来）；
+ * `Object.keys` 不会与它所读的表发生漂移。
+ *
  * The option list, derived from the model's own table.
  *
  * A second hand-written list is how a size ends up selectable in the UI but missing from
@@ -178,7 +216,11 @@ type MarginSide = "top" | "right" | "bottom" | "left";
  */
 const PAPER_FORMATS = Object.keys(PAPER_SIZES) as NamedPaperFormat[];
 
-/** {@link DEFAULT_MARGINS} in millimetres, so the panel's fallback cannot drift from the model. */
+/**
+ * 以毫米表示的 {@link DEFAULT_MARGINS}，这样面板的兜底值不会与模型漂移。
+ *
+ * {@link DEFAULT_MARGINS} in millimetres, so the panel's fallback cannot drift from the model.
+ */
 const DEFAULT_MARGIN_MM = toMillimetres(DEFAULT_MARGINS.top) ?? 20;
 
 const paperFormat = ref<PaperFormatOption>("A4");
@@ -186,7 +228,11 @@ const orientation = ref<OrientationOption>("");
 const documentTitle = ref("");
 const marginBoxes = ref(false);
 
-/** The margins as the panel edits them: millimetres, never a CSS string. */
+/**
+ * 面板编辑时的页边距：毫米，绝不是 CSS 字符串。
+ *
+ * The margins as the panel edits them: millimetres, never a CSS string.
+ */
 const margins = reactive<Record<MarginSide, number>>({
   top: DEFAULT_MARGIN_MM,
   right: DEFAULT_MARGIN_MM,
@@ -194,10 +240,21 @@ const margins = reactive<Record<MarginSide, number>>({
   left: DEFAULT_MARGIN_MM
 });
 
-/** The model values the panel was last seeded from — see {@link fingerprint}. */
+/**
+ * 面板上一次播种所依据的模型值 —— 见 {@link fingerprint}。
+ *
+ * The model values the panel was last seeded from — see {@link fingerprint}.
+ */
 let seededFrom = "";
 
 /**
+ * 下拉显示的格式。
+ *
+ * 命名尺寸可以原样往返。**自定义**的 `{ name, width, height }` 格式在清单里没有对应选项，所以
+ * 下拉回退到「跟随文档设置」—— 它会省略该键，让文档自己的设置胜出 —— 而不是回退到 A4，那会
+ * 打印出与屏幕上不同的一张纸。（`paper.ts` 记下了这个错误的旧版形态：拿一个*数字*去一张名字表
+ * 里做成员判断，于是每种自定义格式都悄悄变成了 A4。）
+ *
  * The format the select shows.
  *
  * A named size round-trips. A **custom** `{ name, width, height }` format has no option
@@ -213,6 +270,12 @@ function initialPaperFormat(value: PaperFormat | undefined): PaperFormatOption {
 }
 
 /**
+ * 把模型的一条边读成毫米。
+ *
+ * `parseCssLength` 拒绝任何不是单个长度的东西，而 `toMillimetres` 对无法换算的单位返回
+ * `undefined`（`em`/`rem` 取决于元素的字体，这是本面板无从知道的）。两者都回退到默认值，
+ * 而不是让 `NaN` 跑到输入框里。
+ *
  * One model side as millimetres.
  *
  * `parseCssLength` refuses anything that is not a single length, and `toMillimetres`
@@ -226,6 +289,11 @@ function readMillimetres(length: CssLength | undefined, fallback: number): numbe
 }
 
 /**
+ * 模型自己的值，表示成一个可比较的字符串。
+ *
+ * 宿主传来一个全新的对象字面量时，`deep` 侦听会按身份触发，所以没有这个指纹的话，父组件
+ * 重渲染会在操作员正往四个页边距输入框里打字时把它们重置。
+ *
  * The model's own values, as one comparable string.
  *
  * A `deep` watch fires on identity when the host passes a fresh object literal, so
@@ -248,7 +316,7 @@ function fingerprint(value: PrintOptions | undefined): string {
   ]);
 }
 
-/** Copy a model value into the form. */
+/** 把模型值复制进表单。 / Copy a model value into the form. */
 function seed(value: PrintOptions | undefined): void {
   paperFormat.value = initialPaperFormat(value?.paperFormat);
   orientation.value = value?.orientation ?? "";
@@ -265,7 +333,11 @@ function seed(value: PrintOptions | undefined): void {
   margins.left = readMillimetres(resolved.left, DEFAULT_MARGIN_MM);
 }
 
-/** Follow the model, seeding the panel before its first render — see `ToolWatermark`. */
+/**
+ * 跟随模型，在面板首次渲染之前完成播种 —— 见 `ToolWatermark`。
+ *
+ * Follow the model, seeding the panel before its first render — see `ToolWatermark`.
+ */
 watch(
   () => props.print,
   (value) => {
@@ -278,6 +350,11 @@ watch(
 );
 
 /**
+ * 命令接收到的 `PrintOptions`。
+ *
+ * 「跟随文档」的表达方式是**省略**该键，绝不发送空字符串：扩展用交给它的东西写出 `@page`
+ * 声明，而 `size: ;` 要么被浏览器丢掉，要么把文档声明的尺寸重置掉。
+ *
  * The `PrintOptions` the command receives.
  *
  * "Follow the document" is expressed by **omitting** the key, never by sending an empty
@@ -309,6 +386,14 @@ function buildOptions(): PrintOptions {
 }
 
 /**
+ * 打印文档。
+ *
+ * 既绑定到按钮也对外暴露：填充模式的页脚有自己的打印动作，需要拿到完全相同的选项。
+ *
+ * 命令本身**不接受参数** —— 扩展运行时读的是 `extension.options` —— 所以覆盖值先写进扩展的
+ * options 对象。这就是宿主改变活动打印配置的文档化做法：为了改一个 `@page` 尺寸而重建编辑器
+ * 会丢掉用户的选区。
+ *
  * Print the document.
  *
  * Exposed as well as bound to the button: a fill-mode footer owns its own print action
@@ -336,6 +421,12 @@ function print(): void {
   editor.chain().focus().printDocument().run();
 }
 
+/**
+ * 对外暴露打印动作，供填充模式的页脚直接调用，而不必穿过工具栏区块。
+ *
+ * Exposes the print action, so a fill-mode footer can call it directly rather than
+ * reaching through the toolbar section.
+ */
 defineExpose({ print });
 </script>
 

@@ -13,6 +13,24 @@ import { InterceptorManager } from "./manager";
 import type { InterceptorEntry } from "./type";
 
 /**
+ * 拦截器插件。
+ *
+ * ## 在管线中的位置
+ *
+ * `priority: 100` 是保留给拦截器的优先级区间，因此本插件在正向顺序中第一个看到请求，
+ * 在回卷顺序中最后一个看到响应。正因如此，`@BeforeRequest()` 才能在缓存插件（`-100`）
+ * 把最终的 url、params 与 body 哈希成缓存键*之前*改写配置。
+ *
+ * ## 请求与响应
+ *
+ * `beforeRequest` 是链式钩子：先运行拦截器，之后钩子才用 `next()` 把控制权交出去。
+ * 因此一个无法挽回的拦截器失败，会在任何东西到达网络之前终止请求。
+ *
+ * `afterResponse` 是**回卷**钩子。它运行时响应已经存在，所以先调用 `next()` 会让后续插件
+ * 观察到尚未被拦截器改写的响应。拦截器先针对 `ctx.response` 运行，之后才推进链条。
+ * 拦截器回调本身不是链式钩子——它们收到的是响应而不是 `next`——所以回调内部没有任何东西
+ * 能推进或终止链条。
+ *
  * The interceptor plugin.
  *
  * ## Where it sits in the pipeline
@@ -36,22 +54,48 @@ import type { InterceptorEntry } from "./type";
  * than a `next` — so nothing inside one of them can advance or stop the chain.
  */
 
-/** Plugin name; also the identity used by `Service.use()` / `Service.remove()`. */
+/**
+ * 插件名称；同时也是 `Service.use()` / `Service.remove()` 使用的标识。
+ *
+ * Plugin name; also the identity used by `Service.use()` / `Service.remove()`.
+ */
 export const INTERCEPTOR_PLUGIN_NAME = "interceptor";
 
-/** The reserved interceptor priority band (see `docs/guide/plugin-lifecycle.md` §2.1). */
+/**
+ * 保留给拦截器的优先级区间（见 `docs/guide/plugin-lifecycle.md` §2.1）。
+ *
+ * The reserved interceptor priority band (see `docs/guide/plugin-lifecycle.md` §2.1).
+ */
 export const INTERCEPTOR_PRIORITY = 100;
 
-/** Programmatic interceptors shared by every request of one server. */
+/**
+ * 一个服务的每个请求共享的编程式拦截器。
+ *
+ * Programmatic interceptors shared by every request of one server.
+ */
 export interface InterceptorOptions {
-  /** Entries that run on every request, after the class- and method-level ones. */
+  /**
+   * 对每个请求都运行的条目，在类级与方法级条目之后运行。
+   *
+   * Entries that run on every request, after the class- and method-level ones.
+   */
   request?: InterceptorEntry<InternalAxiosRequestConfig>[];
 
-  /** Entries that run on every response, after the class- and method-level ones. */
+  /**
+   * 对每个响应都运行的条目，在类级与方法级条目之后运行。
+   *
+   * Entries that run on every response, after the class- and method-level ones.
+   */
   response?: InterceptorEntry<AxiosResponse>[];
 }
 
 /**
+ * 插件对象，以及它背后的两个注册表。
+ *
+ * `use()` / `eject()` 之所以暴露在实例上，是因为通过 `Interceptor({ request })` 添加的
+ * 拦截器在构造时就固定下来，而真实应用往往在服务模块早已求值之后才知道自己的 token
+ * 或租户。
+ *
  * The plugin object plus the two registries behind it.
  *
  * `use()` / `eject()` are exposed on the instance because an interceptor added
@@ -60,14 +104,27 @@ export interface InterceptorOptions {
  * has been evaluated.
  */
 export interface InterceptorPlugin extends SnailPluginObject<InterceptorOptions> {
-  /** Server-wide request interceptors. */
+  /**
+   * 服务级的请求拦截器。
+   *
+   * Server-wide request interceptors.
+   */
   readonly request: InterceptorManager<InternalAxiosRequestConfig>;
 
-  /** Server-wide response interceptors. */
+  /**
+   * 服务级的响应拦截器。
+   *
+   * Server-wide response interceptors.
+   */
   readonly response: InterceptorManager<AxiosResponse>;
 }
 
 /**
+ * 创建拦截器插件。
+ *
+ * 通过 `options` 传入的条目会立即注册，之后还可以用返回实例上的 `request.use()` /
+ * `response.use()` 继续追加。
+ *
  * Create the interceptor plugin.
  *
  * ```ts
@@ -77,6 +134,11 @@ export interface InterceptorPlugin extends SnailPluginObject<InterceptorOptions>
  * Service.use(interceptors);
  * interceptors.request.use({ onFulfilled: (config, ctx) => ctx.logger.debug(ctx.fullName) });
  * ```
+ *
+ * @param options 服务级拦截器与各阶段回调；全部可选 / Server-wide interceptors and their
+ *   callbacks; all optional
+ * @returns 插件实例，同时带上 `request` / `response` 两个注册表 / The plugin instance,
+ *   carrying the `request` / `response` registries
  */
 export function Interceptor(options?: InterceptorOptions): InterceptorPlugin {
   const request = new InterceptorManager<InternalAxiosRequestConfig>();

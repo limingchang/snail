@@ -93,6 +93,12 @@
   height: 100%;
   overflow: hidden;
 
+  // The band is a row of three equal regions. `align-items: stretch` gives each third the full
+  // height, so a click anywhere in the band lands on a region rather than on the band's padding.
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+
   // The block inside a header/footer is ordinary document content, so it inherits a document
   // paragraph's margins — but inside a 50px band those margins push the text out of the
   // visible area and leave the band's own padding as the only thing a click can land on,
@@ -105,15 +111,126 @@
   }
 }
 
-// The logo overlay: absolutely positioned inside the page node view's `dom`, as a sibling
-// of that view's `contentDOM`, so it never participates in ProseMirror's child mapping.
+/* ---------------------------------------------------------------------------------
+   The three regions
+   --------------------------------------------------------------------------------- */
+
+.s-editor-page-region {
+  // Equal thirds, and the alignment the slot implies: this is what makes "left / centre / right"
+   // mean something now that the band has no `align` attribute any more.
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  position: relative;
+  padding: 0 2px;
+
+  &[data-slot="left"] {
+    text-align: left;
+  }
+
+  &[data-slot="center"] {
+    text-align: center;
+  }
+
+  &[data-slot="right"] {
+    text-align: right;
+  }
+
+  /**
+   * A region the user has not opened refuses the pointer.
+   *
+   * This is the mechanism behind "double-click to edit": the caret cannot be placed in a region
+   * that is not being edited, so typing, selecting and Ctrl+A cannot reach a header by accident.
+   * The transaction filter in `utils/furnitureEditing.ts` is the second half of the same rule, for
+   * the paths CSS cannot cover (a paste whose selection spans the band, a consumer's own command).
+   */
+  &:not(.is-editing) {
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /**
+   * The region that is open, and the page number or logo that owns a region.
+   *
+   * A locked region is refused for good: it holds an atom (a number, an image), so there is
+   * nothing to type, and letting the caret in would only offer a way to delete the placement.
+   */
+  &.is-locked {
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /**
+   * The affordance: the hint the node view puts in `data-hint`, shown on hover in the band.
+   *
+   * It is a pseudo-element rather than a node so it can never be typed into or saved.
+   */
+  &::after {
+    content: attr(data-hint);
+    position: absolute;
+    inset: auto 0 0 0;
+    font-size: 9px;
+    line-height: 1.2;
+    color: var(--snail-page-furniture-hint-color, #8a8a8a);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // The hint belongs to the *band* being hovered, not to the region's own hover state: a region
+  // that is not being edited does not receive pointer events at all.
+  .s-editor-page-header:hover &,
+  .s-editor-page-footer:hover & {
+    opacity: 1;
+  }
+
+  &.is-editing::after {
+    content: none;
+  }
+}
+
+/**
+ * Opacity: 0.8 at rest, 1 while a band is being edited.
+ *
+ * Furniture is secondary to the document, so it is drawn faintly — but "faint" must never make it
+ * unreadable while it *is* what the user is working on, and a print (and fill mode, where the
+ * document is the output) always shows it at full strength.
+ *
+ * The class comes from the editing plugin's node decoration, which ProseMirror puts on the band's
+ * own element.
+ */
+.s-editor-page-header,
+.s-editor-page-footer {
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+
+  &.is-editing {
+    opacity: 1;
+  }
+}
+
+// Fill mode is output, not editing: nothing is faded.
+.s-editor-fill {
+  .s-editor-page-header,
+  .s-editor-page-footer {
+    opacity: 1;
+  }
+}
+
+/**
+ * The logo.
+ *
+ * It is a block **inside a region** now, not an overlay: the region it sits in is its placement,
+ * so it flows with the third it belongs to and prints with it. The old absolutely-positioned
+ * overlay with `pointer-events: none` is gone with the `position`/`offsetX`/`offsetY` attributes.
+ */
 .s-editor-page-logo {
-  position: absolute;
   display: block;
-  z-index: 2;
+  max-width: 100%;
   object-fit: contain;
-  // Never swallow an editing click: the mark is decoration, the body is the target.
-  pointer-events: none;
 }
 
 // `hidden` must win over the `display: block` above.

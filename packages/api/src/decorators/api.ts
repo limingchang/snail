@@ -5,6 +5,15 @@ import { defineMetadata, getOwnMetadata } from "../core/metadata";
 import { SNAIL_API_OPTIONS } from "../core/metadata.keys";
 
 /**
+ * 声明一个 api 类。
+ *
+ * `url` 是**前缀**：它会依次与 server 的 `baseURL`、方法路径拼接。
+ *
+ * 即使没有前缀也应始终声明 `@Api()`。它为这个 api 提供名称，供日志、缓存命名
+ * 空间和 `@HitSource` 定位使用；缺少它时这些会回退到类名。库在运行时**不**强制
+ * 要求它——被继承的 api 类是合法的，基类也可以携带该装饰器——因此漏写
+ * `@Api()` 只会静默降级，而不会抛错。
+ *
  * Declare an api class.
  *
  * ```ts

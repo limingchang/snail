@@ -1,84 +1,129 @@
 <template>
-  <div class="s-editor s-editor-scope" :class="{ 's-editor-fill': mode === 'fill' }" :aria-label="t.editor">
-    <!-- Design mode: the ribbon. Fill mode: no ribbon at all — a print operator cannot
-         change the template, so offering the controls would be a lie (see the mode table
-         in `typings/editor.ts`). -->
-    <EditorToolbar
-      v-if="mode === 'design' && showToolbar"
-      :editor="editor"
-      :tools="props.tools"
-      :extensions="enabledExtensions"
-      :locale="props.locale"
-      :watermark="props.watermark"
-      :print="props.print"
-      :on-insert-variable="() => openVariableDialog()"
-      :on-edit-variable="openVariableDialog"
-    />
-
-    <div class="s-editor-workspace">
-      <!-- A failed template request must not destroy the editor: the alert sits above the
-           document, the editor keeps whatever it holds, and 重试 re-runs the request. The
-           legacy component had no error state at all. -->
-      <div v-if="templateError !== ''" class="s-editor-error">
-        <el-alert type="error" :title="templateError" :closable="false" show-icon />
-        <el-button size="small" @click="retryTemplate">{{ t.retry }}</el-button>
-      </div>
-
-      <TemplatePicker
-        v-if="isListSource"
-        class="s-editor-template-picker"
-        :items="templateItems"
-        :loading="listLoading"
-        :error="listError"
-        :load="loadPolicy"
-        :model-value="selectedTemplateId"
+  <!--
+    `el-config-provider` is renderless: it contributes the locale (and nothing else) to this
+    component's tree, including the panels Element Plus teleports to `<body>`, because Vue's
+    provide/inject follows the component tree rather than the DOM.
+  -->
+  <el-config-provider :locale="elementLocale">
+    <div class="s-editor s-editor-scope" :class="{ 's-editor-fill': mode === 'fill' }" :aria-label="t.editor">
+      <!-- Design mode: the ribbon. Fill mode: no ribbon at all — a print operator cannot
+           change the template, so offering the controls would be a lie (see the mode table
+           in `typings/editor.ts`). -->
+      <EditorToolbar
+        v-if="mode === 'design' && showToolbar"
+        :editor="editor"
+        :tools="props.tools"
+        :extensions="enabledExtensions"
         :locale="props.locale"
-        @update:model-value="(id: string) => (selectedTemplateId = id)"
-        @load="(id: string) => void selectTemplate(id)"
-        @retry="() => void loadTemplateList()"
+        :watermark="props.watermark"
+        :print="props.print"
+        :on-insert-variable="() => openVariableDialog()"
+        :on-edit-variable="openVariableDialog"
       />
 
-      <EditorContent class="s-editor-content" :editor="editor" />
+      <div class="s-editor-workspace">
+        <!-- A failed template request must not destroy the editor: the alert sits above the
+             document, the editor keeps whatever it holds, and 重试 re-runs the request. The
+             legacy component had no error state at all. -->
+        <div v-if="templateError !== ''" class="s-editor-error">
+          <el-alert type="error" :title="templateError" :closable="false" show-icon />
+          <el-button size="small" @click="retryTemplate">{{ t.retry }}</el-button>
+        </div>
+
+        <TemplatePicker
+          v-if="isListSource"
+          class="s-editor-template-picker"
+          :items="templateItems"
+          :loading="listLoading"
+          :error="listError"
+          :load="loadPolicy"
+          :model-value="selectedTemplateId"
+          :locale="props.locale"
+          @update:model-value="(id: string) => (selectedTemplateId = id)"
+          @load="(id: string) => void selectTemplate(id)"
+          @retry="() => void loadTemplateList()"
+        />
+
+        <EditorContent class="s-editor-content" :editor="editor" />
+      </div>
+
+      <div class="s-editor-actions">
+        <template v-if="mode === 'design'">
+          <el-button type="primary" size="small" @click="() => void handleSave()">{{ t.save }}</el-button>
+        </template>
+        <template v-else>
+          <el-button type="primary" size="small" @click="openFillDialog">{{ t.fillAction }}</el-button>
+          <el-button size="small" class="s-editor-print-action" @click="printDocument">
+            {{ t.printAction }}
+          </el-button>
+        </template>
+      </div>
+
+      <!-- The design dialog lives here, not in the toolbar: the variable node view's own
+           click callback opens it too, and two owners is exactly how the legacy dialog ended
+           up shared and leaking the previous variable's state (defect 27). -->
+      <VariableDialog
+        v-model:open="variableDialogOpen"
+        :attrs="editingVariableAttrs"
+        :pos="editingVariablePos"
+        :inner-variable="innerVariable"
+        :exclude="variableExclude"
+        :existing-keys="existingKeys"
+        :locale="props.locale"
+        @save="applyVariable"
+      />
+
+      <FillVariableDialog
+        v-model:open="fillDialogOpen"
+        :variables="fillVariables"
+        :values="fillValues"
+        :page="1"
+        :total="pageCount"
+        :locale="props.locale"
+        @submit="applyFill"
+      />
     </div>
-
-    <div class="s-editor-actions">
-      <template v-if="mode === 'design'">
-        <el-button type="primary" size="small" @click="() => void handleSave()">{{ t.save }}</el-button>
-      </template>
-      <template v-else>
-        <el-button type="primary" size="small" @click="openFillDialog">{{ t.fillAction }}</el-button>
-        <el-button size="small" class="s-editor-print-action" @click="printDocument">{{ t.printAction }}</el-button>
-      </template>
-    </div>
-
-    <!-- The design dialog lives here, not in the toolbar: the variable node view's own
-         click callback opens it too, and two owners is exactly how the legacy dialog ended
-         up shared and leaking the previous variable's state (defect 27). -->
-    <VariableDialog
-      v-model:open="variableDialogOpen"
-      :attrs="editingVariableAttrs"
-      :pos="editingVariablePos"
-      :inner-variable="innerVariable"
-      :exclude="variableExclude"
-      :existing-keys="existingKeys"
-      :locale="props.locale"
-      @save="applyVariable"
-    />
-
-    <FillVariableDialog
-      v-model:open="fillDialogOpen"
-      :variables="fillVariables"
-      :values="fillValues"
-      :page="1"
-      :total="pageCount"
-      :locale="props.locale"
-      @submit="applyFill"
-    />
-  </div>
+  </el-config-provider>
 </template>
 
 <script setup lang="ts">
 /**
+ * `SEditor` —— 顶层组件。
+ *
+ * ## 这个文件是什么
+ *
+ * 接线，几乎别无其他。它满足的契约是 `SEditorProps`、`SEditorEmits` 与 `SEditorExposed`；
+ * 模板管线在 `editor/template.ts`；扩展装配在 `editor/useEditorRuntime.ts`；面板在
+ * `components/`。这里任何长出了自己决策的东西都该归到上述某一处。
+ *
+ * ## 两种模式
+ *
+ * | | `design` | `fill` |
+ * | --- | --- | --- |
+ * | 文档 | 可编辑 | 只读 |
+ * | 工具栏 | 显示 | 隐藏 |
+ * | 操作 | 保存 | 填写 + 打印 |
+ *
+ * 模式来自 `props.mode`，并接受旧版的 `design?: boolean` 作为废弃别名。它是被运行时
+ * *watch* 的，而不是只读一次：旧组件在构造时就冻结了模式、文档与扩展集合，因为它完全没有
+ * watcher（缺陷 38）。
+ *
+ * ## 模板管线
+ *
+ * - `local` 渲染 `content`（以及随之而来的任何页面设置与水印）。
+ * - `remote` 在就绪时取一次；失败会在文档上方显示一个 alert，而不是销毁编辑器。
+ * - `remote-list` 取列表；`load: "auto"` 还会取并渲染**第一项**，`load: "manual"`（默认）
+ *   在按下载入按钮之前什么都不渲染。
+ * - `save` 写入 `localStorage`/`sessionStorage`，或者 POST/PUT 那份
+ *   {@link TemplateDocument}（`structured === false` 时则是 HTML）。`onSave` 总会被调用，
+ *   所以通过自己的 API 持久化的使用方根本不需要 `save` 目标。
+ *
+ * ## 顺序
+ *
+ * 编辑器是在 `useEditorRuntime` 的 `setup` 里创建的，所以 `onReady` 会在该 composable 还在
+ * 运行时触发 —— 早于本组件自己的解构引用存在。任何触碰它们的代码都不能从这个回调里运行。
+ * 它设置的就绪标志改由 watch 观察，这也意味着模板请求发生在视图挂载之后。
+ *
  * `SEditor` — the top-level component.
  *
  * ## What this file is
@@ -124,7 +169,12 @@ import { computed, ref, watch } from "vue";
 
 import { EditorContent } from "@tiptap/vue-3";
 import type { Editor } from "@tiptap/core";
-import { ElMessage } from "element-plus";
+// `element-plus/es/locale/index`, never `element-plus/es/locale`: the package's `exports` map sends
+// `./es/*` to `./es/*.mjs`, and there is no `es/locale.mjs` — only `es/locale/index.mjs`. The bare
+// directory form still type-checks (the map's `types` arm falls back to `./es/*/index.d.ts`), and
+// then fails inside the *consumer's* bundler, the worst possible place to discover it.
+import { zhCn } from "element-plus/es/locale/index";
+import type { Language } from "element-plus/es/locale/index";
 
 import { DEFAULT_TOOLS } from "../typings/editor";
 import type {
@@ -163,9 +213,17 @@ import {
 } from "./template";
 import type { FetchLike, StorageLike, TemplateListResult } from "./template";
 import { useEditorRuntime } from "./useEditorRuntime";
+import { ElConfigProvider, ElMessage, ElAlert, ElButton } from "element-plus";
 
 defineOptions({ name: "SEditor" });
 
+/**
+ * 组件的 props，来自 `SEditorProps`（见 `./props`）。`multiPage` 默认为 `true`，其余每个
+ * prop 默认都是 `undefined`。
+ *
+ * The component's props, from `SEditorProps` (see `./props`). `multiPage` defaults to `true`;
+ * every other prop defaults to `undefined`.
+ */
 const props = withDefaults(defineProps<SEditorProps>(), {
   modelValue: undefined,
   mode: undefined,
@@ -183,24 +241,60 @@ const props = withDefaults(defineProps<SEditorProps>(), {
   qrcode: undefined,
   extensions: undefined,
   locale: undefined,
+  elementLocale: undefined,
   onSave: undefined,
   onChange: undefined
 });
 
+/**
+ * 组件的事件，来自 `SEditorEmits`（见 `./props`）。
+ *
+ * The component's emits, from `SEditorEmits` (see `./props`).
+ */
 const emits = defineEmits<SEditorEmits>();
 
 const t = computed(() => mergeEditorLocale(props.locale));
 
-/** The effective mode. `design: false` is the deprecated way of asking for fill mode. */
+/**
+ * 编辑器自身组件渲染时使用的 Element Plus 语言包。
+ *
+ * Element Plus 默认是**英文**，所以没有它，颜色选择器的按钮会显示 "OK / Clear"、下拉的
+ * 空状态会显示 "No data" —— 在一个其余部分都是中文的编辑器里。在这里提供它（而不是要求
+ * `app.use(ElementPlus, { locale })`）也让它保持*作用域内*：config provider 只包裹本组件
+ * 的树，因此它无法改变使用方自己的 Element Plus 组件的语言。
+ *
+ * The Element Plus locale the editor's own components render with.
+ *
+ * Element Plus defaults to **English**, so without this the colour picker's buttons read
+ * "OK / Clear" and a select's empty state reads "No data" — in an otherwise Chinese editor.
+ * Providing it here (rather than requiring `app.use(ElementPlus, { locale })`) also keeps it
+ * *scoped*: the config provider wraps this component's tree only, so it cannot change the
+ * language of the consumer's own Element Plus components.
+ */
+const elementLocale = computed<Language>(() => props.elementLocale ?? zhCn);
+
+/**
+ * 生效的模式。`design: false` 是请求填写模式的废弃写法。
+ *
+ * The effective mode. `design: false` is the deprecated way of asking for fill mode.
+ */
 const mode = computed<EditorMode>(() => {
   if (props.mode !== undefined) return props.mode;
   return props.design === false ? "fill" : "design";
 });
 
-/** Bumped on every document change so the computeds below re-read the editor. */
+/**
+ * 每次文档变更时自增，好让下面的 computed 重新读编辑器。
+ *
+ * Bumped on every document change so the computeds below re-read the editor.
+ */
 const changeToken = ref(0);
 
-/** `true` once the editor exists. Watched, never read from the runtime's `onReady`. */
+/**
+ * 编辑器存在之后为 `true`。只被 watch，从不由运行时的 `onReady` 读取。
+ *
+ * `true` once the editor exists. Watched, never read from the runtime's `onReady`.
+ */
 const ready = ref(false);
 
 const variableDialogOpen = ref(false);
@@ -208,14 +302,30 @@ const editingVariableAttrs = ref<VariableAttrs | undefined>(undefined);
 const editingVariablePos = ref<number | undefined>(undefined);
 const fillDialogOpen = ref(false);
 
-/** The document a `local` template supplies, if any. */
+/** `local` 模板提供的文档，如果有的话。 / The document a `local` template supplies, if any. */
 const localTemplateContent = computed<TemplateContent | undefined>(() =>
   props.template?.kind === "local" ? props.template.content : undefined
 );
 
+/**
+ * 编辑器要打开的文档。
+ *
+ * 中文：优先级是 `template`（`kind: "local"`）→ `v-model`（`modelValue`）→ 旧别名 `doc`。
+ * `modelValue` 必须在这里出现：它是公开契约（`v-model`），而 `doc` 只是为旧组件保留的别名 ——
+ * 只读 `doc` 会让所有用 `v-model` 的调用方（包括文档站的示例）永远打开一份空文档，而且不报错。
+ *
+ * The document the editor opens. Precedence: a `local` `template`, then `v-model`
+ * (`modelValue`), then the deprecated `doc` alias. `modelValue` has to appear here because it *is*
+ * the public contract — reading only `doc` left every `v-model` caller (the documentation site's
+ * demos included) with an empty document, and no error to explain it.
+ */
+const runtimeContent = computed<TemplateContent | undefined>(
+  () => localTemplateContent.value ?? props.modelValue ?? props.doc
+);
+
 const { editor, enabledExtensions, hasExtension, setContent, values: readValues } = useEditorRuntime({
   mode,
-  content: computed<TemplateContent | undefined>(() => localTemplateContent.value ?? props.doc),
+  content: runtimeContent,
   data: computed(() => props.data),
   multiPage: computed(() => props.multiPage),
   extensions: computed(() => props.extensions),
@@ -243,21 +353,33 @@ const { editor, enabledExtensions, hasExtension, setContent, values: readValues 
   }
 });
 
-/** Whether the ribbon has anything to show. An empty `tools` hides it entirely. */
+/**
+ * 功能区是否有东西可显示。空的 `tools` 会把它整个隐藏。
+ *
+ * Whether the ribbon has anything to show. An empty `tools` hides it entirely.
+ */
 const showToolbar = computed(() => (props.tools ?? DEFAULT_TOOLS).length > 0);
 
 // ---------------------------------------------------------------------------------
 // Environment
 // ---------------------------------------------------------------------------------
 
-/** The injected `fetch`, or `undefined` outside a browser. */
+/**
+ * 注入的 `fetch`；在浏览器之外为 `undefined`。
+ *
+ * The injected `fetch`, or `undefined` outside a browser.
+ */
 function fetchImpl(): FetchLike | undefined {
   if (typeof window === "undefined" || typeof window.fetch !== "function") return undefined;
   // Bound: some browsers throw `Illegal invocation` for an unbound `fetch`.
   return window.fetch.bind(window) as unknown as FetchLike;
 }
 
-/** The environment's storage, or nothing where it is unavailable or blocked. */
+/**
+ * 环境自己的存储；不可用或被阻止的地方就没有。
+ *
+ * The environment's storage, or nothing where it is unavailable or blocked.
+ */
 function environmentStorage(): { local?: StorageLike; session?: StorageLike } {
   if (typeof window === "undefined") return {};
   try {
@@ -272,7 +394,11 @@ function environmentStorage(): { local?: StorageLike; session?: StorageLike } {
 // The stored artefact
 // ---------------------------------------------------------------------------------
 
-/** The watermark extension's live settings, or `undefined` when it is not registered. */
+/**
+ * 水印扩展的实时设置；未注册时为 `undefined`。
+ *
+ * The watermark extension's live settings, or `undefined` when it is not registered.
+ */
 function watermarkSettings(): TemplateWatermark | undefined {
   const instance = editor.value;
   if (!instance || !hasExtension("watermark")) return undefined;
@@ -284,6 +410,12 @@ function watermarkSettings(): TemplateWatermark | undefined {
 }
 
 /**
+ * 构建被存储的模板。
+ *
+ * `version` 始终存在，易变属性永远不会被序列化 —— 见 `editor/template.ts`。页面设置与变量
+ * 摘要都从**文档**读出，所以用户在改了纸张大小之后保存的模板记录的是页面上真实的尺寸，
+ * 而不是某个 prop 仍然持有的尺寸。
+ *
  * Build the stored template.
  *
  * `version` is always present and no volatile attribute is ever serialised — see
@@ -297,7 +429,7 @@ function getTemplate(): TemplateDocument {
   return buildTemplateDocument({ doc, watermark: watermarkSettings() });
 }
 
-/** Push a stored page setup onto the live document. */
+/** 把一份已存储的页面设置推给活的文档。 / Push a stored page setup onto the live document. */
 function applyPageSetup(setup: TemplatePageSetup | undefined): void {
   const instance = editor.value;
   if (!setup || !instance || !hasExtension("page")) return;
@@ -307,7 +439,7 @@ function applyPageSetup(setup: TemplatePageSetup | undefined): void {
   if (setup.margins !== undefined) instance.chain().focus().setPageMargins(setup.margins).run();
 }
 
-/** Push a stored watermark onto the live editor. */
+/** 把一份已存储的水印推给活的编辑器。 / Push a stored watermark onto the live editor. */
 function applyWatermark(watermark: TemplateWatermark | undefined): void {
   const instance = editor.value;
   if (!instance || !hasExtension("watermark")) return;
@@ -316,7 +448,11 @@ function applyWatermark(watermark: TemplateWatermark | undefined): void {
   else instance.chain().focus().removeWatermark().run();
 }
 
-/** Render a parsed template: content first, then the page setup and the watermark. */
+/**
+ * 渲染一份解析后的模板：先内容，再页面设置与水印。
+ *
+ * Render a parsed template: content first, then the page setup and the watermark.
+ */
 function renderTemplate(
   content: TemplateContent,
   setup?: TemplatePageSetup,
@@ -340,10 +476,18 @@ const selectedTemplateId = ref("");
 const isListSource = computed(() => isRemoteListSource(props.template));
 const loadPolicy = computed(() => templateLoadPolicy(props.template));
 
-/** Documents that arrived inline with the list, so selecting one needs no request. */
+/**
+ * 随列表一起内联到达的文档，选中其中一个就不必再发请求。
+ *
+ * Documents that arrived inline with the list, so selecting one needs no request.
+ */
 let inlineTemplates = new Map<string, TemplateContent>();
 
-/** Apply whatever the `template` prop asks for. Runs once the editor is ready. */
+/**
+ * 应用 `template` prop 要求的一切。编辑器就绪后运行。
+ *
+ * Apply whatever the `template` prop asks for. Runs once the editor is ready.
+ */
 async function applyTemplateSource(): Promise<void> {
   const source = props.template;
   templateError.value = "";
@@ -374,6 +518,12 @@ async function applyTemplateSource(): Promise<void> {
 }
 
 /**
+ * 取模板列表。
+ *
+ * 列表在**两种**加载策略下都会被取：手动情况下，载入按钮就排在列表*后面*，所以列表必须
+ * 存在，按钮才有东西可排在后面。`load` 决定的是某个模板的**内容**是否被请求并渲染 ——
+ * 这才是契约所陈述的行为。
+ *
  * Fetch the template list.
  *
  * The list is fetched under **both** load policies: in the manual case the load button sits
@@ -407,7 +557,7 @@ async function loadTemplateList(): Promise<TemplateListItem[]> {
   }
 }
 
-/** Fetch and render one entry. */
+/** 取并渲染一个条目。 / Fetch and render one entry. */
 async function selectTemplate(id: string): Promise<void> {
   selectedTemplateId.value = id;
 
@@ -432,7 +582,7 @@ async function selectTemplate(id: string): Promise<void> {
   }
 }
 
-/** Re-run the initial request after a failure. */
+/** 失败之后重新执行最初的请求。 / Re-run the initial request after a failure. */
 function retryTemplate(): void {
   void applyTemplateSource();
 }
@@ -452,7 +602,11 @@ watch(
 // Variables
 // ---------------------------------------------------------------------------------
 
-/** Every variable in the document, for the fill dialog and the duplicate-key check. */
+/**
+ * 文档里的每一个变量，供填写对话框与重复 key 检查使用。
+ *
+ * Every variable in the document, for the fill dialog and the duplicate-key check.
+ */
 const fillVariables = computed(() => {
   // `changeToken` is read because `collectDocumentVariables` walks a ProseMirror document,
   // which is not reactive on its own.
@@ -466,20 +620,32 @@ const existingKeys = computed(() => fillVariables.value.map((variable) => variab
 const innerVariable = computed(() => props.variable?.innerVariable ?? []);
 const variableExclude = computed<readonly VariableType[]>(() => props.variable?.exclude ?? []);
 
-/** The current fill data, straight off the extension that owns it. */
+/**
+ * 当前的填充数据，直接从拥有它的扩展上读。
+ *
+ * The current fill data, straight off the extension that owns it.
+ */
 const fillValues = computed<VariableFillData>(() => {
   void changeToken.value;
   return readValues();
 });
 
-/** The live page count, read from the document rather than from a cached storage value. */
+/**
+ * 实时的页面数量，从文档读出，而不是读某个缓存的 storage 值。
+ *
+ * The live page count, read from the document rather than from a cached storage value.
+ */
 const pageCount = computed(() => {
   void changeToken.value;
   const instance = editor.value;
   return instance ? Math.max(1, findNodes(instance, "page").length) : 1;
 });
 
-/** Open the design dialog, empty or on an existing variable. */
+/**
+ * 打开设计对话框，空白或落在已有变量上。
+ *
+ * Open the design dialog, empty or on an existing variable.
+ */
 function openVariableDialog(attrs?: VariableAttrs, pos?: number): void {
   editingVariableAttrs.value = attrs;
   editingVariablePos.value = pos;
@@ -487,6 +653,12 @@ function openVariableDialog(attrs?: VariableAttrs, pos?: number): void {
 }
 
 /**
+ * 应用设计对话框的结果。
+ *
+ * 按位置寻址，绝不按选区：`updateVariable(pos, attrs)` 改动的是用户点的那一个变量，这正是
+ * 对旧编辑路径的修复 —— 除非 `NodeSelection` 恰好落在节点上，它否则会静默地什么都不做
+ * （缺陷 22）。
+ *
  * Apply the design dialog's result.
  *
  * Addressed by position, never by selection: `updateVariable(pos, attrs)` touches the
@@ -505,7 +677,7 @@ function applyVariable(attrs: VariableAttrs, pos: number | undefined): void {
   instance.chain().focus().updateVariable(pos, attrs).run();
 }
 
-/** Replace the fill data and repaint. */
+/** 替换填充数据并重绘。 / Replace the fill data and repaint. */
 function fill(next: VariableFillData): void {
   const instance = editor.value;
   if (!instance || !hasExtension("variable")) return;
@@ -514,7 +686,7 @@ function fill(next: VariableFillData): void {
   setVariableValues(instance, { ...getVariableValues(instance), ...next });
 }
 
-/** The fill dialog's result. */
+/** 填写对话框的结果。 / The fill dialog's result. */
 function applyFill(next: VariableFillData): void {
   fill(next);
 }
@@ -523,7 +695,11 @@ function applyFill(next: VariableFillData): void {
 // Change notification
 // ---------------------------------------------------------------------------------
 
-/** Build the change payload and tell everyone who asked. */
+/**
+ * 构建变更载荷，并告知每一个问过的人。
+ *
+ * Build the change payload and tell everyone who asked.
+ */
 function announceChange(): void {
   changeToken.value += 1;
 
@@ -544,6 +720,11 @@ function announceChange(): void {
 // ---------------------------------------------------------------------------------
 
 /**
+ * 通过配置的目标保存。
+ *
+ * `onSave` 与 `save` emit 都在失败被重新抛出**之前**运行，所以即便失败了使用方也能听到这次
+ * 尝试，而 `SaveResult.error` 为捕获它的调用方携带着原因。
+ *
  * Save through the configured target.
  *
  * `onSave` and the `save` emit run **before** a failure is re-raised, so a consumer hears
@@ -577,7 +758,11 @@ async function save(): Promise<SaveResult> {
   return result;
 }
 
-/** The toolbar's 保存: save and report the outcome, never throwing into a template. */
+/**
+ * 工具栏的保存：保存并报告结果，绝不把异常抛进模板。
+ *
+ * The toolbar's 保存: save and report the outcome, never throwing into a template.
+ */
 async function handleSave(): Promise<void> {
   try {
     await save();
@@ -591,7 +776,11 @@ async function handleSave(): Promise<void> {
 // Print
 // ---------------------------------------------------------------------------------
 
-/** Print through the print extension's own command. Printing is never implemented here. */
+/**
+ * 通过打印扩展自己的命令打印。打印从不在这里实现。
+ *
+ * Print through the print extension's own command. Printing is never implemented here.
+ */
 function printDocument(): void {
   const instance = editor.value;
   if (!instance) {
@@ -611,29 +800,44 @@ function printDocument(): void {
 // The exposed surface
 // ---------------------------------------------------------------------------------
 
+/** 文档的 ProseMirror JSON 形式。 / The document as ProseMirror JSON. */
 function getJSON(): TemplateDocument["doc"] {
   const instance = editor.value;
   return instance ? instance.getJSON() : { type: "doc", content: [] };
 }
 
+/** 文档的 HTML 形式。 / The document as HTML. */
 function getHTML(): string {
   return editor.value?.getHTML() ?? "";
 }
 
+/**
+ * 替换文档。接受 JSON、HTML 或完整模板。
+ *
+ * Replace the document. Accepts JSON, HTML, or a full template.
+ */
 function setTemplate(content: TemplateContent | TemplateDocument): void {
   const parsed = parseTemplateInput(content);
   renderTemplate(parsed.content, parsed.template.page, parsed.template.watermark);
 }
 
+/** 打开填写对话框。 / Open the fill dialog. */
 function openFillDialog(): void {
   fillDialogOpen.value = true;
 }
 
+/** 把焦点移入文档。 / Move focus into the document. */
 function focus(): void {
   editor.value?.chain().focus().run();
 }
 
 /**
+ * 暴露出来的接口面，按契约标注类型。
+ *
+ * `editor` 暴露的是那个 ref 而不是它当前的值：这里运行时编辑器还不存在，而 `defineExpose`
+ * 会在访问时解包 ref，所以调用方看到的始终是活的实例（或在它存在之前的 `undefined`，契约
+ * 允许这一点）。
+ *
  * The exposed surface, typed against the contract.
  *
  * `editor` is exposed as the ref rather than its current value: the editor does not exist
@@ -655,6 +859,7 @@ const exposed: SEditorExposed = {
   focus
 };
 
+/** 把这份契约暴露到使用方的模板 ref 上。 / Expose that contract on the consumer's template ref. */
 defineExpose(exposed);
 </script>
 

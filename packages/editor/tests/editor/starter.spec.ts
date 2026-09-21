@@ -116,6 +116,70 @@ describe("createStarterDocument", () => {
     expect(typesOf(doc)).toContain("paragraph");
   });
 
+  it("centres the title and flushes each clause number left", () => {
+    const headings = nodesOfType(createStarterDocument(), "heading");
+    const [title] = headings.filter((heading) => heading.attrs?.level === 1);
+    const clauses = headings.filter((heading) => heading.attrs?.level === 2);
+
+    expect(title?.attrs?.textAlign).toBe("center");
+    // An explicit zero, so a heading cannot inherit a first-line indent from the stylesheet.
+    expect(title?.attrs?.textIndent).toBe("0");
+
+    expect(clauses.length).toBeGreaterThan(0);
+    for (const clause of clauses) {
+      expect(clause.attrs?.textAlign).toBe("left");
+    }
+  });
+
+  it("indents the first line of prose by two characters and puts a variable in that paragraph", () => {
+    const paragraphs = nodesOfType(createStarterDocument(), "paragraph");
+
+    // The paragraph that holds a variable is the one the toolbar's indent control must show
+    // "2 字符" for; if the fixture stopped indenting it, the docs demo would show a paragraph
+    // whose indent control reads "not set" while the document looks indented.
+    const withVariable = paragraphs.find((paragraph) =>
+      (paragraph.content ?? []).some((child) => child.type === "variable")
+    );
+
+    expect(withVariable, "expected a paragraph containing a variable").toBeDefined();
+    expect(withVariable?.attrs?.textIndent).toBe("2em");
+    expect(withVariable?.attrs?.textAlign).toBe("justify");
+
+    // The QR caption is centred and not indented — the contrast is deliberate.
+    const caption = paragraphs.find((paragraph) =>
+      (paragraph.content ?? []).some((child) => child.text?.includes("二维码"))
+    );
+    expect(caption?.attrs?.textAlign).toBe("center");
+    expect(caption?.attrs?.textIndent).toBe("0");
+
+    // A table cell is not prose: indenting one would push the text out of a narrow column.
+    for (const cell of nodesOfType(createStarterDocument(), "tableCell")) {
+      for (const paragraph of cell.content ?? []) {
+        expect(paragraph.attrs?.textIndent ?? null).toBeNull();
+      }
+    }
+  });
+
+  it("carries the legacy typography as `textStyle` marks", () => {
+    const doc = createStarterDocument();
+    const [title] = nodesOfType(doc, "heading");
+
+    const marks = title?.content?.[0]?.marks ?? [];
+    expect(marks.map((mark) => mark.type)).toContain("bold");
+
+    const titleStyle = marks.find((mark) => mark.type === "textStyle");
+    expect(titleStyle?.attrs?.fontSize).toBe("18pt");
+
+    // Body prose is 14pt/28pt Song, the same roles the legacy template used.
+    const body = nodesOfType(doc, "paragraph").find((paragraph) =>
+      paragraph.content?.some((child) => child.marks?.some((mark) => mark.type === "textStyle"))
+    );
+    const bodyStyle = body?.content
+      ?.flatMap((child) => child.marks ?? [])
+      .find((mark) => mark.type === "textStyle");
+    expect(bodyStyle?.attrs?.fontSize).toBe("14pt");
+  });
+
   it("honours the title and QR overrides", () => {
     const doc = createStarterDocument({ title: "秘密协议", qrText: "https://example.com" });
 

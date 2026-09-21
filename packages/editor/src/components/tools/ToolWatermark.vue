@@ -92,14 +92,28 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import type { Editor } from "@tiptap/core";
-import { ElMessage } from "element-plus";
 import { IconOk, SIcon } from "@snail-js/vue";
 
 import { mergeEditorLocale } from "../../editor/locale";
 import type { EditorLocale } from "../../editor/locale";
 import type { WatermarkOptions } from "../../typings/editor";
+import { ElMessage, ElForm, ElFormItem, ElSwitch, ElRadioGroup, ElRadio, ElInput, ElColorPicker, ElInputNumber, ElSlider, ElButton } from "element-plus";
 
 /**
+ * `ToolWatermark` —— 工具栏的水印区块。
+ *
+ * ## 为什么面板自己留一份模型副本，以及它如何保持诚实
+ *
+ * 水印住在*文档*上（由节点视图渲染），所以本面板不能直接改 `props.watermark`：那是在写 prop。
+ * 因此它持有一份可编辑的副本，并用一条命令把它推入文档。
+ *
+ * 这份副本在初始化时从 prop 播种，并在模型值真正变化时重新播种。旧版页面面板是反面教材
+ * （缺陷 42）：它根本不从文档初始化自己的控件，于是打开时呈现的是自己的默认值，显示出一份与
+ * 它正在编辑的页面不一致的页面设置。下面的指纹检查是那项修复的后半部分 —— 使用方交来一个
+ * 全新但*相等*的对象字面量时，单纯的 `deep` 侦听也会触发，那会丢掉用户正打到一半的内容。
+ *
+ * `setWatermark`/`removeWatermark` 命令来自水印扩展的模块增强；本组件只是调用它们。
+ *
  * `ToolWatermark` — the watermark section of the toolbar.
  *
  * ## Why the panel keeps its own copy of the model, and how it stays honest
@@ -123,13 +137,21 @@ defineOptions({ name: "ToolWatermark" });
 
 const props = withDefaults(
   defineProps<{
-    /** The running editor, `undefined` until the host has created it. */
+    /**
+     * 正在运行的编辑器，在宿主创建它之前为 `undefined`。
+     *
+     * The running editor, `undefined` until the host has created it.
+     */
     editor?: Editor;
 
-    /** The watermark currently recorded on the document. */
+    /** 文档当前记录的水印。 / The watermark currently recorded on the document. */
     watermark?: WatermarkOptions;
 
-    /** Partial locale override, merged over the Chinese defaults. */
+    /**
+     * 部分语言覆盖，合并到中文默认值之上。
+     *
+     * Partial locale override, merged over the Chinese defaults.
+     */
     locale?: Partial<EditorLocale>;
   }>(),
   {
@@ -141,10 +163,17 @@ const props = withDefaults(
 
 const t = computed(() => mergeEditorLocale(props.locale));
 
-/** The two mutually exclusive shapes a watermark takes. */
+/** 水印的两种互斥形态。 / The two mutually exclusive shapes a watermark takes. */
 type WatermarkKind = "text" | "image";
 
 /**
+ * 可编辑的字段。
+ *
+ * 与 {@link WatermarkOptions} 不同，这里每个字段都是必填的，因为表单控件无法表示「未设置」：
+ * 开关非开即关，滑块总有一个值。因此面板把模型记录的默认值都实体化（`angle: -30`、
+ * `opacity: 0.12`、`fontSize: "48px"`），并在模型什么都没说时把两个开关当作 `false` —— 所以
+ * 按「应用水印」绝不会打开调用方没要求的标记。
+ *
  * The editable fields.
  *
  * Every field is required here, unlike in {@link WatermarkOptions}, because a form
@@ -182,10 +211,19 @@ const state = reactive<WatermarkForm>({
 
 const kind = ref<WatermarkKind>("text");
 
-/** The model values the form was last seeded from — see {@link fingerprint}. */
+/**
+ * 表单上一次播种所依据的模型值 —— 见 {@link fingerprint}。
+ *
+ * The model values the form was last seeded from — see {@link fingerprint}.
+ */
 let seededFrom = "";
 
 /**
+ * 模型自己的值，表示成一个可比较的字符串。
+ *
+ * 它用来区分「宿主改了水印」与「宿主只是重渲染并产出了相等的对象」。Vue 的 `deep` 侦听对新
+ * 对象按身份触发，所以没有它的话，父组件重渲染会在编辑中途悄悄重置面板。
+ *
  * The model's own values, as one comparable string.
  *
  * This is what tells "the host changed the watermark" apart from "the host re-rendered
@@ -207,7 +245,7 @@ function fingerprint(value: WatermarkOptions | undefined): string {
   ]);
 }
 
-/** Copy a model value into the form, field by field. */
+/** 把模型值逐字段复制进表单。 / Copy a model value into the form, field by field. */
 function seed(value: WatermarkOptions | undefined): void {
   const source = value ?? {};
 
@@ -227,6 +265,11 @@ function seed(value: WatermarkOptions | undefined): void {
 }
 
 /**
+ * 跟随模型。
+ *
+ * `immediate` 让表单在首次渲染之前就完成播种 —— 一个先以默认值启动、直到第一次编辑之后才
+ * 读到文档的面板，正是缺陷 42。
+ *
  * Follow the model.
  *
  * `immediate` seeds the form before it is ever rendered — a panel that starts on
@@ -244,6 +287,11 @@ watch(
 );
 
 /**
+ * 让属于另一种形态的字段退场。
+ *
+ * 扩展会渲染交给它的每一个非空字段，所以切到图片（或反向切换）时把旧文本留着，会让两种标记
+ * 同时出现在纸面上。
+ *
  * Retire the field that belongs to the other kind.
  *
  * The extension renders every non-empty field it is handed, so leaving the old text in
@@ -254,7 +302,11 @@ function onKindChange(): void {
   else state.imageSrc = "";
 }
 
-/** The commands need a live editor; before mount there is nothing to act on. */
+/**
+ * 命令需要活的编辑器；挂载之前没有可作用的对象。
+ *
+ * The commands need a live editor; before mount there is nothing to act on.
+ */
 function requireEditor(): Editor | undefined {
   const editor = props.editor;
   if (!editor) ElMessage.warning(t.value.notReady);

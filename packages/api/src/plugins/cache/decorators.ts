@@ -8,6 +8,17 @@ import { SnailDecoratorError } from "../../error";
 import type { CacheableOptions } from "./type";
 
 /**
+ * `@Cacheable()` / `@NoCache()` / `@Invalidates()` / `@HitSource()`——缓存插件的声明式那一半。
+ *
+ * 这四个装饰器都能作用于类和方法。TypeScript 通过参数个数区分二者（类装饰器只会收到
+ * 构造函数）；在 TS 7 中 `emitDecoratorMetadata` 不再产出任何元数据之后，这是唯一可用的信号。
+ *
+ * ## 为什么 `@Invalidates` 是追加而不是覆盖
+ *
+ * `@Invalidates("users", "orders")` 是同一个目标上的两次装饰器应用。使用合并式工厂意味着
+ * 读取方直接得到 `["users", "orders"]`，插件无需展平嵌套数组——而且分开写两行
+ * `@Invalidates()` 的组合方式完全相同，这也正是一个方法触及多个缓存时的自然写法。
+ *
  * `@Cacheable()` / `@NoCache()` / `@Invalidates()` / `@HitSource()` — the
  * declarative half of the cache plugin.
  *
@@ -77,6 +88,11 @@ function assertCacheableOptions(options: CacheableOptions): void {
 }
 
 /**
+ * 把该方法——或该类的每一个方法——标记为可缓存。
+ *
+ * 传入这个装饰器就是一次显式启用：即使请求方法不在 `CacheOptions.cacheFor` 列表中也会缓存。
+ * 不传它时由 `cacheFor` 决定；原因是“缓存这个类的所有 POST”在本意只想挂标签时太容易被误写。
+ *
  * Mark this method — or every method of this class — as cacheable.
  *
  * Passing the decorator is an explicit opt-in: it caches even a verb that
@@ -95,6 +111,12 @@ function assertCacheableOptions(options: CacheableOptions): void {
  *   stats(): Promise<Stats> { return null!; }
  * }
  * ```
+ *
+ * @param options 该目标的缓存策略；默认空对象 / Cache policy for this target; defaults to
+ *   an empty object
+ * @returns 同时可用于类与方法的装饰器 / A decorator usable on both a class and a method
+ * @throws {SnailDecoratorError} `ttl` 不是正数、`key` 为空串或 `tags` 含空串时 /
+ *   When `ttl` is not positive, `key` is an empty string, or `tags` holds an empty string
  */
 export function Cacheable(options: CacheableOptions = {}): DualDecorator {
   assertCacheableOptions(options);
@@ -109,24 +131,42 @@ export function Cacheable(options: CacheableOptions = {}): DualDecorator {
 }
 
 /**
+ * 让该方法——或整个类——退出缓存。
+ *
+ * 方法级的 `@NoCache()` 胜过类级的 `@Cacheable()`，类级的 `@NoCache()` 胜过 `cacheFor`
+ * 的默认值。退出是唯一不允许被更宽泛的规则覆盖的决定，因为判断错误的代价是提供过期数据。
+ *
  * Opt this method — or this entire class — out of caching.
  *
  * A method-level `@NoCache()` beats a class-level `@Cacheable()`, and a
  * class-level `@NoCache()` beats the `cacheFor` default. Opting out is the one
  * decision that may never be overridden by a broader rule, because the cost of
  * being wrong is serving stale data.
+ *
+ * @returns 同时可用于类与方法的装饰器 / A decorator usable on both a class and a method
  */
 export function NoCache(): DualDecorator {
   return dualDecorator(addNoCacheOnClass(true), addNoCacheOnMethod(true));
 }
 
 /**
+ * 本次请求成功后，清除所有带有 `tags` 中任意一个标签的缓存条目。
+ *
+ * “成功”指 HTTP 往返成功：该钩子位于响应路径上，所以失败或被取消的请求不会清除任何东西。
+ * 一个方法可以清除它自己也会写入的标签——插件先清除再写入，因此新条目能在自己的清除中
+ * 存活下来。
+ *
  * Purge every cached entry carrying any of `tags` once this request succeeds.
  *
  * "Succeeds" means the HTTP round-trip did: the hook lives on the response path,
  * so a failed or cancelled request invalidates nothing. A method may invalidate a
  * tag it also stores under — the plugin purges before it stores, so the fresh
  * entry survives its own invalidation.
+ *
+ * @param tags 要清除的标签，至少一个 / The tags to purge; at least one
+ * @returns 同时可用于类与方法的装饰器 / A decorator usable on both a class and a method
+ * @throws {SnailDecoratorError} 任一标签不是非空字符串时 / When any tag is not a
+ *   non-empty string
  */
 export function Invalidates(...tags: string[]): DualDecorator {
   for (const tag of tags) {
@@ -149,11 +189,20 @@ export function Invalidates(...tags: string[]): DualDecorator {
 }
 
 /**
+ * {@link Invalidates} 的兼容旧版别名，用于单个来源名称。
+ *
+ * 重写前的装饰器以变更的*来源*命名，而不是以它清除的条目命名；据此编写的应用代码可以继续
+ * 工作，新代码应优先使用 `@Invalidates`。
+ *
  * Legacy-compatible alias of {@link Invalidates} for a single source name.
  *
  * The pre-rewrite decorator was named after the *source* of a change rather than
  * the entries it purges; application code written against it keeps working, and
  * new code should prefer `@Invalidates`.
+ *
+ * @param name 变更来源的名称，即要清除的标签 / The source name of the change, used as
+ *   the tag to purge
+ * @returns 同时可用于类与方法的装饰器 / A decorator usable on both a class and a method
  */
 export function HitSource(name: string): DualDecorator {
   return Invalidates(name);
@@ -162,6 +211,11 @@ export function HitSource(name: string): DualDecorator {
 // ── readers ─────────────────────────────────────────────────────────────────
 
 /**
+ * 从方法（给出 `methodName` 时）或类上读取 `@Cacheable(...)`。
+ *
+ * `undefined` 表示“未标记”，这与 `{}`（“已标记但没有任何覆盖项”）不同——插件对二者的
+ * 处理方式不一样。
+ *
  * Read `@Cacheable(...)` from a method (when `methodName` is given) or a class.
  *
  * `undefined` means "not marked", which is different from `{}` ("marked, with no
@@ -173,7 +227,11 @@ export function readCacheable(target: unknown, methodName?: string): CacheableOp
     : getMethodMetadata<CacheableOptions>(CACHEABLE_KEY, target, methodName);
 }
 
-/** `true` when `@NoCache()` was applied to this method or class. */
+/**
+ * 当该方法或类被应用了 `@NoCache()` 时为 `true`。
+ *
+ * `true` when `@NoCache()` was applied to this method or class.
+ */
 export function readNoCache(target: unknown, methodName?: string): boolean {
   const value =
     methodName === undefined
@@ -183,7 +241,11 @@ export function readNoCache(target: unknown, methodName?: string): boolean {
   return value === true;
 }
 
-/** Tags listed by `@Invalidates(...)` / `@HitSource(...)`, in application order. */
+/**
+ * `@Invalidates(...)` / `@HitSource(...)` 列出的标签，按应用顺序排列。
+ *
+ * Tags listed by `@Invalidates(...)` / `@HitSource(...)`, in application order.
+ */
 export function readInvalidates(target: unknown, methodName?: string): string[] {
   return (
     (methodName === undefined

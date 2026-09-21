@@ -1,4 +1,17 @@
 /**
+ * `Page`——一张纸。
+ *
+ * NodeSpec 的 `content` 可以是函数，Tiptap 会用扩展自己的上下文（含 `options` 和 `editor`）通过
+ * `callOrReturn` 调用它，所以页面的内容表达式由实际存在的页眉 / 页脚节点类型拼出来：
+ * `Page.configure({ header: false })` 得到 `(pageContent | pageFooter | pageLogo)*`，而只有正文的
+ * 文档得到 `pageContent*`。另一种做法——写死 `(pageHeader | pageContent | pageFooter)*`——会抛出
+ * `RangeError: Unknown node type in content expression`，或者更糟：构建出一个页面永远无法接受使用方
+ * 内容的 schema。
+ *
+ * `setPageMargins`、`setPageFormat` 和 `setPageOrientation` 默认作用于**每一页**；旧版只改包含选区
+ * 的页面并无条件返回 `true`（缺陷 17），于是设置面板看起来生效了却只改了一张纸。现在它们在没有实际
+ * 变化时都返回 `false`，可选的 `pageIndex` 参数才是把改动收窄到单页的手段。
+ *
  * `Page` — one sheet of paper.
  *
  * ## The content expression is a function of what is registered
@@ -44,21 +57,29 @@ import { PageFooter } from "./pageFooter/pageFooter";
 import { PageHeader } from "./pageHeader/pageHeader";
 import { PageLogo } from "./pageLogo/pageLogo";
 import { PageNumber } from "./pageNumber/pageNumber";
+import { PageRegion } from "./pageRegion/pageRegion";
 import { renderPageNodeView } from "./pageView";
 import type { PageAttributes, PageContentOptions, PageOptions, PageStorage } from "./typing";
 import { createPageNode } from "./utils/createPage";
+import { createFurnitureRegionsPlugin } from "./utils/furniture";
+import { createFurnitureEditingPlugin } from "./utils/furnitureEditing";
 import {
   collectPages,
   contentStart,
   findPageContent,
   PAGE_FOOTER_NODE,
   PAGE_HEADER_NODE,
-  PAGE_LOGO_NODE,
   PAGE_NODE,
   resolvePageContentExpression
 } from "./utils/nodes";
 import type { PageFurnitureFlags, PageRef } from "./utils/nodes";
 
+/**
+ * `page` 扩展：纸张节点，承载正文与页眉 / 页脚，并注册它们需要的插件。
+ *
+ * The `page` extension: the sheet node that hosts the body, the header/footer and the
+ * plugins they need.
+ */
 export const Page = Node.create<PageOptions, PageStorage>({
   name: PAGE_NODE,
   // `priority` keeps the page above the generic block extensions when Tiptap sorts
@@ -66,6 +87,8 @@ export const Page = Node.create<PageOptions, PageStorage>({
   priority: 1001,
 
   /**
+   * 一个函数，由 Tiptap 针对实际注册的扩展解析。见模块注释。
+   *
    * A function, resolved by Tiptap against the extensions that were actually registered.
    * See the module comment.
    */
@@ -82,17 +105,24 @@ export const Page = Node.create<PageOptions, PageStorage>({
       footer: {},
       logo: {},
       pageNumber: {},
+      region: {},
       pagination: {},
       HTMLAttributes: {}
     };
   },
 
   /**
+   * 页眉 / 页脚扩展，默认包含，也可以逐个移除。
+   *
+   * `PageHeader` / `PageFooter` / `PageRegion` / `PageLogo` / `PageNumber` 由页面*拥有*（重建笔记的
+   * 决策 1）：配置页面才决定它们之中哪些存在，因而也决定上面的内容表达式能包含什么。`PageContent`
+   * 始终存在——它是页面的正文，不是页眉 / 页脚。
+   *
    * The furniture extensions, included by default and removable one by one.
    *
-   * `PageHeader`/`PageFooter`/`PageLogo`/`PageNumber` are *owned* by the page (decision 1
-   * of the rebuild notes): configuring the page is what decides which of them exist, and
-   * therefore what the content expression above can contain. `PageContent` is always
+   * `PageHeader`/`PageFooter`/`PageRegion`/`PageLogo`/`PageNumber` are *owned* by the page
+   * (decision 1 of the rebuild notes): configuring the page is what decides which of them exist,
+   * and therefore what the content expression above can contain. `PageContent` is always
    * present — it is the page's body, not furniture.
    */
   addExtensions() {
@@ -100,12 +130,37 @@ export const Page = Node.create<PageOptions, PageStorage>({
 
     if (this.options.header !== false) extensions.unshift(PageHeader.configure(this.options.header));
     if (this.options.footer !== false) extensions.push(PageFooter.configure(this.options.footer));
+    // The thirds of a band. Registered even when a band is not configured, because a consumer may
+    // register `PageHeader` itself, and the regions it needs must exist for its content to be
+    // valid.
+    extensions.push(PageRegion.configure(this.options.region ?? {}));
     if (this.options.logo !== false) extensions.push(PageLogo.configure(this.options.logo));
     if (this.options.pageNumber !== false) {
       extensions.push(PageNumber.configure(this.options.pageNumber));
     }
 
     return extensions;
+  },
+
+  /**
+   * 页眉 / 页脚需要的两个插件，只注册**一次**——放在这里而不是栏上，因为一个文档有两条栏，每条栏
+   * 一个插件会把同一个文档归一化两遍。
+   *
+   * 区域归一化器把每条栏保持在恰好三个可用区域（见 `utils/regions.ts`），这同样也是修复在区域出现
+   * 之前写下的模板的手段；编辑插件负责「哪三分之一正在被编辑」，以及在没有栏打开时拒绝页眉 / 页脚
+   * 内部文档改动的事务过滤器（见 `utils/furnitureEditing.ts`）。
+   *
+   * The two plugins the furniture needs, registered **once** — here rather than on a band, because
+   * a document has two bands and a plugin per band would normalise the same document twice.
+   *
+   * - the region normaliser keeps every band at exactly three usable regions (see
+   *   `utils/regions.ts`), which is also what repairs a template written before regions existed;
+   * - the editing plugin owns "which third is being edited" and the transaction filter that
+   *   refuses a document change inside furniture while no band is open
+   *   (see `utils/furnitureEditing.ts`).
+   */
+  addProseMirrorPlugins() {
+    return [createFurnitureRegionsPlugin(), createFurnitureEditingPlugin()];
   },
 
   addStorage(): PageStorage {
@@ -136,6 +191,11 @@ export const Page = Node.create<PageOptions, PageStorage>({
   },
 
   /**
+   * 只有我们自己的标记才会生成页面。
+   *
+   * 旧版 `parseHTML` 是 `[{ tag: "section" }]`，于是粘贴任何 HTML `section`——Word 或网页剪贴板里
+   * 到处都是——都会悄悄创建一个页面（缺陷 17）。
+   *
    * Only our own markup mints a page.
    *
    * The legacy `parseHTML` was `[{ tag: "section" }]`, so pasting any HTML section — which
@@ -317,6 +377,13 @@ export const Page = Node.create<PageOptions, PageStorage>({
         },
 
       /**
+       * 刷新页数，并通过 `storage.page.total` 报告它。
+       *
+       * Tiptap 的命令契约是 `(props) => boolean`：`RawCommands` / `SingleCommands` 由它派生，而
+       * `CommandManager` 会调用返回的函数，所以命令无法*返回*一个数字。因此页数发布在
+       * `editor.storage.page.total` 上（每次结构变化都会保持它最新），命令则报告这个数字是否变化；
+       * `countPages(editor.state.doc)` 导出给想要完全不经命令取值的调用方。
+       *
        * Refresh the page count and report it through `storage.page.total`.
        *
        * Tiptap's command contract is `(props) => boolean`: `RawCommands`/`SingleCommands`
@@ -394,6 +461,12 @@ export const Page = Node.create<PageOptions, PageStorage>({
 });
 
 /**
+ * 页面的内容表达式可以写上的页眉 / 页脚节点类型。
+ *
+ * 两个来源，因为两者都能独立让一个节点类型存在：页面自己的选项（常规路径——
+ * `Page.configure({ header: false })`）和使用方的扩展数组（有使用方把 `PageHeader` 从页面里拿掉
+ * 又自己注册）。两个都检查，才能在构建 schema 时让表达式不可能出错。
+ *
  * Which furniture node types the page's content expression may name.
  *
  * Two sources, because both can independently make a node type exist: the page's own
@@ -407,12 +480,15 @@ function readFurnitureFlags(options: PageOptions, editor: Editor | undefined): P
   return {
     header: options.header !== false || registered.has(PAGE_HEADER_NODE),
     content: true,
-    footer: options.footer !== false || registered.has(PAGE_FOOTER_NODE),
-    logo: options.logo !== false || registered.has(PAGE_LOGO_NODE)
+    footer: options.footer !== false || registered.has(PAGE_FOOTER_NODE)
   };
 }
 
-/** The node type names present in the consumer's extension array. */
+/**
+ * 使用方扩展数组里出现的节点类型名。
+ *
+ * The node type names present in the consumer's extension array.
+ */
 function registeredNodeNames(editor: Editor | undefined): Set<string> {
   const names = new Set<string>();
   const extensions = editor?.options.extensions;
@@ -423,7 +499,11 @@ function registeredNodeNames(editor: Editor | undefined): Set<string> {
   return names;
 }
 
-/** `pagination: false` keeps the body but stops the automatic pass. */
+/**
+ * `pagination: false` 保留正文但停掉自动分页过程。
+ *
+ * `pagination: false` keeps the body but stops the automatic pass.
+ */
 function readPaginationOptions(options: PageOptions): PageContentOptions {
   const pagination = options.pagination;
   if (pagination === false) return { autoPagination: false };
@@ -434,14 +514,22 @@ function readPaginationOptions(options: PageOptions): PageContentOptions {
   };
 }
 
-/** The pages a command targets: all of them, or the one with the given 1-based number. */
+/**
+ * 命令作用的页面：全部，或给定的那一个 1 起页码。
+ *
+ * The pages a command targets: all of them, or the one with the given 1-based number.
+ */
 function selectPages(doc: PMNode, pageIndex: number | undefined): PageRef[] {
   const pages = collectPages(doc);
   if (pageIndex === undefined) return pages;
   return pages.filter((page) => page.ordinal === pageIndex);
 }
 
-/** The page containing a position, if the document has pages at all. */
+/**
+ * 包含某个位置的页面；文档根本没有页面时没有。
+ *
+ * The page containing a position, if the document has pages at all.
+ */
 function pageAtSelection(doc: PMNode, pos: number): PageRef | null {
   for (const page of collectPages(doc)) {
     if (pos >= page.pos && pos <= page.pos + page.node.nodeSize) return page;
@@ -450,6 +538,11 @@ function pageAtSelection(doc: PMNode, pos: number): PageRef | null {
 }
 
 /**
+ * 把页边距补丁合并进页面当前的页边距。
+ *
+ * 字符串或完整对象是替换；部分对象只更新它点名的边，所以设置面板可以只设「上：10mm」而不必把另外
+ * 三边再发一遍。
+ *
  * Merge a margin patch into a page's current margins.
  *
  * A string or a full object replaces; a partial object updates only the sides it names,
@@ -487,7 +580,11 @@ function marginsEqual(left: unknown, right: ResolvedMargins): boolean {
   );
 }
 
-/** Named formats compare by name; a custom format compares by its millimetre size. */
+/**
+ * 命名格式按名字比较；自定义格式按它的毫米尺寸比较。
+ *
+ * Named formats compare by name; a custom format compares by its millimetre size.
+ */
 function paperFormatsEqual(left: unknown, right: PaperFormat): boolean {
   if (typeof left === "string") return left === right;
   // `right` is now the object member of the union: a string on either side means the two
@@ -509,7 +606,11 @@ function readIndexAttribute(value: string | null): number | null {
   return Number.isFinite(parsed) && parsed >= 1 ? parsed : null;
 }
 
-/** Put the caret at `pos` when that is a text position, without throwing otherwise. */
+/**
+ * 当 `pos` 是文本位置时把光标放上去，否则不抛错。
+ *
+ * Put the caret at `pos` when that is a text position, without throwing otherwise.
+ */
 function select(tr: { doc: PMNode; setSelection: (selection: Selection) => void }, pos: number): void {
   const clamped = Math.min(Math.max(pos, 0), tr.doc.content.size);
   try {
@@ -521,9 +622,13 @@ function select(tr: { doc: PMNode; setSelection: (selection: Selection) => void 
 }
 
 /**
+ * 拆分光标所在的块，这样分页符移动的是尾部而不是整个块。
+ *
  * Split the block under the caret so a page break moves the tail rather than the block.
  *
- * @returns The fragment to place at the top of the new page, and the position the deletion
+ * @returns 要放到新页顶部的片段，以及删除开始的位置；片段为空或不存在表示「新页从空开始」（光标
+ *   已经在页尾）。 /
+ *   The fragment to place at the top of the new page, and the position the deletion
  *   starts at. An empty/absent fragment means "the new page starts empty" (the caret was
  *   already at the end of the page).
  */

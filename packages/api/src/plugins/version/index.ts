@@ -1,4 +1,9 @@
 /**
+ * 版本管理插件。
+ *
+ * 用 `Service.use(Versioning({...}))` 安装，再用 `@Version("1.2.0")` 声明类或方法的版本；
+ * 插件会在每个请求上把版本写进 url、请求头或 query。
+ *
  * Version management plugin.
  *
  * ```ts

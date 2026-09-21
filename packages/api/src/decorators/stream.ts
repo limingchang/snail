@@ -16,6 +16,12 @@ import {
 import type { SnailMethodType } from "../typings/api";
 
 /**
+ * 流式 / 实时装饰器。
+ *
+ * 三种传输方式，一个思路：被装饰的成员只*描述*处理函数，再由
+ * `Service.createSse(...)` / `createWebSocket(...)` / 一个 `@HttpStream` 方法把它们
+ * 变成真实连接。
+ *
  * Streaming / realtime decorators.
  *
  * Three transports, one idea: the decorated members only *describe* handlers,
@@ -25,14 +31,39 @@ import type { SnailMethodType } from "../typings/api";
 
 // ── SSE ─────────────────────────────────────────────────────────────────────
 
-/** Handler names recorded for an SSE class. */
+/**
+ * 为一个 SSE 类记录的处理函数集合。
+ *
+ * Handler names recorded for an SSE class.
+ */
 export interface SnailSseHandlers {
+  /**
+   * 为 `open` 事件注册的处理函数，按注册顺序调用。
+   *
+   * Handlers registered for the `open` event, invoked in registration order.
+   */
   open: Array<(event: Event) => void>;
+  /**
+   * 为 `error` 事件注册的处理函数，按注册顺序调用。
+   *
+   * Handlers registered for the `error` event, invoked in registration order.
+   */
   error: Array<(event: Event) => void>;
+  /**
+   * 具名事件与对应的处理函数；未指定名称的事件记为默认的 `message`。
+   *
+   * Named events with their handlers; an unnamed event is recorded as the
+   * default `message` event.
+   */
   events: Array<{ event: string; handler: (message: unknown) => void }>;
 }
 
 /**
+ * 声明一个 Server-Sent Events 端点。
+ *
+ * 传输层用 `fetch` 加流读取器，而不是 `EventSource`：正是这一点让请求头、`POST`
+ * 和 `withCredentials` 成为可能，而这些 `EventSource` 都不支持。
+ *
  * Declare a Server-Sent Events endpoint.
  *
  * ```ts
@@ -62,6 +93,9 @@ export interface SnailSseHandlers {
  * The transport is `fetch` + a stream reader rather than `EventSource`: that is
  * what makes request headers, `POST` and `withCredentials` possible, none of which
  * `EventSource` supports.
+ *
+ * @param path SSE 端点路径 / SSE endpoint path
+ * @param options 可选的 SSE 选项 / Optional SSE options
  */
 export function Sse(path: string, options: SnailSseOptions = {}): ClassDecorator {
   return (target) => {
@@ -77,14 +111,22 @@ export function Sse(path: string, options: SnailSseOptions = {}): ClassDecorator
   };
 }
 
-/** Register a handler for the SSE `open` event. */
+/**
+ * 为 SSE `open` 事件注册一个处理函数。
+ *
+ * Register a handler for the SSE `open` event.
+ */
 export function OnSseOpen(): MethodDecorator {
   return (target, propertyKey) => {
     appendSseHandler(target, propertyKey, (handlers, fn) => handlers.open.push(fn));
   };
 }
 
-/** Register a handler for the SSE `error` event. */
+/**
+ * 为 SSE `error` 事件注册一个处理函数。
+ *
+ * Register a handler for the SSE `error` event.
+ */
 export function OnSseError(): MethodDecorator {
   return (target, propertyKey) => {
     appendSseHandler(target, propertyKey, (handlers, fn) => handlers.error.push(fn));
@@ -92,9 +134,12 @@ export function OnSseError(): MethodDecorator {
 }
 
 /**
+ * 为具名 SSE 事件注册一个处理函数。
+ *
  * Register a handler for a named SSE event.
  *
- * @param event event name; omit for the default `message` event
+ * @param event 事件名；省略时为默认的 `message` 事件 /
+ *   event name; omit for the default `message` event
  */
 export function SseEvent(event = "message"): MethodDecorator {
   return (target, propertyKey) => {
@@ -135,15 +180,41 @@ function appendSseHandler(
 
 // ── WebSocket ───────────────────────────────────────────────────────────────
 
-/** Handler names recorded for a WebSocket class. */
+/**
+ * 为一个 WebSocket 类记录的处理函数集合。
+ *
+ * Handler names recorded for a WebSocket class.
+ */
 export interface SnailWsHandlers {
+  /**
+   * 为 socket `open` 事件注册的处理函数，按注册顺序调用。
+   *
+   * Handlers registered for the socket `open` event, invoked in registration order.
+   */
   open: Array<(event: Event) => void>;
+  /**
+   * 为收到的每条消息注册的处理函数，按注册顺序调用。
+   *
+   * Handlers registered for every incoming message, invoked in registration order.
+   */
   message: Array<(event: MessageEvent) => void>;
+  /**
+   * 为 socket `close` 事件注册的处理函数，按注册顺序调用。
+   *
+   * Handlers registered for the socket `close` event, invoked in registration order.
+   */
   close: Array<(event: CloseEvent) => void>;
+  /**
+   * 为 socket `error` 事件注册的处理函数，按注册顺序调用。
+   *
+   * Handlers registered for the socket `error` event, invoked in registration order.
+   */
   error: Array<(event: Event) => void>;
 }
 
 /**
+ * 声明一个 WebSocket 端点。
+ *
  * Declare a WebSocket endpoint.
  *
  * ```ts
@@ -159,6 +230,9 @@ export interface SnailWsHandlers {
  * const socket = chat.open();
  * socket.send({ hello: "world" });
  * ```
+ *
+ * @param path WebSocket 端点路径 / WebSocket endpoint path
+ * @param options 可选的 WebSocket 选项 / Optional WebSocket options
  */
 export function WebSocket(path: string, options: SnailWsOptions = {}): ClassDecorator {
   return (target) => {
@@ -174,22 +248,38 @@ export function WebSocket(path: string, options: SnailWsOptions = {}): ClassDeco
   };
 }
 
-/** Register a handler for the socket `open` event. */
+/**
+ * 为 socket `open` 事件注册一个处理函数。
+ *
+ * Register a handler for the socket `open` event.
+ */
 export function OnWsOpen(): MethodDecorator {
   return wsHandlerDecorator("open");
 }
 
-/** Register a handler for incoming messages. */
+/**
+ * 为收到的消息注册一个处理函数。
+ *
+ * Register a handler for incoming messages.
+ */
 export function OnWsMessage(): MethodDecorator {
   return wsHandlerDecorator("message");
 }
 
-/** Register a handler for the socket `close` event. */
+/**
+ * 为 socket `close` 事件注册一个处理函数。
+ *
+ * Register a handler for the socket `close` event.
+ */
 export function OnWsClose(): MethodDecorator {
   return wsHandlerDecorator("close");
 }
 
-/** Register a handler for the socket `error` event. */
+/**
+ * 为 socket `error` 事件注册一个处理函数。
+ *
+ * Register a handler for the socket `error` event.
+ */
 export function OnWsError(): MethodDecorator {
   return wsHandlerDecorator("error");
 }
@@ -222,12 +312,21 @@ function wsHandlerDecorator(
   };
 }
 
-/** Short alias for {@link WebSocket}. */
+/**
+ * `{@link WebSocket}` 的简短别名。
+ *
+ * Short alias for {@link WebSocket}.
+ */
 export const Ws = WebSocket;
 
 // ── HTTP stream ─────────────────────────────────────────────────────────────
 
 /**
+ * 声明一个流式 HTTP 端点。
+ *
+ * 与 `@Get`/`@Post` 不同，被代理的方法返回的是流控制器而不是 `SnailMethod`，
+ * 因此不会做响应信封校验。
+ *
  * Declare a streaming HTTP endpoint.
  *
  * ```ts
@@ -243,6 +342,9 @@ export const Ws = WebSocket;
  *
  * Unlike `@Get`/`@Post`, the proxied method returns a stream controller instead
  * of a `SnailMethod`, so no envelope validation happens.
+ *
+ * @param path 端点路径，默认为空字符串 / Endpoint path, empty by default
+ * @param options 可选的流式选项 / Optional streaming options
  */
 export function HttpStream(
   path = "",

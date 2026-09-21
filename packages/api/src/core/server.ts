@@ -43,6 +43,20 @@ import { createSseConnection } from "./sse";
 import { createWsConnection } from "./websocket";
 
 /**
+ * 服务器基类。
+ *
+ * 继承它、用 `@Server(...)` 装饰子类，然后实例化一次：
+ *
+ * ```ts
+ * @Server({ baseURL: "/api", timeout: 5000 })
+ * class BackEnd extends SnailServer {}
+ *
+ * export const Service = new BackEnd();
+ * ```
+ *
+ * 实例持有一个 axios 实例、一份插件注册表和已解析的选项。它在模块加载时就被
+ * 创建，因此 `use()` 既同步又可以链式调用：`Service.use(A()).use(B())`。
+ *
  * The server base class.
  *
  * Extend it, decorate the subclass with `@Server(...)` and instantiate once:
@@ -64,21 +78,49 @@ export class SnailServer<
   CodeKey extends string = "code",
   MessageKey extends string = "message"
 > {
-  /** Server name — `@Server({ name })` or the subclass name. */
+  /**
+   * 服务器名 —— 取自 `@Server({ name })`，否则用子类名。
+   *
+   * Server name — `@Server({ name })` or the subclass name.
+   */
   readonly name: string;
 
-  /** Fully resolved options, defaults applied. */
+  /**
+   * 已补齐默认值的选项。
+   *
+   * Fully resolved options, defaults applied.
+   */
   readonly options: ResolvedServerOptions;
 
-  /** The axios instance every request of this server goes through. */
+  /**
+   * 该服务器所有请求都会经过的 axios 实例。
+   *
+   * The axios instance every request of this server goes through.
+   */
   readonly axios: AxiosInstance;
 
-  /** This server's plugin registry. */
+  /**
+   * 该服务器的插件注册表。
+   *
+   * This server's plugin registry.
+   */
   readonly pluginManager: PluginManager;
 
   private readonly logger;
   private readonly apiCache = new WeakMap<object, unknown>();
 
+  /**
+   * 解析本类的 `@Server(...)` 选项并装配实例。
+   *
+   * axios 实例刻意用裸的 `axios.create()`：所有选项都随每次请求的配置传递，
+   * 默认值因此只有一处应用，而不是两个互相竞争的层次。`configureServer` 钩子
+   * 在管理器建好之后运行，所以插件可以在这里再注册另一个插件。
+   *
+   * Resolve this class's `@Server(...)` options and assemble the instance.
+   *
+   * @throws 子类未标注 `@Server(...)` 或 `baseURL` 非法时抛出 `SnailOptionsError` /
+   *   `SnailOptionsError` when the subclass is not decorated or `baseURL` is invalid.
+   */
   constructor() {
     const serverClass = this.constructor as new () => unknown;
     this.options = resolveServerOptions(serverClass, serverClass.name);
@@ -99,11 +141,19 @@ export class SnailServer<
   }
 
   /**
+   * 注册一个插件。
+   *
+   * 同步且可链式调用。校验（名字、重复、`dependsOn`）会立即抛错；异步的
+   * `install` 钩子则通过管理器的 `ready` promise，在第一个请求之前被 await 一次。
+   *
    * Register a plugin.
    *
    * Synchronous and chainable. Validation (name, duplicates, `dependsOn`) throws
    * immediately; an async `install` hook is awaited once, before the first
    * request, via the manager's `ready` promise.
+   *
+   * @param plugin 插件对象，或其工厂函数 / A plugin object, or its factory function.
+   * @returns 服务器自身，便于链式调用 / This server, for chaining.
    */
   use(plugin: SnailPluginObject<any> | SnailPlugin<any>): this {
     const instance = typeof plugin === "function" ? plugin() : plugin;
@@ -111,7 +161,16 @@ export class SnailServer<
     return this;
   }
 
-  /** Unregister a plugin by instance or by name. */
+  /**
+   * 按实例或名字注销一个插件。
+   *
+   * 找不到对应名字时返回 `false` 而不抛错，因此重复注销是安全的。
+   *
+   * Unregister a plugin by instance or by name.
+   *
+   * @param plugin 插件实例或其名字 / The plugin instance or its name.
+   * @returns 确实移除了则为 `true` / `true` when a plugin was actually removed.
+   */
   async remove(plugin: SnailPluginObject<any> | string): Promise<boolean> {
     const name = typeof plugin === "string" ? plugin : plugin?.name;
     if (!name || !this.pluginManager.has(name)) return false;
@@ -119,17 +178,46 @@ export class SnailServer<
     return true;
   }
 
-  /** `true` when a plugin with this name is registered. */
+  /**
+   * 是否已注册该名字的插件。
+   *
+   * `true` when a plugin with this name is registered.
+   *
+   * @param name 插件名 / The plugin name.
+   * @returns 已注册时为 `true` / `true` when it is registered.
+   */
   hasPlugin(name: string): boolean {
     return this.pluginManager.has(name);
   }
 
-  /** Registered plugin names, in chain order. */
+  /**
+   * 已注册的插件名，按链序排列。
+   *
+   * Registered plugin names, in chain order.
+   */
   get plugins(): readonly string[] {
     return this.pluginManager.names();
   }
 
   /**
+   * 把一个带装饰器的 api 类变成「方法即请求工厂」的代理。
+   *
+   * ```ts
+   * @Api("/user")
+   * class UserApi {
+   *   @Get("/:id")
+   *   getUser(@Params("id") id: string): Promise<User> { return null!; }
+   * }
+   *
+   * export const userApi = Service.createApi(UserApi);
+   * const method = userApi.getUser("1");  // nothing sent yet
+   * const { data } = await method.send();
+   * ```
+   *
+   * 声明的返回类型——上面的 `Promise<User>`——就是载荷类型，所以 `data` 无须显式
+   * 泛型即为 `User`。同一个 api 类的代理会被缓存并复用，方法描述也只是按需解析
+   * 一次，因此插件对方法选项的修改不会变成每请求一次。
+   *
    * Turn a decorated api class into a proxy whose methods build requests.
    *
    * ```ts
@@ -146,6 +234,11 @@ export class SnailServer<
    *
    * A declared return type — `Promise<User>` above — becomes the payload type,
    * so `data` is `User` with no explicit generic.
+   *
+   * @param apiClass 带装饰器的 api 类 / The decorated api class.
+   * @returns 方法调用会返回请求对象的代理 / A proxy whose method calls return requests.
+   * @throws api 选项非法时抛出 `SnailOptionsError` /
+   *   `SnailOptionsError` when the api options are invalid.
    */
   createApi<TClass extends new (...args: any[]) => object>(
     apiClass: TClass
@@ -230,6 +323,19 @@ export class SnailServer<
   }
 
   /**
+   * 把标注了 `@Sse(...)` 的类变成端点工厂。
+   *
+   * ```ts
+   * @Sse("/events")
+   * class Events { @SseEvent() onMessage(m: SnailSseMessage) {} }
+   *
+   * const events = Service.createSse(Events);
+   * const connection = events.open();
+   * ```
+   *
+   * 端点带上本服务器的选项，`useSSE(endpoint)` 因此能与驱动方法的 `use*` 钩子
+   * 一样继承服务器的 `stateAdapter`。
+   *
    * Turn a class decorated with `@Sse(...)` into an endpoint factory.
    *
    * ```ts
@@ -239,6 +345,11 @@ export class SnailServer<
    * const events = Service.createSse(Events);
    * const connection = events.open();
    * ```
+   *
+   * @param sseClass 带 `@Sse(...)` 的类 / The class decorated with `@Sse(...)`.
+   * @returns 可以 `open()` 的 SSE 端点 / The SSE endpoint, opened with `open()`.
+   * @throws 类上缺少 `@Sse()` 时抛出 `SnailDecoratorError` /
+   *   `SnailDecoratorError` when the class lacks `@Sse()`.
    */
   createSse<TClass extends new (...args: any[]) => object>(
     sseClass: TClass
@@ -270,6 +381,20 @@ export class SnailServer<
   }
 
   /**
+   * 把标注了 `@WebSocket(...)` 的类变成端点工厂。
+   *
+   * ```ts
+   * @WebSocket("/ws")
+   * class Chat { @OnWsMessage() incoming(event: MessageEvent) {} }
+   *
+   * const chat = Service.createWebSocket(Chat);
+   * const socket = chat.open();
+   * socket.send({ hello: "world" });
+   * ```
+   *
+   * 与 {@link SnailServer.createSse} 一样，端点携带服务器的选项；url 会先把
+   * `http(s)` 前缀换成 `ws(s)` 再交给平台 socket。
+   *
    * Turn a class decorated with `@WebSocket(...)` into an endpoint factory.
    *
    * ```ts
@@ -280,6 +405,11 @@ export class SnailServer<
    * const socket = chat.open();
    * socket.send({ hello: "world" });
    * ```
+   *
+   * @param wsClass 带 `@WebSocket(...)` 的类 / The class decorated with `@WebSocket(...)`.
+   * @returns 可以 `open()` 的 WebSocket 端点 / The WebSocket endpoint, opened with `open()`.
+   * @throws 类上缺少 `@WebSocket()` 时抛出 `SnailDecoratorError` /
+   *   `SnailDecoratorError` when the class lacks `@WebSocket()`.
    */
   createWebSocket<TClass extends new (...args: any[]) => object>(
     wsClass: TClass
@@ -309,6 +439,16 @@ export class SnailServer<
   }
 
   /**
+   * 发送一个**不**依赖已装饰 api 类的一次性请求。
+   *
+   * 这是一条逃生通道，而且刻意做得很薄：它 await 插件安装完成，然后直接调用
+   * axios 实例。**不会运行任何生命周期钩子**——没有 `beforeRequest`、没有
+   * `afterResponse`、没有缓存、没有校验、没有响应转换——信封也*不会*被拆开，
+   * 拿到的就是原始 `AxiosResponse`。
+   *
+   * 凡是应当参与插件流水线的调用，都请优先使用已装饰的 api 方法。只有确实
+   * 无处安放于服务定义的调用（例如对第三方的健康检查）才用它。
+   *
    * Send a one-off request that is **not** backed by a decorated api class.
    *
    * This is an escape hatch, and it is deliberately thin: it awaits plugin
@@ -320,6 +460,10 @@ export class SnailServer<
    * Prefer a decorated api method for anything that should participate in the
    * plugin pipeline. Reach for this only for a call that genuinely has no place in
    * a service definition, such as a health check against a third party.
+   *
+   * @param config 请求配置；`baseURL` 与 `timeout` 会被服务器的值补在前面 /
+   *   The request config; the server's `baseURL` and `timeout` are applied first.
+   * @returns 未经处理的 axios 响应 / The raw axios response.
    */
   async request<T = unknown, R = AxiosResponse<T>>(
     config: AxiosRequestConfig
@@ -333,12 +477,22 @@ export class SnailServer<
     return (await this.axios.request(merged)) as unknown as R;
   }
 
-  /** Uninstall every plugin, running their cleanup hooks. */
+  /**
+   * 卸载所有插件，并运行它们的清理钩子。
+   *
+   * Uninstall every plugin, running their cleanup hooks.
+   */
   async dispose(): Promise<void> {
     await this.pluginManager.clear();
   }
 
-  /** Metadata helper for tooling and tests. */
+  /**
+   * 供工具和测试使用的元数据快照。
+   *
+   * Metadata helper for tooling and tests.
+   *
+   * @returns 名称、关键选项与插件清单 / The name, key options and plugin list.
+   */
   describe(): Record<string, unknown> {
     return {
       name: this.name,
@@ -358,6 +512,11 @@ export class SnailServer<
   // ── internals ─────────────────────────────────────────────────────────────
 
   /**
+   * 解析一个已装饰方法上的全部静态信息。
+   *
+   * 每个 api 类的每个方法只解析一次。非端点成员返回 `null`，因此 api 类可以在请求
+   * 方法旁边保留普通辅助方法。
+   *
    * Resolve everything static about one decorated method.
    *
    * Called once per method per api class. Returns `null` for a member that is not
@@ -425,6 +584,12 @@ export class SnailServer<
   }
 
   /**
+   * 构建 `@HttpStream` 方法背后的流控制器。
+   *
+   * 这里构造的是真实上下文而非仿制品，因此 `@Query()` / `@Data()` /
+   * `@HeaderValue()` 解析器的行为与普通请求完全一致。插件管线被刻意跳过：
+   * 字节流没有可供缓存或校验的信封。
+   *
    * Build the stream controller behind an `@HttpStream` method.
    *
    * A real context is constructed rather than a look-alike, so the `@Query()` /
@@ -486,7 +651,11 @@ export class SnailServer<
     });
   }
 
-  /** Construct the request object a proxied method call returns. */
+  /**
+   * 构造被代理方法调用所返回的请求对象。
+   *
+   * Construct the request object a proxied method call returns.
+   */
   private createMethod(
     apiClass: new () => object,
     api: object,
@@ -527,7 +696,11 @@ export class SnailServer<
   }
 }
 
-/** Everything static about one decorated member, resolved once per api class. */
+/**
+ * 一个已装饰成员的全部静态信息，每个 api 类只解析一次。
+ *
+ * Everything static about one decorated member, resolved once per api class.
+ */
 type MethodDescriptor =
   | {
       kind: "request";

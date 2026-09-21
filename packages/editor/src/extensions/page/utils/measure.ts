@@ -1,4 +1,32 @@
 /**
+ * DOM 测量器。
+ *
+ * 刻意做得很薄。它只回答一个问题——「每个块有多高，它的行在哪里断开？」——并把答案交给
+ * `./pagination.ts` 里的纯引擎。它自己不做任何决策，所以真正有趣的逻辑不需要浏览器就能
+ * 单元测试。
+ *
+ * ## 本文件所做的取舍
+ *
+ * 旧版 `measuror.ts` 在 `<canvas>` 上重新实现了文本测量：它自己遍历带样式的文本段、
+ * 用手写的分词正则去猜断词、在热循环里为每个 CJK 字符调用一次 `measureText`，还一边
+ * 测量一边往控制台打印。它的结果对 `letter-spacing`、对 `text-indent`、对任何不是它
+ * 猜的那个字体都是错的，而且在 canvas 不可用时会直接抛错。
+ *
+ * 这个测量器反其道而行：它去问浏览器。行盒来自 `Range.getClientRects()`——真实布局、
+ * 真实字体、真实行高——每一行的 ProseMirror 偏移来自 `posAtCoords`/`posAtDOM`，也就是
+ * 光标所用的同一套映射。代价是测量会触发布局读取，因此调用方必须在每个动画帧里合并成
+ * 一次遍历来执行（见 `pageContent/paginator.ts`），绝不能每次按键都做。这就是那笔交易：
+ * 正确性来自已经排好文字的引擎，用合并调度来支付。
+ *
+ * ## 这里保持的规则
+ *
+ * - **没有 `console.log`。**
+ * - **模块作用域不接触 DOM。**`document`、`window` 和 `getComputedStyle` 只在节点视图
+ *   挂载后调用的函数内部被访问，因此在 SSR 期间导入本模块是安全的（顶层只有类型导入）。
+ * - **CSS 长度是解析出来的，不是 `parseFloat` 出来的**——见 `./length.ts`（缺陷 12）。
+ * - **`IMG` 子节点会被测量**（缺陷 13：旧版高度计算器跳过了它们，于是二维码贡献零高度，
+ *   永远无法触发分页）。
+ *
  * The DOM measurer.
  *
  * Deliberately thin. It answers one question — "how tall is each block, and where do its
@@ -40,7 +68,11 @@ import { PAGE_CONTENT_INNER_CLASS } from "../constant/dom";
 import { resolveCssLengthOr } from "./length";
 import type { MeasuredBlock, MeasuredLine } from "./pagination";
 
-/** A vertical band of the block that the browser laid out as one line. */
+/**
+ * 块中被浏览器排成一行的那个竖直条带。
+ *
+ * A vertical band of the block that the browser laid out as one line.
+ */
 interface LineBox {
   top: number;
   bottom: number;
@@ -48,30 +80,51 @@ interface LineBox {
   right: number;
 }
 
-/** What one `pageContent` measured. */
+/** 一次 `pageContent` 测量得到的结果。 / What one `pageContent` measured. */
 export interface PageContentMeasurement {
-  /** The page's blocks, in document order, with absolute ProseMirror positions. */
+  /**
+   * 页面的块，按文档顺序，带绝对 ProseMirror 位置。
+   *
+   * The page's blocks, in document order, with absolute ProseMirror positions.
+   */
   blocks: MeasuredBlock[];
 
-  /** Usable height of the page body: its border-box height minus padding and borders. */
+  /**
+   * 页面正文的可用高度：其边框盒高度减去内边距和边框。
+   *
+   * Usable height of the page body: its border-box height minus padding and borders.
+   */
   contentHeight: number;
 }
 
-/** Everything {@link measurePageContent} needs. */
+/** {@link measurePageContent} 所需的全部输入。 / Everything {@link measurePageContent} needs. */
 export interface MeasurePageContentInput {
-  /** The `pageContent` node view's **outer** element (`view.nodeDOM(contentPos)`). */
+  /**
+   * `pageContent` 节点视图的**外层**元素（`view.nodeDOM(contentPos)`）。
+   *
+   * The `pageContent` node view's **outer** element (`view.nodeDOM(contentPos)`).
+   */
   element: HTMLElement;
 
-  /** The `pageContent` node itself. */
+  /** `pageContent` 节点本身。 / The `pageContent` node itself. */
   node: PMNode;
 
-  /** Absolute ProseMirror position **before** the `pageContent` node. */
+  /**
+   * `pageContent` 节点**之前**的绝对 ProseMirror 位置。
+   *
+   * Absolute ProseMirror position **before** the `pageContent` node.
+   */
   pos: number;
 
-  /** The view, for `posAtCoords`/`posAtDOM`. */
+  /** 视图，用于 `posAtCoords`/`posAtDOM`。 / The view, for `posAtCoords`/`posAtDOM`. */
   view: EditorView;
 
   /**
+   * 当测量遇到一张尚未加载完的图片时调用，它的高度还不是最终值。调用方据此重新安排一次
+   * 遍历；没有它，含高图的页面会一直保留错误的分页，直到下一次按键。
+   *
+   * 可选，且每张图片在每个编辑器会话中至多调用一次。
+   *
    * Called when the measurement met an image that has not finished loading, so its
    * height is not final yet. The caller re-schedules a pass; without this a page holding
    * a tall image would keep the wrong break until the next keystroke.
@@ -81,13 +134,28 @@ export interface MeasurePageContentInput {
   onImagePending?: () => void;
 }
 
-/** Images already wired to {@link MeasurePageContentInput.onImagePending}. */
+/**
+ * 已经接上 {@link MeasurePageContentInput.onImagePending} 的图片。
+ *
+ * Images already wired to {@link MeasurePageContentInput.onImagePending}.
+ */
 const watchedImages = new WeakSet<HTMLImageElement>();
 
-/** Sanity cap: a layout that produced more line boxes than this is not worth trusting. */
+/**
+ * 合理性上限：布局产出的行盒多于此数就不值得信任。
+ *
+ * Sanity cap: a layout that produced more line boxes than this is not worth trusting.
+ */
 const MAX_LINE_BOXES = 5000;
 
 /**
+ * 测量一个页面正文。
+ *
+ * 块的位置与正文的 DOM 子元素**按索引**配对：节点视图为每个块恰好渲染一个元素，
+ * 因此第 n 个元素就是第 n 个子节点。（对块元素调用 `view.posAtDOM` 依赖 bias——
+ * 按参数不同得到「节点之前」或「节点内部」——这正是缺陷 6 背后的歧义，所以它只用于
+ * 文本节点，那里的答案没有歧义。）
+ *
  * Measure one page body.
  *
  * Block positions are paired with the body's DOM children **by index**: a node view
@@ -133,6 +201,11 @@ export function measurePageContent(input: MeasurePageContentInput): PageContentM
 }
 
 /**
+ * 块被渲染进的那个元素。
+ *
+ * 节点视图会返回一个独立的内层 `contentDOM`；兜底分支让测量器在没有我们的节点视图时
+ * 渲染的页面正文上仍能工作（无头渲染，或替换掉它的调用方）。
+ *
  * The element the blocks are rendered into.
  *
  * The node view returns a distinct inner `contentDOM`; the fallback keeps the measurer
@@ -148,6 +221,12 @@ export function resolveContentElement(outer: HTMLElement): HTMLElement {
 }
 
 /**
+ * 页面正文的可用高度，单位为 CSS 像素。
+ *
+ * 用的是边框盒（`getBoundingClientRect`，带小数且精确）减去解析后的内边距和边框宽度，
+ * 而不是 `clientHeight`——后者会取整到整像素，并且不含边框；在 96 dpi 的 A4 纸上，
+ * 单是取整每页就差出至多一个像素。
+ *
  * Usable height of a page body, in CSS pixels.
  *
  * Uses the border box (`getBoundingClientRect`, fractional and exact) minus resolved
@@ -174,6 +253,12 @@ export function availableContentHeight(element: HTMLElement): number {
 }
 
 /**
+ * 一个块排布后的高度，含外边距。
+ *
+ * 主要来源是矩形（而不是 `offsetHeight`），因为对 `<img>` 这类行内替换元素它是正确的：
+ * 图片节点渲染成的行内图片，其 `offsetHeight` 为 0，这正是缺陷 13 丢掉二维码和图片
+ * 高度的原因。
+ *
  * One block's laid-out height, margins included.
  *
  * The rect (not `offsetHeight`) is the primary source because it is correct for inline
@@ -226,6 +311,16 @@ function measureBlockHeight(
 }
 
 /**
+ * 块的行盒，映射到 ProseMirror 偏移。
+ *
+ * 行盒是浏览器自己的（对块的内容调用 `Range.getClientRects()`），按竖直条带合并，
+ * 因为一行视觉行可能产生多个矩形（一段粗体、一个行内原子、一个由标记产生的 `<span>`）。
+ *
+ * 只测量每一行的**起点**；一行的终点就是下一行的起点，最后一行的终点是块的内容末尾。
+ * 这让各个范围在构造上就是连续的，让引擎里的求和保持精确，并且——因为 ProseMirror
+ * 位置是行内节点之间的边界——保证任何行边界都不会落在行内原子（变量、二维码）内部，
+ * 那正是缺陷 5 的根因。
+ *
  * The block's line boxes, mapped to ProseMirror offsets.
  *
  * The line boxes are the browser's own (`Range.getClientRects()` over the block's
@@ -293,7 +388,11 @@ function measureBlockLines(
   return lines.length > 0 ? lines : undefined;
 }
 
-/** The block's line bands, in visual order, with same-line rects merged. */
+/**
+ * 块的行条带，按视觉顺序，同一行的矩形已合并。
+ *
+ * The block's line bands, in visual order, with same-line rects merged.
+ */
 function lineBoxesOf(element: HTMLElement): LineBox[] {
   const doc = element.ownerDocument;
   if (!doc) return [];
@@ -334,7 +433,11 @@ function lineBoxesOf(element: HTMLElement): LineBox[] {
   return merged;
 }
 
-/** The ProseMirror position at a viewport point, or `null` when the point is not over text. */
+/**
+ * 视口坐标点处的 ProseMirror 位置；该点不在文字上时返回 `null`。
+ *
+ * The ProseMirror position at a viewport point, or `null` when the point is not over text.
+ */
 function positionAtPoint(view: EditorView, x: number, y: number): number | null {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   try {
@@ -347,7 +450,11 @@ function positionAtPoint(view: EditorView, x: number, y: number): number | null 
   }
 }
 
-/** The text a line covers, for diagnostics only. Never re-inserted as text (defect 5). */
+/**
+ * 一行覆盖的文字，仅用于诊断；绝不会被重新插入为文字（缺陷 5）。
+ *
+ * The text a line covers, for diagnostics only. Never re-inserted as text (defect 5).
+ */
 function lineText(node: PMNode, blockPos: number, from: number, to: number): string {
   try {
     // `Node.textBetween` offsets are relative to the *node start*, whose content begins at
@@ -358,7 +465,11 @@ function lineText(node: PMNode, blockPos: number, from: number, to: number): str
   }
 }
 
-/** Re-measure once an image that was still loading has loaded. */
+/**
+ * 在仍在加载的图片加载完成后再测量一次。
+ *
+ * Re-measure once an image that was still loading has loaded.
+ */
 function watchImage(image: HTMLImageElement, onImagePending: (() => void) | undefined): void {
   if (!onImagePending || watchedImages.has(image)) return;
   if (image.complete) return;
@@ -373,7 +484,11 @@ function watchImage(image: HTMLImageElement, onImagePending: (() => void) | unde
   image.addEventListener("error", notify);
 }
 
-/** Two decimal places, so repeated passes over an unchanged document agree exactly. */
+/**
+ * 保留两位小数，使对未改动文档的重复遍历结果完全一致。
+ *
+ * Two decimal places, so repeated passes over an unchanged document agree exactly.
+ */
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }

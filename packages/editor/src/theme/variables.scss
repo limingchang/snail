@@ -21,9 +21,22 @@
  * toolbar hover and the scrollbar) while `#409eff` is Element Plus's primary — and the
  * legacy table already used `#409eff` for its column-resize handle. Both are kept, in
  * their own places, rather than collapsed into one.
+ *
+ * ## Why the same block is also applied to `.s-editor-popper`
+ *
+ * Element Plus renders its popovers, dropdown menus and tooltips into a `<body>`-level
+ * container, **outside** the editor's DOM — so they inherit none of the custom properties
+ * declared below. The table-insertion grid was the visible casualty: `border: 1px solid
+ * var(--se-color-cell-border)` and `background-color: var(--se-color-primary)` are invalid
+ * at computed-value time when the variable is missing, so the grid drew no borders and the
+ * hovered cells never highlighted.
+ *
+ * The tokens therefore live in a mixin with two entry points: the editor's own scope, and
+ * the popper class every editor-owned Element Plus overlay carries. One definition, two
+ * scopings — a consumer's own Element Plus components still see none of it.
  */
 
-.s-editor-scope {
+@mixin editor-palette {
   // -------------------------------------------------------------------------------
   // The legacy palette, as `--se-*`.
   // -------------------------------------------------------------------------------
@@ -126,11 +139,18 @@
   --se-variable-system: #5b6b7f;
   --se-variable-inner: #ee3f4d;
   --se-variable-radius: 4px;
+}
 
-  // -------------------------------------------------------------------------------
-  // Element Plus tokens.
-  // -------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
+// Element Plus tokens.
+//
+// Kept in a **second** mixin because they must not be declared globally: `--el-*` cascade
+// into every Element Plus component on the page, and a consumer's own buttons, tables and
+// dialogs would silently pick up the editor's blue. `--se-*` is editor-private and therefore
+// safe to publish at `:root` (see below).
+// -------------------------------------------------------------------------------
 
+@mixin editor-element-tokens {
   // `#1677ff` — Ant Design's blue, which the legacy toolbar and scrollbar used.
   // Element Plus's own `#409eff` is the other blue in the legacy table's resize handle,
   // which is left alone below.
@@ -168,3 +188,44 @@
   // purpose and are not overridden here.
   --el-border-radius-base: 4px;
 }
+
+/**
+ * The editor's palette, published at `:root`.
+ *
+ * `--se-*` is a **private namespace** — no Element Plus component and no consumer reads it —
+ * so declaring it globally is inert. It has to be global because Element Plus teleports its
+ * overlays (popovers, colour panels, dialogs, tooltips) to `<body>`, where they are not
+ * descendants of `.s-editor-scope` and therefore inherit nothing from it. The table-insertion
+ * grid was the visible failure: its `border: 1px solid var(--se-color-cell-border)` was
+ * invalid at computed-value time, so the grid drew no borders and never highlighted.
+ *
+ * The `--el-*` overrides above stay scoped; only the editor's own values go global.
+ */
+:root {
+  @include editor-palette;
+}
+
+/**
+ * The editor's own subtree.
+ *
+ * `SEditor.vue` puts `.s-editor-scope` on its root element, which is what keeps the
+ * `--el-*` overrides from restyling the consumer's application.
+ */
+.s-editor-scope {
+  @include editor-palette;
+  @include editor-element-tokens;
+}
+
+/**
+ * An Element Plus overlay the editor opens on purpose.
+ *
+ * Passing this as `popper-class` gives the teleported panel the editor's *Element Plus*
+ * tokens as well — its primary blue, its borders — so a colour panel's buttons match the
+ * editor they belong to instead of the consumer's theme. The name is editor-specific, so
+ * nothing here can leak into the consumer's own overlays.
+ */
+.s-editor-popper {
+  @include editor-palette;
+  @include editor-element-tokens;
+}
+

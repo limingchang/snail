@@ -1,4 +1,31 @@
 /**
+ * `layoutMode` 扩展 —— 用于分栏定位的无边框「布局表格」。
+ *
+ * ## 它做什么
+ *
+ * `layoutMode: true` 的表格会带着 `data-layout="true"` 和一个类名渲染，这样主题就能去掉*数据*
+ * 表格需要的边框、单元格内边距和表头样式。这种表格的每一行也会被标记，这正是行级规则（无边框、
+ * 无背景）得以跟着生效的前提。
+ *
+ * ## 真正要紧的那一处修复
+ *
+ * 旧的 `fixLayoutTable` 从 `onUpdate` 内部派发事务，于是每一次文档编辑都产生
+ * `onUpdate → dispatch → onUpdate`，外加一次带着过期局部变量的多余全文档遍历。这里的 pass 先
+ * 收集需要标记的内容，**只派发一次**，在无事可做时直接返回、根本不构造事务。它的运行时机是：
+ *
+ * - `onCreate` 里，这样从 HTML 载入、行上缺少标记的文档会在打开时被修好一次 —— 旧版本从不修复
+ *   已经载入的文档；
+ * - `onUpdate` 里，但只针对真正改变了文档的事务（只改选区的事务不可能动到这个标记）；
+ * - 绝不针对它自己的事务，那个事务带着 {@link LAYOUT_MODE_META}。
+ *
+ * 这个 pass 是 `addToHistory: false` 的：该标记是派生出来的簿记，一次 Ctrl+Z 应当反转用户的
+ * 编辑，而不是反转紧随其后的簿记。
+ *
+ * ## 没有命令
+ *
+ * 没什么可命令的：UI 用 Tiptap 自己的 `updateAttributes` 切换表格，它会找到光标所在的表格。
+ * 再加一条 `setLayoutMode` 命令只会是同一件事的第二种做法。
+ *
  * The `layoutMode` extension — borderless "layout tables" for column positioning.
  *
  * ## What it does
@@ -43,7 +70,11 @@ import {
 } from "./layout";
 import type { LayoutModeOptions } from "./typing";
 
-/** Re-export the contract and the pure pass, so a host has one import. */
+/**
+ * 重新导出契约与纯函数 pass，让使用方只需一处导入。
+ *
+ * Re-export the contract and the pure pass, so a host has one import.
+ */
 export type { LayoutModeFix, LayoutModeOptions } from "./typing";
 export {
   collectLayoutModeFixes,
@@ -57,6 +88,12 @@ export {
 } from "./layout";
 
 /**
+ * 给标记各行的那次事务打上标签。
+ *
+ * 两个作用：让这个 pass 不进入撤销历史，以及阻止它自我重入 —— 嵌套的 `onUpdate` 看到该标记就
+ * 立即返回。没有它，第二遍仍然找不到要改的东西（旧循环之所以能终止正是因为这一点），但会再
+ * 遍历一次文档。
+ *
  * Tags the transaction that marks the rows.
  *
  * Two jobs: it keeps the pass out of the undo history, and it is what stops the pass from
@@ -67,9 +104,11 @@ export {
 const LAYOUT_MODE_META = "sEditorLayoutModeFixes";
 
 /**
+ * 为一个编辑器运行一次该 pass。
+ *
  * Run the pass once for an editor.
  *
- * @returns `true` when a transaction was dispatched.
+ * @returns 派发了一个事务时为 `true` / `true` when a transaction was dispatched.
  */
 export function applyLayoutModeFixes(editor: Editor): boolean {
   if (editor.isDestroyed) return false;
@@ -90,7 +129,7 @@ export function applyLayoutModeFixes(editor: Editor): boolean {
   return true;
 }
 
-/** The `layoutMode` extension. */
+/** `layoutMode` 扩展。 / The `layoutMode` extension. */
 export const LayoutMode = Extension.create<LayoutModeOptions>({
   name: "layoutMode",
 
@@ -111,6 +150,11 @@ export const LayoutMode = Extension.create<LayoutModeOptions>({
         types: layoutModeAttributeTypes(this.options.types),
         attributes: {
           /**
+           * 默认 `false`，所以普通表格不携带任何东西。
+           *
+           * 用 `false` 而不是 `null`：这个值是布尔值，而主题的钩子是该属性是否存在，所以
+           * 「不是布局表格」是一个真实状态，而不是缺失状态。
+           *
            * `false` by default, so an ordinary table carries nothing.
            *
            * `false` rather than `null`: the value is a boolean and the theme's hook is the
@@ -145,5 +189,9 @@ export const LayoutMode = Extension.create<LayoutModeOptions>({
   }
 });
 
-/** The default export, so `import LayoutMode from "./layoutMode"` also works. */
+/**
+ * 默认导出，因此 `import LayoutMode from "./layoutMode"` 同样可用。
+ *
+ * The default export, so `import LayoutMode from "./layoutMode"` also works.
+ */
 export default LayoutMode;

@@ -23,17 +23,37 @@ import type { PluginManager } from "./plugin-manager";
 import { assertBusinessCode, buildResult, coerceJSONStringBody, readKey } from "./response";
 import type { SnailServer } from "./server";
 
-/** Payload of the `codeError` event. */
+/**
+ * `codeError` 事件的载荷。
+ *
+ * Payload of the `codeError` event.
+ */
 export interface SnailCodeErrorEvent {
-  /** Business status code the backend returned. */
+  /**
+   * 后端返回的业务状态码。
+   *
+   * Business status code the backend returned.
+   */
   code: number | string | undefined;
-  /** Full parsed envelope. */
+  /**
+   * 完整解析后的响应信封。
+   *
+   * Full parsed envelope.
+   */
   payload: unknown;
-  /** The `SnailResponseError` that will be thrown. */
+  /**
+   * 即将被抛出的那个 `SnailResponseError`。
+   *
+   * The `SnailResponseError` that will be thrown.
+   */
   error: unknown;
 }
 
-/** Events emitted by a {@link SnailMethod}. */
+/**
+ * {@link SnailMethod} 发出的事件。
+ *
+ * Events emitted by a {@link SnailMethod}.
+ */
 export interface SnailMethodEventMap<
   S,
   T,
@@ -41,40 +61,163 @@ export interface SnailMethodEventMap<
   C extends string,
   M extends string
 > {
+  /**
+   * 请求成功，携带组装好的结果。
+   *
+   * The request succeeded, carrying the assembled result.
+   */
   success: SnailResult<S, T, D, C, M>;
+  /**
+   * 请求失败，携带具体错误。
+   *
+   * The request failed, carrying the concrete error.
+   */
   error: unknown;
+  /**
+   * 后端返回了被拒绝的业务码。
+   *
+   * The backend returned a rejected business code.
+   */
   codeError: SnailCodeErrorEvent;
+  /**
+   * 请求结束，无论成功与否。
+   *
+   * The request settled, successfully or not.
+   */
   finish: undefined;
+  /**
+   * 响应来自缓存。
+   *
+   * The response came from a cache.
+   */
   cache: undefined;
 }
 
-/** Everything `SnailMethod` needs, assembled by the proxy in `SnailServer`. */
+/**
+ * `SnailMethod` 需要的全部信息，由 `SnailServer` 中的代理组装。
+ *
+ * Everything `SnailMethod` needs, assembled by the proxy in `SnailServer`.
+ */
 export interface SnailMethodInit {
+  /**
+   * 拥有该方法实例的服务器。
+   *
+   * The server that owns this method instance.
+   */
   server: SnailServer<any, any, any, any>;
+  /**
+   * 该服务器上的插件管理器。
+   *
+   * The plugin manager of that server.
+   */
   pluginManager: PluginManager;
+  /**
+   * 发起请求所用的 axios 实例。
+   *
+   * The axios instance used to dispatch the request.
+   */
   axios: AxiosInstance;
+  /**
+   * 被装饰的 api 类（构造函数）。
+   *
+   * The decorated api class (constructor).
+   */
   apiClass: new () => unknown;
+  /**
+   * 实例化后的 api 对象。
+   *
+   * The instantiated api class.
+   */
   api: unknown;
+  /**
+   * 解析后的 api 名称。
+   *
+   * The resolved api name.
+   */
   apiName: string;
+  /**
+   * 已完全解析的 api 选项。
+   *
+   * Fully resolved api options.
+   */
   apiOptions: Required<SnailApiOptions>;
+  /**
+   * 已完全解析的服务器选项。
+   *
+   * Fully resolved server options.
+   */
   serverOptions: ResolvedServerOptions;
+  /**
+   * 被装饰的方法名。
+   *
+   * The decorated method name.
+   */
   methodName: string;
+  /**
+   * 请求动词。
+   *
+   * Request verb.
+   */
   methodType: SnailMethodType;
+  /**
+   * `:placeholder` 替换之前的 url 模板。
+   *
+   * The url template before `:placeholder` substitution.
+   */
   route: string;
+  /**
+   * 方法级选项，其中已写好 url。
+   *
+   * Method-level options with the url already written.
+   */
   methodOptions: SnailMethodOptions & { url: string };
+  /**
+   * 参数装饰器捕获的描述符。
+   *
+   * Descriptors captured by the argument decorators.
+   */
   descriptors: readonly SnailParamDescriptor[];
+  /**
+   * api 级与方法级 `@Header` 合并后的请求头。
+   *
+   * Request headers merged from api-level and method-level `@Header`.
+   */
   headers: AxiosHeaders;
+  /**
+   * 输出诊断信息的 logger。
+   *
+   * Logger used for diagnostics.
+   */
   logger: SnailLogger;
   /**
+   * 为本方法构建一份全新的 axios 配置。
+   *
+   * 它是工厂而不是值：每次 `send()` 都必须从干净的配置开始，否则插件在上一次
+   * 发送中所做的改动会泄漏到下一次。
+   *
    * Builds a fresh axios config for this method.
    *
    * A factory rather than a value: every `send()` must start from a clean config
    * so mutations a plugin made during the previous send do not leak forward.
+   *
+   * @returns 全新的 axios 请求配置 / A fresh axios request config.
    */
   requestConfig: () => InternalAxiosRequestConfig;
 }
 
 /**
+ * 一次待发送的请求。
+ *
+ * 调用被代理的 api 方法（`userApi.getUser("1")`）即可创建，再由
+ * {@link SnailMethod.send} 发出。在 `send()` 之前不会有任何网络流量。
+ *
+ * ## 为什么上下文只构建一次然后被重置
+ *
+ * 核心在方法构建时就根据服务器的 `stateAdapter` 创建调用方的响应式句柄。这些句柄
+ * 必须在每次重新发送之后依然有效，因此上下文只构造一次，{@link SnailContext.reset}
+ * 只清空属于单次请求的字段。若每次调用 `userApi.getUser()` 都新建一套 ref，就会
+ * 产生两组互不相干的响应式状态 —— 这正是旧的“`request()` 返回全新状态”设计的缺陷。
+ *
  * One pending request.
  *
  * Created by calling a proxied api method — `userApi.getUser("1")` — and sent by
@@ -95,22 +238,50 @@ export class SnailMethod<
   C extends string = "code",
   M extends string = "message"
 > {
-  /** `server.api.method`. */
+  /**
+   * 本方法的完整名称 `server.api.method`。
+   *
+   * `server.api.method`.
+   */
   readonly name: string;
 
-  /** Decorated method name. */
+  /**
+   * 被装饰的方法名。
+   *
+   * Decorated method name.
+   */
   readonly methodName: string;
 
-  /** Request verb. */
+  /**
+   * 请求动词。
+   *
+   * Request verb.
+   */
   readonly methodType: SnailMethodType;
 
-  /** Url template before `:placeholder` substitution. */
+  /**
+   * `:placeholder` 替换之前的 url 模板。
+   *
+   * Url template before `:placeholder` substitution.
+   */
   readonly route: string;
 
-  /** Arguments this instance was created with. `send(...args)` may override them. */
+  /**
+   * 创建本实例时传入的参数；`send(...args)` 可以覆盖它们。
+   *
+   * Arguments this instance was created with. `send(...args)` may override them.
+   */
   readonly args: readonly unknown[];
 
   /**
+   * 调用方可见的响应式值，由服务器的 `stateAdapter` 产出。
+   *
+   * 它是 `context.meta` 的实时视图。核心在方法构建时就创建五个标准句柄，因此它们在
+   * 每次重新发送后都保持稳定；插件可以通过 `initMeta` 追加自己的句柄。
+   *
+   * `loading` 和 `error` 由 {@link SnailMeta} 接口给出类型；信封句柄的名字取自
+   * 服务器配置的键，因此要给它们类型就需要扩展 `SnailMeta`。
+   *
    * Caller-visible reactive values, produced by the server's `stateAdapter`.
    *
    * A live view of `context.meta`. Core creates the five standard handles when the
@@ -125,7 +296,11 @@ export class SnailMethod<
     return this.context.meta as SnailMeta & Record<string, unknown>;
   }
 
-  /** The live request context. */
+  /**
+   * 实时的请求上下文。
+   *
+   * The live request context.
+   */
   readonly context: SnailContext;
 
   private readonly init: SnailMethodInit;
@@ -135,6 +310,17 @@ export class SnailMethod<
   private controller: AbortController | undefined;
   private inFlight = false;
 
+  /**
+   * 由初始化描述和本次调用的参数构造方法实例。
+   *
+   * 构造时会立刻创建五个标准 meta 句柄，并运行插件的 `initMeta` 同步钩子，
+   * 使调用方在第一次请求之前就能把这些句柄渲染出来。
+   *
+   * Build a method instance from its init description and this call's arguments.
+   *
+   * @param init 由代理组装的初始化描述 / The init description assembled by the proxy.
+   * @param args 本次调用捕获的参数 / The arguments captured for this call.
+   */
   constructor(init: SnailMethodInit, args: readonly unknown[] = []) {
     this.init = init;
     this.args = args;
@@ -169,27 +355,59 @@ export class SnailMethod<
     init.pluginManager.runEffectsSync("initMeta", this.context);
   }
 
-  /** `true` while a request is in flight. */
+  /**
+   * 请求在途时为 `true`。
+   *
+   * `true` while a request is in flight.
+   */
   get pending(): boolean {
     return this.inFlight;
   }
 
-  /** Result of the most recent successful request. */
+  /**
+   * 最近一次成功请求的结果。
+   *
+   * Result of the most recent successful request.
+   */
   get result(): SnailResult<S, T, D, C, M> | undefined {
     return this.context.result as SnailResult<S, T, D, C, M> | undefined;
   }
 
-  /** Error from the most recent failed request. */
+  /**
+   * 最近一次失败请求的错误。
+   *
+   * Error from the most recent failed request.
+   */
   get error(): unknown {
     return this.context.error;
   }
 
-  /** The final axios config of the most recent request. */
+  /**
+   * 最近一次请求最终的 axios 配置。
+   *
+   * The final axios config of the most recent request.
+   */
   get request(): InternalAxiosRequestConfig {
     return this.context.request;
   }
 
   /**
+   * 发送请求。
+   *
+   * 这里传入的参数会替换代理时捕获的参数，这正是让某个策略持有一个实例、而按调用
+   * 变换参数的做法。
+   *
+   * ## 同时只允许一个请求在途
+   *
+   * 一个 `SnailMethod` 恰好拥有一个上下文，而调用方的响应式句柄就存在其中。因此两个
+   * 重叠的 `send()` 会争抢同一个 `ctx.response`，较慢的响应可能落进较快那次已经公布
+   * 过的状态里。
+   *
+   * 所以发起第二次发送会**中止第一次**：前一次调用以 `SnailCancelledError` reject，
+   * 从而保证“后来者胜”。确实需要两个并行请求的调用方应当创建两个实例 ——
+   * `userApi.getUser("1")` 与 `userApi.getUser("2")` —— 这也正是让参数类型对得上的
+   * 做法。
+   *
    * Send the request.
    *
    * Any arguments given here replace the ones captured when the method was
@@ -208,6 +426,12 @@ export class SnailMethod<
    * genuinely want two parallel requests should create two instances —
    * `userApi.getUser("1")` and `userApi.getUser("2")` — which is also what makes
    * the argument types line up.
+   *
+   * @param args 本次调用的参数，省略则使用创建实例时的参数 /
+   *   Arguments for this call; omitted means the ones captured at creation.
+   * @returns 组装好的请求结果 / The assembled request result.
+   * @throws 请求失败、被取消或业务码被拒时抛出的错误 /
+   *   The error thrown when the request fails, is cancelled or is rejected by its code.
    */
   async send(...args: unknown[]): Promise<SnailResult<S, T, D, C, M>> {
     const callArgs = args.length > 0 ? args : this.args;
@@ -301,10 +525,18 @@ export class SnailMethod<
   }
 
   /**
+   * 取消在途请求。
+   *
+   * `send()` 会以 {@link SnailCancelledError} reject，各策略都把它当作预期的控制流，
+   * 而不是失败。
+   *
    * Cancel the in-flight request.
    *
    * `send()` rejects with a {@link SnailCancelledError}, which strategies treat
    * as expected control flow rather than a failure.
+   *
+   * @param reason 传给 `AbortController.abort` 的原因 /
+   *   The reason forwarded to `AbortController.abort`.
    */
   abort(reason?: unknown): void {
     this.controller?.abort(reason);
@@ -312,39 +544,81 @@ export class SnailMethod<
 
   // ── events ────────────────────────────────────────────────────────────────
 
-  /** Subscribe to a successful request. Returns an unsubscribe function. */
+  /**
+   * 订阅请求成功。返回取消订阅的函数。
+   *
+   * Subscribe to a successful request. Returns an unsubscribe function.
+   *
+   * @param listener 成功时以结果调用 / Called with the result on success.
+   * @returns 取消订阅的函数 / A function that unsubscribes.
+   */
   onSuccess(listener: (result: SnailResult<S, T, D, C, M>) => void): () => void {
     return this.emitter.on("success", listener);
   }
 
-  /** Subscribe to a failed request. */
+  /**
+   * 订阅请求失败。
+   *
+   * Subscribe to a failed request.
+   *
+   * @param listener 失败时以错误调用 / Called with the error on failure.
+   * @returns 取消订阅的函数 / A function that unsubscribes.
+   */
   onError(listener: (error: unknown) => void): () => void {
     return this.emitter.on("error", listener);
   }
 
   /**
+   * 订阅业务码被拒。
+   *
+   * 仅用于观察：请求仍会以 `SnailResponseError` reject，因此这里适合弹提示，
+   * 而不是做恢复处理。
+   *
    * Subscribe to a rejected business code.
    *
    * Observation only: the request still rejects with a `SnailResponseError`, so
    * this is the right place to raise a toast, not to recover.
+   *
+   * @param listener 业务码被拒时以事件调用 / Called with the event on a rejected code.
+   * @returns 取消订阅的函数 / A function that unsubscribes.
    */
   onCodeError(listener: (event: SnailCodeErrorEvent) => void): () => void {
     return this.emitter.on("codeError", listener);
   }
 
-  /** Subscribe to settlement, successful or not. */
+  /**
+   * 订阅请求结束，无论成功与否。
+   *
+   * Subscribe to settlement, successful or not.
+   *
+   * @param listener 结束时调用 / Called once the request settles.
+   * @returns 取消订阅的函数 / A function that unsubscribes.
+   */
   onFinish(listener: () => void): () => void {
     return this.emitter.on("finish", listener);
   }
 
-  /** Subscribe to a response served from a cache. */
+  /**
+   * 订阅由缓存提供的响应。
+   *
+   * Subscribe to a response served from a cache.
+   *
+   * @param listener 命中缓存时调用 / Called when a cache hit occurs.
+   * @returns 取消订阅的函数 / A function that unsubscribes.
+   */
   onHitCache(listener: () => void): () => void {
     return this.emitter.on("cache", listener);
   }
 
   // ── pipeline ──────────────────────────────────────────────────────────────
 
-  /** Reset the context for a fresh send, superseding any request already in flight. */
+  /**
+   * 为一次新的发送重置上下文，并取代任何已在途的请求。
+   *
+   * Reset the context for a fresh send, superseding any request already in flight.
+   *
+   * @returns 已重置、可直接使用的请求上下文 / The reset, ready-to-use request context.
+   */
   private begin(): SnailContext {
     const ctx = this.context;
 
@@ -361,11 +635,19 @@ export class SnailMethod<
   }
 
   /**
+   * 传输步骤。
+   *
+   * 只有当每个 `beforeRequest` 钩子都调用了 `next()` 时才执行，也就是响应必须来自
+   * 网络时才执行。`afterResponse` 链**不在**这里 —— 见 {@link SnailMethod.send}，
+   * 那里解释了为什么命中缓存时它也必须运行。
+   *
    * The transport step.
    *
    * Runs only when every `beforeRequest` hook called `next()`, i.e. only when the
    * response has to come from the network. The `afterResponse` chain is *not* here
    * — see {@link SnailMethod.send} for why it has to run on a cache hit too.
+   *
+   * @param ctx 当前请求上下文 / The current request context.
    */
   private async dispatch(ctx: SnailContext): Promise<void> {
     let config = this.init.pluginManager.reduce(
@@ -393,7 +675,14 @@ export class SnailMethod<
     ctx.setResponse(intercepted);
   }
 
-  /** Validate the envelope and assemble the caller-facing result. */
+  /**
+   * 校验响应信封并组装面向调用方的结果。
+   *
+   * Validate the envelope and assemble the caller-facing result.
+   *
+   * @param ctx 当前请求上下文 / The current request context.
+   * @returns 组装好的请求结果 / The assembled request result.
+   */
   private finalize(ctx: SnailContext): SnailResult<S, T, D, C, M> {
     const response = ctx.requireResponse();
     const envelope = response.data;
@@ -435,7 +724,16 @@ export class SnailMethod<
     return result;
   }
 
-  /** Report a failure through the plugin hooks and the events, then rethrow it. */
+  /**
+   * 通过插件钩子和事件上报失败，然后把错误重新抛出。
+   *
+   * Report a failure through the plugin hooks and the events, then rethrow it.
+   *
+   * @param ctx 当前请求上下文 / The current request context.
+   * @param error 导致失败的错误 / The error that caused the failure.
+   * @returns 原样返回的同一个错误，供调用方 `throw` /
+   *   The same error, so the caller can `throw` it.
+   */
   private async fail(ctx: SnailContext, error: unknown): Promise<unknown> {
     ctx.error = error;
 
@@ -480,6 +778,13 @@ export class SnailMethod<
   }
 
   /**
+   * 把 axios 的错误词汇翻译成本库的。
+   *
+   * 规则是：**只要服务器作出了应答，就原样返回 axios 的错误** —— 它带着
+   * `response.status` 和 `response.data`，应用代码和鉴权策略都会据此分支。只有完全
+   * 没有响应时（DNS 失败、离线、CORS 被拒）才没有任何值得保留的东西，这种情况才
+   * 转成带类型的 {@link SnailHttpError}，并把 axios 错误作为它的 `cause`。
+   *
    * Turn axios' error vocabulary into ours.
    *
    * The rule is: **if the server answered, hand back axios' error unchanged** —
@@ -488,6 +793,9 @@ export class SnailMethod<
    * failure, offline, CORS rejection) is there nothing useful to preserve, so
    * that case becomes a typed {@link SnailHttpError} with the axios error as its
    * `cause`.
+   *
+   * @param error 传输层抛出的原始错误 / The raw error thrown by the transport.
+   * @returns 归一化后的错误 / The normalised error.
    */
   private normalizeTransportError(error: unknown): unknown {
     if (error instanceof SnailCancelledError) return error;

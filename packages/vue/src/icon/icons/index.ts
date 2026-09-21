@@ -1,4 +1,22 @@
 /**
+ * 内置图标集 —— 由脚本生成，请勿手工修改。
+ *
+ * 在本目录新增或删除图标文件后，用 `node ./scripts/generate-icons.mjs` 重新生成。
+ *
+ * ## 为什么用 barrel 而不是 glob
+ *
+ * Vite 的 `import.meta.glob({ eager: true })` 会把**每一个**图标都塞进每一个使用方的
+ * 产物里。这份显式列表让模块图保持狭窄，打包器因此可以丢掉应用从未导入的图标。
+ *
+ * ## 为什么这些图标会存在
+ *
+ * 每一个都是 `@element-plus/icons-vue` 没有提供的字形 —— 表格与列控制、合同场景特有的
+ * 标记（变量、二维码、页面设置）以及品牌标识。Element Plus 已经提供的图标被刻意移除，
+ * 因此这两套图标是互补而非重叠的关系。
+ *
+ * 每个图标都带有 `width="1em" height="1em"` 和 `fill="currentColor"`，所以不需要样式表
+ * 就能正确确定尺寸和颜色。
+ *
  * The bundled icon set — generated, do not edit by hand.
  *
  * Regenerate with `node ./scripts/generate-icons.mjs` after adding or removing a
@@ -167,6 +185,10 @@ export {
 };
 
 /**
+ * 每一个内置图标，按组件名索引。
+ *
+ * 供插件注册整套图标使用，也被下面的 `IconName` 使用。
+ *
  * Every bundled icon, keyed by its component name.
  *
  * Used by the plugin to register the set, and by `IconName` below.
@@ -244,8 +266,16 @@ export const iconComponents = {
   IconWorkflow
 } as const;
 
-/** The name of any bundled icon — what `<SIcon icon="…">` accepts as a string. */
+/**
+ * 任意内置图标的名字 —— `<SIcon icon="…">` 以字符串形式接受的就是它。
+ *
+ * The name of any bundled icon — what `<SIcon icon="…">` accepts as a string.
+ */
 export type IconName = keyof typeof iconComponents;
 
-/** A component map, structurally, for consumers that iterate the set. */
+/**
+ * 一个结构化表示的组件映射，供需要遍历整套图标的使用方使用。
+ *
+ * A component map, structurally, for consumers that iterate the set.
+ */
 export type IconComponentMap = Readonly<Record<string, Component>>;

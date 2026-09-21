@@ -59,6 +59,27 @@ import type {
 } from "./type";
 
 /**
+ * `SClickCopy` —— 复制到剪贴板，并给出可见、可朗读的反馈。
+ *
+ * ## 旧组件的问题
+ *
+ * - 两个 `v-if` 根节点：使用方的 `class` / `@click` 会被丢弃并伴随警告。
+ * - `await navigator.clipboard.writeText(text)` 没有任何回退、没有 `catch`、也不检查
+ *   返回值。在普通 http 源上 `navigator.clipboard` 是 `undefined`，点击只会异步抛错，
+ *   界面毫无反应；权限被拒或缺少用户激活时同样静默 reject。
+ * - `clearTimeout(timer)` 写在定时器自己的回调*内部*，什么也做不了，而且组件卸载时
+ *   也从未清理这个待执行的定时器。
+ * - `parentElement.classList.add("s-click-copy-parent")` 永久改写了使用方的 DOM，
+ *   仅仅是为了让样式表里的一条 hover 规则能找到它。
+ * - `success` 标记通过替换根元素实现，于是刚获得焦点的节点消失、焦点跑回 `<body>`；
+ *   也没有任何内容会被朗读给辅助技术。
+ * - 只能复制一个必填的 `text` prop，而且只能是纯文本。
+ *
+ * ## 从 `s-click-copy` 迁移
+ *
+ * `.s-click-copy-parent` 这个钩子已经移除。想要旧版「在容器角落显示复制按钮」的效果，
+ * 请在组件上写 `class="is-overlay"`，并让容器 `position: relative`。
+ *
  * `SClickCopy` — copy to the clipboard with visible, announced feedback.
  *
  * ## What was wrong with the legacy component
@@ -96,6 +117,11 @@ const props = withDefaults(defineProps<ClickCopyProps>(), {
 const emit = defineEmits<ClickCopyEmits>();
 const slots = useSlots();
 
+/**
+ * 当前反馈状态，通过模板 ref 暴露给父组件。
+ *
+ * Current feedback state, exposed through a template ref.
+ */
 const state = ref<ClickCopyState>("idle");
 const contentRef = ref<HTMLElement | null>(null);
 
@@ -238,6 +264,11 @@ function reportError(error: unknown, text: string): void {
 }
 
 /**
+ * 复制解析出来的内容。
+ *
+ * 依次尝试：富文本写入、异步纯文本写入、旧版 `execCommand`。只有其中一种真的返回
+ * 成功时，才会报告成功。
+ *
  * Copy the resolved payload.
  *
  * Tries, in order: rich write, plain async write, legacy `execCommand`. Success is

@@ -1,4 +1,13 @@
 /**
+ * 各面板的下拉选项。
+ *
+ * 中文名称沿用旧版原样：起草合同的人选的是「小四」，而不是 `12pt`。带 `_GB2312` 后缀的是
+ * 公文用字体，既是本领域的真实需求，也本来就在旧版清单里 —— 为了「清理」而删掉它们会让
+ * 已有模板失效。
+ *
+ * 这里没有任何一项是 *默认值*：默认值属于扩展或 `typings/paper.ts`，这样面板与模型才不会
+ * 各说各话。这里只是面板提供的候选项。
+ *
  * The panels' pick-lists.
  *
  * The Chinese names are the legacy ones, kept verbatim: a contract drafter picks 「小四」,
@@ -14,13 +23,23 @@
 import { PAPER_SIZES } from "../../typings/paper";
 import type { NamedPaperFormat, ResolvedMargins } from "../../typings/paper";
 
-/** A pick-list entry whose label is shown and whose value is stored. */
+/**
+ * 一个下拉选项：`label` 用于显示，`value` 用于存储。
+ *
+ * A pick-list entry whose label is shown and whose value is stored.
+ */
 export interface Choice<T> {
+  /** 展示给用户的名称。 / The label shown to the user. */
   label: string;
+  /** 实际存储的值。 / The value that is stored. */
   value: T;
 }
 
-/** The twelve Chinese families a contract uses, from the legacy `FontFamilyList`. */
+/**
+ * 合同用到的十二种中文字体族，来自旧版的 `FontFamilyList`。
+ *
+ * The twelve Chinese families a contract uses, from the legacy `FontFamilyList`.
+ */
 export const FONT_FAMILIES: readonly Choice<string>[] = [
   { label: "宋体", value: "SimSun, serif" },
   { label: "黑体", value: "SimHei, sans-serif" },
@@ -38,7 +57,11 @@ export const FONT_FAMILIES: readonly Choice<string>[] = [
   { label: "宋体_GB2312", value: "SimSun_GB2312, SimSun, serif" }
 ];
 
-/** The ten Chinese size names, with the point size each stands for. */
+/**
+ * 十种中文字号名称，以及每种字号代表的磅值。
+ *
+ * The ten Chinese size names, with the point size each stands for.
+ */
 export const FONT_SIZES: readonly Choice<string>[] = [
   { label: "一号", value: "26pt" },
   { label: "小一", value: "24pt" },
@@ -53,6 +76,13 @@ export const FONT_SIZES: readonly Choice<string>[] = [
 ];
 
 /**
+ * 样式下拉提供的大纲级别。
+ *
+ * `0` 表示正文，而这个清单存在的理由正在于此：旧版处理函数先跑 `setNode("paragraph")`，
+ * 随后**无条件**跑 `setHeading({ level: 0 })`，于是选择「正文」会产出一个 `level: 0` 的
+ * 标题 —— 即 `<h0>`，它既不是真实元素，也没有任何样式表能匹配（缺陷 41）。这里 `0` 只映射
+ * 到 `setParagraph()`，别无其他；见 `ToolParagraph.vue`。
+ *
  * The outline levels the style select offers.
  *
  * `0` means 正文 and is the reason this list exists: the legacy handler ran
@@ -71,7 +101,11 @@ export const HEADING_OPTIONS: readonly Choice<number>[] = [
   { label: "标题6", value: 6 }
 ];
 
-/** The units a paragraph spacing control offers, from the legacy `Units` table. */
+/**
+ * 段落间距控件提供的单位，来自旧版的 `Units` 表。
+ *
+ * The units a paragraph spacing control offers, from the legacy `Units` table.
+ */
 export const PARAGRAPH_UNITS: readonly Choice<string>[] = [
   { label: "磅", value: "pt" },
   { label: "英寸", value: "in" },
@@ -81,7 +115,11 @@ export const PARAGRAPH_UNITS: readonly Choice<string>[] = [
   { label: "行", value: "em" }
 ];
 
-/** The line-height choices the panel offers. `fixed` switches to a point value. */
+/**
+ * 面板提供的行距选项；`fixed` 表示改用磅值。
+ *
+ * The line-height choices the panel offers. `fixed` switches to a point value.
+ */
 export const LINE_HEIGHT_PRESETS: readonly Choice<"single" | "oneAndHalf" | "double" | "fixed">[] = [
   { label: "单倍行距", value: "single" },
   { label: "1.5 倍行距", value: "oneAndHalf" },
@@ -89,7 +127,7 @@ export const LINE_HEIGHT_PRESETS: readonly Choice<"single" | "oneAndHalf" | "dou
   { label: "固定值", value: "fixed" }
 ];
 
-/** The multiple each non-fixed line-height preset stands for. */
+/** 每个非固定行距预设代表的倍数。 / The multiple each non-fixed line-height preset stands for. */
 export const LINE_HEIGHT_MULTIPLES: Readonly<Record<"single" | "oneAndHalf" | "double", string>> = {
   single: "1",
   oneAndHalf: "1.5",
@@ -97,6 +135,11 @@ export const LINE_HEIGHT_MULTIPLES: Readonly<Record<"single" | "oneAndHalf" | "d
 };
 
 /**
+ * 页边距预设，使用模型自己的前缀。
+ *
+ * **只用毫米**，且每个值都是完整的 CSS 长度。旧版面板存的是厘米，却交给默认值为 `"20mm"`
+ * 的模型（缺陷 42），这就是对比页把 2 cm 的页面显示成 2.54 cm 的原因。
+ *
  * Margin presets, in the model's own prefixes.
  *
  * Millimetres **only**, and each value is a complete CSS length. The legacy panel stored
@@ -123,6 +166,11 @@ export const MARGIN_PRESETS: readonly Choice<ResolvedMargins>[] = [
 ];
 
 /**
+ * 页面扩展支持的全部纸张尺寸。
+ *
+ * `PAPER_SIZES` 是模型自己的表，因此面板不可能提供解析器不认识的尺寸。旧版面板把五个中的
+ * 三个写死（缺陷 17 的同类问题），Letter 与 Legal 因此在界面上根本无法选择。
+ *
  * Every paper size the page extension supports.
  *
  * `PAPER_SIZES` is the model's own table, so the panel cannot offer a size the resolver
@@ -136,13 +184,19 @@ export const PAPER_FORMAT_OPTIONS: readonly Choice<NamedPaperFormat>[] = (
   value: name
 }));
 
-/** The two orientations. */
+/** 两种方向。 / The two orientations. */
 export const ORIENTATION_OPTIONS: readonly Choice<"portrait" | "landscape">[] = [
   { label: "纵向", value: "portrait" },
   { label: "横向", value: "landscape" }
 ];
 
 /**
+ * 页码格式串。
+ *
+ * `#` 与 `&` 是最初三个预设使用的旧版别名，`{page}` 与 `{total}` 是有文档的记号。格式串以
+ * 单个字符串存在 `pageNumber` 节点上，所以预设与手写格式串是同一类东西 —— 这正是自定义
+ * 格式串得以可能的原因。
+ *
  * Page-number patterns.
  *
  * `#` and `&` are the legacy aliases the three original presets used; `{page}` and
@@ -158,14 +212,11 @@ export const PAGE_NUMBER_PRESETS: readonly Choice<string>[] = [
   { label: "1 of 1", value: "{page} of {total}" }
 ];
 
-/** Where a page logo may sit. `center` is the model's own third anchor. */
-export const LOGO_POSITIONS: readonly Choice<"left" | "center" | "right">[] = [
-  { label: "左", value: "left" },
-  { label: "中", value: "center" },
-  { label: "右", value: "right" }
-];
-
-/** Text alignment, shared by the paragraph panel and the header/footer controls. */
+/**
+ * 文本对齐方式，段落面板与文本对齐控件共用。
+ *
+ * Text alignment, shared by the paragraph panel and the text-alignment controls.
+ */
 export const ALIGN_OPTIONS: readonly Choice<"left" | "center" | "right" | "justify">[] = [
   { label: "左对齐", value: "left" },
   { label: "居中", value: "center" },
@@ -173,7 +224,7 @@ export const ALIGN_OPTIONS: readonly Choice<"left" | "center" | "right" | "justi
   { label: "两端对齐", value: "justify" }
 ];
 
-/** The QR code units. */
+/** 二维码的单位。 / The QR code units. */
 export const QRCODE_UNITS: readonly Choice<"mm" | "cm" | "px">[] = [
   { label: "mm", value: "mm" },
   { label: "cm", value: "cm" },

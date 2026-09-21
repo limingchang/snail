@@ -56,6 +56,31 @@
 
 <script setup lang="ts">
 /**
+ * `EditorToolbar` —— 功能区。
+ *
+ * ## 两道闸门，而不是一道
+ *
+ * 一个区块只有在使用方于 `tools` 里点名它**并且**它的扩展确实已注册时才会渲染。旧版工具栏
+ * 只看 `tools`（`v-if="tools?.includes('page')"`），于是区块可能在没有对应节点类型的情况下
+ * 渲染出来，里面每条命令都解析为 `false` —— 反过来，扩展也可能注册了却无从触达（决策 11 /
+ * 缺陷：字符串清单式闸门）。
+ *
+ * ## 活动标签从*可用*的东西里挑
+ *
+ * 旧版 `initActiveTab` 回退到数字 `0`，它不匹配任何面板名，所以既没有 `style` 也没有
+ * `insert` 和 `page` 的工具集 —— 比如只有二维码的集合 —— 会渲染出一个空工具栏。这里的回退是
+ * 第一个真正启用的区块，并且在集合变化时重新挑标签。
+ *
+ * ## 一个区块一个组件
+ *
+ * 每个面板都是独立的 SFC，所以从不打开水印区块的使用方不必为它付出代价：旧版工具栏把所有
+ * 工具硬导入，使 tree-shaking 无从谈起。
+ *
+ * ## `template`
+ *
+ * `ToolName` 有十个成员，功能区有九个面板。`"template"` 根本不是功能区的面板：模板列表是
+ * `TemplatePicker`，它属于文档所在的工作区，而不是一个用户为了载入文档还得先打开的工具栏。
+ *
  * `EditorToolbar` — the ribbon.
  *
  * ## Two gates, not one
@@ -107,18 +132,31 @@ import ToolQrcode from "./tools/ToolQrcode.vue";
 import ToolTable from "./tools/ToolTable.vue";
 import ToolVariable from "./tools/ToolVariable.vue";
 import ToolWatermark from "./tools/ToolWatermark.vue";
+import { ElTabs, ElTabPane } from "element-plus";
 
 defineOptions({ name: "EditorToolbar" });
 
 const props = withDefaults(
   defineProps<{
-    /** The editor. `undefined` before it has been created. */
+    /**
+     * 编辑器。在它被创建之前为 `undefined`。
+     *
+     * The editor. `undefined` before it has been created.
+     */
     editor?: Editor;
 
-    /** Which sections the caller wants. Defaults to {@link DEFAULT_TOOLS}. */
+    /**
+     * 调用方想要哪些区块。默认为 {@link DEFAULT_TOOLS}。
+     *
+     * Which sections the caller wants. Defaults to {@link DEFAULT_TOOLS}.
+     */
     tools?: readonly ToolName[];
 
     /**
+     * 运行时的已注册扩展名。
+     *
+     * 可选：不提供时工具栏会从编辑器上读取，所以单独渲染工具栏的使用方也能得到同样的闸门。
+     *
      * The registered extension names, from the runtime.
      *
      * Optional: when it is not supplied the toolbar reads them off the editor, so a
@@ -126,19 +164,19 @@ const props = withDefaults(
      */
     extensions?: ReadonlySet<string>;
 
-    /** Partial locale overrides. */
+    /** 部分语言覆盖。 / Partial locale overrides. */
     locale?: Partial<EditorLocale>;
 
-    /** Watermark defaults, forwarded to the watermark panel. */
+    /** 水印默认值，转发给水印面板。 / Watermark defaults, forwarded to the watermark panel. */
     watermark?: WatermarkOptions;
 
-    /** Print defaults, forwarded to the print panel. */
+    /** 打印默认值，转发给打印面板。 / Print defaults, forwarded to the print panel. */
     print?: PrintOptions;
 
-    /** Open the design dialog for a new variable. */
+    /** 为新变量打开设计对话框。 / Open the design dialog for a new variable. */
     onInsertVariable?: () => void;
 
-    /** Open the design dialog for an existing variable. */
+    /** 为已有变量打开设计对话框。 / Open the design dialog for an existing variable. */
     onEditVariable?: (attrs: VariableAttrs, pos: number) => void;
   }>(),
   {
@@ -154,6 +192,15 @@ const props = withDefaults(
 );
 
 /**
+ * 调用方要求的区块。
+ *
+ * 默认为 {@link DEFAULT_TOOLS}，那是 `typings/editor.ts` 里写明的契约，也是文档承诺的东西。
+ * 它在这里解析而不是交给 `withDefaults`，有两个原因：`readonly` 数组默认值会打败 Vue 的
+ * `InferDefault`（它会遍历数组的键，然后要求一个工厂函数），而显式默认值与 `SEditor` 自己的
+ * `props.tools ?? DEFAULT_TOOLS` 写法一致，两者因此不会漂移。
+ *
+ * 显式的 `[]` 仍然表示「不要任何区块」—— `requested()` 只是什么都找不到。
+ *
  * The sections the caller asked for.
  *
  * Defaults to {@link DEFAULT_TOOLS}, which is the documented contract in
@@ -170,6 +217,11 @@ const requestedTools = computed<readonly ToolName[]>(() => props.tools ?? DEFAUL
 const t = computed(() => mergeEditorLocale(props.locale));
 
 /**
+ * 功能区的面板，按显示顺序排列。
+ *
+ * `aliases` 是能选中同一个面板的其他 `ToolName`。`extensions` 是让该面板有意义的已注册扩展
+ * 名 —— 至少需要一个存在。
+ *
  * The ribbon's panes, in the order they are shown.
  *
  * `aliases` are other `ToolName`s that select the same pane. `extensions` are the
@@ -197,7 +249,11 @@ const RIBBON: readonly {
   { name: "print", aliases: [], extensions: ["print"] }
 ];
 
-/** The registered extension names: the prop when given, the editor otherwise. */
+/**
+ * 已注册的扩展名：给了 prop 就用 prop，否则从编辑器读取。
+ *
+ * The registered extension names: the prop when given, the editor otherwise.
+ */
 const registered = computed<ReadonlySet<string>>(() => {
   if (props.extensions) return props.extensions;
   const names = new Set<string>();
@@ -205,13 +261,21 @@ const registered = computed<ReadonlySet<string>>(() => {
   return names;
 });
 
-/** `true` when the caller named the section or one of its aliases. */
+/**
+ * 调用方点名了该区块或它的某个别名时为 `true`。
+ *
+ * `true` when the caller named the section or one of its aliases.
+ */
 function requested(section: (typeof RIBBON)[number]): boolean {
   const tools = requestedTools.value;
   return tools.includes(section.name) || section.aliases.some((alias) => tools.includes(alias));
 }
 
-/** Every section that is both requested and backed by a registered extension. */
+/**
+ * 既被要求、又有已注册扩展支撑的每一个区块。
+ *
+ * Every section that is both requested and backed by a registered extension.
+ */
 const availableSections = computed(() =>
   RIBBON.filter(
     (section) =>
@@ -225,6 +289,12 @@ const availableSections = computed(() =>
 const activeTab = ref<string>("");
 
 /**
+ * 让活动标签始终指向一个存在的区块。
+ *
+ * 两种情况，一条规则：首次渲染时没有标签，而后来的渲染可能让当前标签失效（扩展集合变了，
+ * 或使用方收窄了 `tools`）。两者都回退到第一个可用区块 —— 绝不回退到下标，旧版工具栏正是
+ * 因此对只有二维码的工具集显示空白。
+ *
  * Keep the active tab pointing at a section that exists.
  *
  * Two cases, one rule: the first render has no tab, and a later render can invalidate the
@@ -242,7 +312,11 @@ watch(
   { immediate: true }
 );
 
-/** Moving between tabs puts the caret back in the document, as the legacy toolbar did. */
+/**
+ * 切换标签时把光标放回文档，与旧版工具栏一致。
+ *
+ * Moving between tabs puts the caret back in the document, as the legacy toolbar did.
+ */
 function focusEditor(): void {
   props.editor?.chain().focus().run();
 }

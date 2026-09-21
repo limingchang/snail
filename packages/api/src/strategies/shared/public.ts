@@ -1,4 +1,10 @@
 /**
+ * `@snail-js/api/strategies` 的公共接口面。
+ *
+ * 三个入口（Vue 用 `index.ts`，React 用 `react.ts`，其余用 `plain.ts`）只差一条语句——
+ * 安装哪个 state adapter——然后重新导出本模块。把导出清单放在一处，正是三个入口不会彼此
+ * 漂移的原因；在这里新增的 hook 会出现在三者之中，而它们都不重新实现任何东西。
+ *
  * The public surface of `@snail-js/api/strategies`.
  *
  * The three entry points (`index.ts` for Vue, `react.ts` for React and `plain.ts`

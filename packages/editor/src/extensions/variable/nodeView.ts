@@ -1,4 +1,20 @@
 /**
+ * 变量的节点视图——一个普通的 ProseMirror `NodeView`。
+ *
+ * 它不是 Vue 组件，也不是用 `@tiptap/vue-3` 的 `VueNodeViewRenderer` 构建的，所以这个扩展
+ * 里没有任何框架：同一个扩展可以在 Vue 宿主、React 宿主或裸 ProseMirror 编辑器里工作。
+ * 两种模式就是在同一个元素上写两次 `textContent`。
+ *
+ * ## 为什么值是被渲染的，而不是被写进去的
+ *
+ * 旧版包的填写模式把变量替换成文本节点，并把结果通过 `setContent` 推回去。这正是丢掉选区、
+ * 与输入竞争、并让设计模式再次变得不可达的原因（缺陷 25–26）。因为这个视图只是*画*出值：
+ *
+ * - 切换模式没有代价——文档从未被改动；
+ * - 改段落的字体或字号会自动重新给变量排版，因为值就是继承段落属性的普通内联内容
+ *   （缺陷 23）；
+ * - 两种模式下文档 JSON 始终是模板。
+ *
  * The variable's node view — a plain ProseMirror `NodeView`.
  *
  * Not a Vue component, and not built with `@tiptap/vue-3`'s `VueNodeViewRenderer`,
@@ -27,6 +43,12 @@ import type { SystemContext } from "./resolver";
 import type { VariableMode, VariableNodeView, VariableNodeViewContext } from "./typing";
 
 /**
+ * 构建视图。
+ *
+ * 返回的对象由 `index.ts` 的 `addNodeView` 创建并交给 Tiptap，后者按 ProseMirror 真正的
+ * `NodeView` 给它标注类型；这里声明的 {@link VariableNodeView} 返回类型，才是让每个回调都
+ * 可被检查的原因。
+ *
  * Build the view.
  *
  * The returned object is created by `index.ts`'s `addNodeView` and handed to Tiptap,
@@ -47,6 +69,12 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
   let attrs: VariableAttrs = context.attrs;
 
   /**
+   * 节点的位置，在用到的当下索要。
+   *
+   * `getPos()` 是 ProseMirror 有文档记载的索要方式，但视图与文档分离时它会抛错；而在构造
+   * 期间捕获的位置，在节点上方敲下第一个键之后就过期了——这正是让旧版编辑路径变成静默空操作
+   * 的 bug（缺陷 22）。
+   *
    * The node's position, asked for at the moment it is used.
    *
    * `getPos()` is ProseMirror's documented way to ask, but it throws when the view is
@@ -64,6 +92,11 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
   };
 
   /**
+   * 为绘制解析一个变量。
+   *
+   * 不传错误收集处：节点视图在每次事务上都会重绘，而它对一个 `VariableIssue` 也无事可做。
+   * 那些问题改由填写对话框通过 `validateFill` 收集。
+   *
    * Resolve one variable for painting.
    *
    * No error sink is passed: a node view is redrawn on every transaction, and there is
@@ -89,7 +122,11 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
     return resolveVariable(target, store.getValues(), system);
   };
 
-  /** Paint the current attributes under the current mode. */
+  /**
+   * 按当前模式绘制当前属性。
+   *
+   * Paint the current attributes under the current mode.
+   */
   const paint = (): void => {
     const mode = context.getMode();
     const resolved = resolveForPaint(attrs, mode);
@@ -131,6 +168,10 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
   };
 
   /**
+   * 设计模式下的点击会请宿主打开设计对话框。
+   *
+   * 位置在*当下*解析，从不提前捕获，宿主也可以自由忽略这个请求——扩展并不知道对话框长什么样。
+   *
    * A click in design mode asks the host to open the design dialog.
    *
    * The position is resolved *now*, never captured, and the host is free to ignore the
@@ -188,6 +229,11 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
       dom.classList.remove("s-editor-variable--selected");
     },
     /**
+     * 所有事件都留在节点视图内部。
+     *
+     * 点击不能被变成原子内部的光标；拖拽不能跨过它开始选择文本。从 `stopEvent` 返回 `true`，
+     * 正是让这个原子对 ProseMirror 的输入处理真正不透明的原因。
+     *
      * All events stay inside the node view.
      *
      * A click must not be turned into a caret inside the atom; a drag must not start a
@@ -196,6 +242,12 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
      */
     stopEvent: () => true,
     /**
+     * 忽略每一次变更。
+     *
+     * 这个元素里包含着并*不在*文档里的绘制文本。没有这一条，ProseMirror 会把 DOM 变更读回
+     * 文档，并试图把渲染出来的值解析成原子的内容——而既然 `atom: true`，schema 说这种内容
+     * 不可能存在。
+     *
      * Ignore every mutation.
      *
      * The element contains painted text that is *not* in the document. Without this,

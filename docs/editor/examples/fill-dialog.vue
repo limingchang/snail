@@ -2,80 +2,33 @@
 /**
  * 填写模式：文档是只读的，变量按值渲染。
  *
- * `data` 就是填写数据，按变量 `key` 取值；`openFillDialog()` 来自
- * `SEditorExposed`，由组件 `ref` 暴露。它不修改文档，只把新的填写数据交给
- * 变量的渲染层。
+ * 这里和「快速上手」用的是**同一份** `createStarterDocument()`：填写模式要展示的正是
+ * 「同一份模板，换成填好的数据」这件事，用一份手写的三行文档反而看不出效果。`data` 里的
+ * key 与起始文档里的变量一一对应。
+ *
+ * `openFillDialog()` 来自 `SEditorExposed`，由组件 `ref` 暴露。它不修改文档，只把新的
+ * 填写数据交给变量的渲染层。
  */
 import { ref } from "vue";
-import { SEditor } from "@snail-js/editor";
+import type { Editor } from "@tiptap/core";
+import { createStarterDocument, SEditor } from "@snail-js/editor";
 import type { SEditorExposed, TemplateContent, VariableFillData } from "@snail-js/editor";
 
 const editorRef = ref<SEditorExposed>();
 
-const doc = ref<TemplateContent>({
-  type: "doc",
-  content: [
-    {
-      type: "page",
-      content: [
-        {
-          type: "pageContent",
-          content: [
-            {
-              type: "paragraph",
-              content: [
-                { type: "text", text: "甲方：" },
-                { type: "variable", attrs: { label: "甲方名称", key: "partyA", data: { type: "text" } } }
-              ]
-            },
-            {
-              type: "paragraph",
-              content: [
-                { type: "text", text: "合同金额（小写）：" },
-                {
-                  type: "variable",
-                  attrs: {
-                    label: "合同金额",
-                    key: "amount",
-                    data: { type: "money", precision: 2, currency: "￥", thousands: true }
-                  }
-                }
-              ]
-            },
-            {
-              type: "paragraph",
-              content: [
-                { type: "text", text: "合同金额（大写）：" },
-                {
-                  type: "variable",
-                  attrs: {
-                    label: "金额大写",
-                    key: "amountUpper",
-                    data: { type: "formula", expression: "amount", prefix: "人民币" }
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          type: "pageFooter",
-          content: [
-            {
-              type: "paragraph",
-              content: [{ type: "pageNumber", attrs: { format: "第{page}页，共{total}页" } }]
-            }
-          ]
-        }
-      ]
-    }
-  ]
+const doc = ref<TemplateContent>(createStarterDocument());
+
+/** 填写数据按变量 `key` 取值；金额变量小写与中文大写都取自同一个数字。 */
+const values = ref<VariableFillData>({
+  contractNo: "SN-2026-0001",
+  amount: 136000,
+  amountInWords: 136000
 });
 
-const values = ref<VariableFillData>({
-  partyA: "杭州某某科技有限公司",
-  amount: 1234567.89
-});
+/** 二维码位图是异步生成的，编辑器就绪后画一次。 */
+function onReady(editor: Editor): void {
+  editor.commands.regenerateQRCode();
+}
 </script>
 
 <template>
@@ -84,7 +37,7 @@ const values = ref<VariableFillData>({
     <button type="button" @click="editorRef?.openFillDialog()">打开填写对话框</button>
   </div>
   <div class="demo-editor-stage">
-    <SEditor ref="editorRef" v-model="doc" mode="fill" :data="values" :tools="[]" />
+    <SEditor ref="editorRef" v-model="doc" mode="fill" :data="values" :tools="[]" @ready="onReady" />
   </div>
 </template>
 

@@ -1,4 +1,32 @@
 /**
+ * `paragraphStyle` 扩展 —— 首行缩进与段前/段后间距。
+ *
+ * ## 为什么保留它
+ *
+ * Tiptap 3 没有等价物。`LineHeight` 是一个**标记**，因此无法表达首行缩进（标记作用于文本，而不是
+ * 块的首行），而且文本一被拆分它就被丢弃；`TextAlign` 则是正交的。缩进与段落间距是块的属性，
+ * 而合同的条款编号依赖它们。
+ *
+ * ## 相对旧扩展修好的地方
+ *
+ * - **`textIndent` 默认是 `null`，而不是 `"0"`。** 默认值为 `"0"` 时，每个文档里的每个段落都会
+ *   携带并渲染 `text-indent: 0;`，每次保存都把它序列化，而工具栏无法区分「用户设成了 0」与
+ *   「从未设置」。
+ * - **一条命令，`setParagraphStyle(attrs)`**，在**一个**事务里作用于整个选区。旧版本会先构建
+ *   一个位置列表，然后每个节点的每个属性都调用一次 `setNodeAttribute`；现在每个发生变化的块只用
+ *   一次 `setNodeMarkup`，都在同一个事务上，所以一次撤销就能反转一条命令。
+ * - **`false` 表示「什么都没变」，且静默。** 旧实现返回 `false` *并且*打日志（「没有需要更新的
+ *   节点」），使用方既无法据以行动，又刷屏了控制台。
+ * - **完全没有 `console.log`。** 旧实现在 `renderHTML` 里也有一条，于是每个段落的每次渲染都会
+ *   打印日志。
+ * - **折叠的光标以光标所在的块为目标。** 空范围上的 `nodesBetween(from, to)` 在光标位于块边界时
+ *   会选中*下一个*块 —— 所以在一个段落末尾点击会改到后面那一段的样式。
+ *
+ * ## `extensions/textIndent/` 有意不移植
+ *
+ * 它是死代码（从未被导入），声明了一个*重复的* `textIndent` 全局属性，并且它的命令被注释掉了。
+ * 移植它会把同一个属性的两个定义放进 schema。
+ *
  * The `paragraphStyle` extension — first-line indent and space before/after.
  *
  * ## Why it is kept
@@ -42,7 +70,11 @@ import type {
   ParagraphStyleTarget
 } from "./typing";
 
-/** Re-export the contract, so a host imports everything from one place. */
+/**
+ * 重新导出契约，让使用方从一处导入所有内容。
+ *
+ * Re-export the contract, so a host imports everything from one place.
+ */
 export type {
   ParagraphStyleAttrs,
   ParagraphStyleOptions,
@@ -66,6 +98,14 @@ export {
 } from "./units";
 
 /**
+ * 收集一次补丁会改变的块。
+ *
+ * 之所以导出，是因为它承担了这条命令的全部决策，可以在没有编辑器实例的情况下针对文档验证。
+ *
+ * 非空选区使用 `nodesBetween`，它会访问范围*内部*的每一个块（包括列表项的块，以及该范围覆盖的
+ * 每一页里的段落）。折叠的光标则解析自己所在的块：空范围上的 `nodesBetween` 偏向边界之后的那个
+ * 块，而那不是用户光标所在的地方。
+ *
  * Collect the blocks a patch would change.
  *
  * Exported because it is the whole of the command's decision-making and can be verified
@@ -114,7 +154,7 @@ export function collectParagraphStyleTargets(
   return targets;
 }
 
-/** The `paragraphStyle` extension. */
+/** `paragraphStyle` 扩展。 / The `paragraphStyle` extension. */
 export const ParagraphStyle = Extension.create<ParagraphStyleOptions>({
   name: "paragraphStyle",
 
@@ -134,6 +174,11 @@ export const ParagraphStyle = Extension.create<ParagraphStyleOptions>({
         types,
         attributes: {
           /**
+           * 首行缩进，对应 CSS 的 `text-indent`。
+           *
+           * 是 `null` —— 而不是 `"0"` —— 这样未设样式的段落不携带属性、不渲染声明、也不序列化
+           * 任何东西。
+           *
            * First-line indent, as CSS `text-indent`.
            *
            * `null` — not `"0"` — so an unstyled paragraph carries no attribute, renders no
@@ -151,7 +196,11 @@ export const ParagraphStyle = Extension.create<ParagraphStyleOptions>({
             }
           },
 
-          /** Space before the paragraph, as CSS `margin-block-start`. */
+          /**
+           * 段前间距，即 CSS 的 `margin-block-start`。
+           *
+           * Space before the paragraph, as CSS `margin-block-start`.
+           */
           paragraphStart: {
             default: null,
             parseHTML: (element: HTMLElement): string | undefined =>
@@ -164,7 +213,11 @@ export const ParagraphStyle = Extension.create<ParagraphStyleOptions>({
             }
           },
 
-          /** Space after the paragraph, as CSS `margin-block-end`. */
+          /**
+           * 段后间距，即 CSS 的 `margin-block-end`。
+           *
+           * Space after the paragraph, as CSS `margin-block-end`.
+           */
           paragraphEnd: {
             default: null,
             parseHTML: (element: HTMLElement): string | undefined =>
@@ -186,6 +239,11 @@ export const ParagraphStyle = Extension.create<ParagraphStyleOptions>({
 
     return {
       /**
+       * 把段落样式施加到选区里的每一个块上。
+       *
+       * 补丁里的 `undefined` 表示「不要动这个属性」；`null` 或 `""` 表示「移除它」。当选区里没有
+       * 任何会真正改变的块时返回 `false` —— 不派发任何事务，因此也不产生撤销记录。
+       *
        * Apply a paragraph style to every block in the selection.
        *
        * `undefined` in the patch means "leave this attribute alone"; `null` or `""` means
@@ -215,15 +273,23 @@ export const ParagraphStyle = Extension.create<ParagraphStyleOptions>({
   }
 });
 
-/** The commands the extension adds. */
+/** 该扩展添加的命令。 / The commands the extension adds. */
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     paragraphStyle: {
-      /** Set first-line indent and/or paragraph spacing over the selection. */
+      /**
+       * 在选区上设置首行缩进和/或段落间距。
+       *
+       * Set first-line indent and/or paragraph spacing over the selection.
+       */
       setParagraphStyle: (attrs: ParagraphStyleAttrs) => ReturnType;
     };
   }
 }
 
-/** The default export, so `import ParagraphStyle from "./paragraphStyle"` also works. */
+/**
+ * 默认导出，因此 `import ParagraphStyle from "./paragraphStyle"` 同样可用。
+ *
+ * The default export, so `import ParagraphStyle from "./paragraphStyle"` also works.
+ */
 export default ParagraphStyle;

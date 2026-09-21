@@ -52,6 +52,21 @@
 
 <script setup lang="ts">
 /**
+ * `ToolQrcode` —— 文档二维码的内容、尺寸、位置和颜色。
+ *
+ * ## 这里修好的问题
+ *
+ * - **不再用 `document.querySelector`。** 旧版的更新路径用
+ *   `document.querySelector('[data-type="qrcode"]')` 找节点，这是全文档范围的（可能找到
+ *   *别的*编辑器的节点），删除后又会返回 `null`，于是下一次交互就抛错（缺陷 33）。现在通过
+ *   遍历这个编辑器自己的文档来定位节点。
+ * - **不再直接写 DOM。** 旧版的尺寸/位置改动是 `element.style.width = …`，它不在文档里，所以
+ *   下一次重渲染、撤销或重新加载时都会丢失（缺陷 32）。这里的每一次改动都走命令或
+ *   `setNodeMarkup`。
+ * - **一个文档只有一个二维码，由扩展强制。** 旧版检查的是 `storage.qrcode.hasQRCode`，它从不
+ *   复位，所以删掉二维码之后，在这个编辑器的余生里都无法再插入一个（缺陷 31）。这里的闸门
+ *   每次都去问扩展和文档。
+ *
  * `ToolQrcode` — the payload, size, position and colours of the document's QR code.
  *
  * ## What is fixed here
@@ -74,7 +89,6 @@
 import { computed, ref } from "vue";
 
 import { Delete, Plus, Refresh } from "@element-plus/icons-vue";
-import { ElMessage } from "element-plus";
 import { toDataURL } from "qrcode";
 
 import { findNodes } from "../../editor/documentNodes";
@@ -84,9 +98,16 @@ import type { ToolProps } from "../../editor/props";
 import { useEditorSelection } from "../../editor/useEditorSelection";
 import type { QRCodeInput } from "../../extensions/qrcode";
 import { QRCODE_UNITS } from "./constants";
+import { ElMessage, ElForm, ElFormItem, ElInput, ElInputNumber, ElSelect, ElOption, ElColorPicker, ElButton, ElIcon } from "element-plus";
 
 defineOptions({ name: "ToolQrcode" });
 
+/**
+ * 本面板的 props：编辑器实例与语言覆盖，二者都来自 `ToolProps`，默认均为 `undefined`。
+ *
+ * This panel's props: the editor and the locale override, both from `ToolProps` and both
+ * defaulting to `undefined`.
+ */
 const props = withDefaults(defineProps<ToolProps>(), { editor: undefined, locale: undefined });
 
 const t = computed(() => mergeEditorLocale(props.locale));
@@ -100,15 +121,23 @@ const margin = ref(1);
 const dark = ref("#000000");
 const light = ref("#ffffff");
 
-/** Bumped on every document change so the existence computeds stay current. */
+/**
+ * 在每次文档变化时自增，好让判断存在性的计算属性保持最新。
+ *
+ * Bumped on every document change so the existence computeds stay current.
+ */
 const revision = ref(0);
 
-/** `true` when the QR-code extension is registered, so its commands exist. */
+/**
+ * 二维码扩展已注册、即其命令存在时为 `true`。
+ *
+ * `true` when the QR-code extension is registered, so its commands exist.
+ */
 const qrcodeReady = computed(
   () => props.editor?.extensionManager.extensions.some((extension) => extension.name === "qrcode") ?? false
 );
 
-/** The live QR-code node, if any. */
+/** 实时的二维码节点，如果存在的话。 / The live QR-code node, if any. */
 const node = computed(() => {
   void revision.value;
   return props.editor ? findNodes(props.editor, "qrcode")[0] : undefined;
@@ -117,6 +146,11 @@ const node = computed(() => {
 const exists = computed(() => node.value !== undefined);
 
 /**
+ * 以扩展自己的回答为准，文档作为兜底。
+ *
+ * `hasQRCode` 是扩展该回答的问题 —— 被它取代的那个存储标志是一次性闩锁（缺陷 31）—— 但文档
+ * 才是最终权威，所以一个尚未派发的命令给出的 `false` 不会放进第二个码。
+ *
  * The extension's own answer, with the document as the fallback.
  *
  * `hasQRCode` is the extension's question to answer — the storage flag it replaced was a
@@ -135,7 +169,11 @@ const canInsert = computed(() => {
   return qrcodeReady.value && !hasQrCode() && text.value.trim() !== "";
 });
 
-/** Re-read the node's attributes into the form, so the panel describes the document. */
+/**
+ * 把节点的属性重新读进表单，好让面板描述文档。
+ *
+ * Re-read the node's attributes into the form, so the panel describes the document.
+ */
 function sync(): void {
   revision.value += 1;
 
@@ -161,6 +199,12 @@ function sync(): void {
 useEditorSelection(() => props.editor, sync);
 
 /**
+ * 位图宽度，单位设备像素。
+ *
+ * 内容在文档里的尺寸是一个 CSS 长度（默认毫米），而 `qrcode` 按像素宽度生成位图。每英寸
+ * 96 px 是 CSS 的参考分辨率，所以 30 mm 的码生成约 113 px —— 偏小，但它会被节点视图缩放，
+ * 而另一种做法（无论要多大都用 200 px）正是旧版的 bug：请求的尺寸毫无意义。
+ *
  * The raster width, in device pixels.
  *
  * The payload's size is a CSS length in the document (millimetres by default), while
@@ -175,7 +219,11 @@ function rasterWidth(): number {
   return Math.max(64, Math.round(pixels));
 }
 
-/** The options every command receives. `QRCodeInput` is `Partial<QRCodeAttrs>`. */
+/**
+ * 每条命令接收的选项。`QRCodeInput` 是 `Partial<QRCodeAttrs>`。
+ *
+ * The options every command receives. `QRCodeInput` is `Partial<QRCodeAttrs>`.
+ */
 function options(source: string): QRCodeInput {
   return {
     text: text.value,
@@ -192,7 +240,7 @@ function options(source: string): QRCodeInput {
   };
 }
 
-/** Generate the raster for the current payload. */
+/** 为当前内容生成位图。 / Generate the raster for the current payload. */
 async function render(): Promise<string | undefined> {
   try {
     return await toDataURL(text.value, {
@@ -206,7 +254,7 @@ async function render(): Promise<string | undefined> {
   }
 }
 
-/** Insert the document's one QR code. */
+/** 插入文档唯一的那个二维码。 / Insert the document's one QR code. */
 async function insert(): Promise<void> {
   const editor = props.editor;
   if (!editor) return;
@@ -227,7 +275,7 @@ async function insert(): Promise<void> {
   sync();
 }
 
-/** Push the current form onto the existing node. */
+/** 把当前表单推送到已有的节点上。 / Push the current form onto the existing node. */
 async function update(): Promise<void> {
   const editor = props.editor;
   if (!editor || !exists.value) return;
@@ -243,7 +291,11 @@ async function update(): Promise<void> {
   sync();
 }
 
-/** Ask the extension to rebuild the raster from the stored payload. */
+/**
+ * 请扩展根据存下来的内容重建位图。
+ *
+ * Ask the extension to rebuild the raster from the stored payload.
+ */
 function regenerate(): void {
   const regenerated = props.editor?.chain().focus().regenerateQRCode().run();
   if (regenerated !== true) {
@@ -253,7 +305,11 @@ function regenerate(): void {
   sync();
 }
 
-/** Delete the QR code. Afterwards {@link exists} is false again, because it is derived. */
+/**
+ * 删除二维码。之后 {@link exists} 又变回 `false`，因为它是派生出来的。
+ *
+ * Delete the QR code. Afterwards {@link exists} is false again, because it is derived.
+ */
 function remove(): void {
   props.editor?.chain().focus().removeQRCode().run();
   sync();

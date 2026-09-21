@@ -76,6 +76,27 @@ import MenuItem from "./MenuItem.vue";
 import type { ContextMenuEmits, ContextMenuProps, ContextMenuReference, ResolvedMenuItem } from "./type";
 
 /**
+ * `SContextMenu` —— 上下文菜单的展示层。
+ *
+ * 它渲染一个 `role="menu"` 列表，负责该列表的键盘模型，并用 Floating UI 给自己定位。
+ * 它从不解析条目，也从不运行命令：这两件事由持有者（`SPopUpMenu.ts`）完成，再把解析
+ * 好的行数据传下来。
+ *
+ * ## 定位
+ *
+ * `offset(4)`、`flip()`、`shift({ padding: 8 })` 和 `size({ apply })` 跑在 `fixed`
+ * 策略上，并通过 `autoUpdate` 在滚动、缩放和动画时重新定位，面板被 teleport 到
+ * `<body>`。旧版本只测量一次菜单，只在右侧或底部溢出时翻转，从不做边界收敛，而且每当
+ * 异步 `display`/`enabled` 缩短列表时都得手动重新测量 —— 一个很大的菜单会直接跑到
+ * 屏幕外面去。
+ *
+ * ## 键盘
+ *
+ * 上下方向键、Home/End 移动焦点，右方向键打开子菜单，左方向键关闭它（在根面板上则是
+ * 请求持有者关闭整个菜单），Enter/Space 交给平台自身的按钮激活逻辑。这里刻意**不**
+ * 处理 `Escape`：持有它的控制器在 `document` 上用捕获阶段统一监听，所以即使焦点已经
+ * 跑到菜单外面，Escape 仍然能关闭菜单。
+ *
  * `SContextMenu` — the presentation half of the context menu.
  *
  * It renders a `role="menu"` list, owns the keyboard model for that list, and

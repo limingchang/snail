@@ -14,6 +14,24 @@ import type { ResolvedCacheOptions } from "./manager";
 import type { CacheOptions } from "./type";
 
 /**
+ * 缓存插件。
+ *
+ * ## 在管线中的位置
+ *
+ * `priority: -100` 是保留给缓存的优先级区间，它带来契约在
+ * `docs/guide/plugin-lifecycle.md` §2.2 中写明的两点：
+ *
+ * - **正向顺序的最后**——拦截器（`100`）和所有参数装饰器都已执行，因此构造键时
+ *   `ctx.request` 里已是最终的 url、params 与 body。对更早的形态做哈希，会把两个不同的
+ *   请求算成同一个键（或把同一个请求算成两个）。
+ * - **回卷顺序的最前**——原始信封在校验与转换插件碰它之前就被存储，因此命中时重放的
+ *   是服务器发来的原样内容，而不是处理后的派生结果。
+ *
+ * ## 存储服务器发来的内容
+ *
+ * 条目里存的是 `ctx.response.data`，而不是 `SnailResult`。结果是把信封投影到调用方信封
+ * schema 上的产物；缓存它会把某个服务器的键名冻结进另一个服务器的缓存里。
+ *
  * The cache plugin.
  *
  * ## Where it sits in the pipeline
@@ -36,10 +54,18 @@ import type { CacheOptions } from "./type";
  * freeze one server's key names into another's cache.
  */
 
-/** Plugin name; also the identity used by `Service.use()` / `Service.remove()`. */
+/**
+ * 插件名称；同时也是 `Service.use()` / `Service.remove()` 使用的标识。
+ *
+ * Plugin name; also the identity used by `Service.use()` / `Service.remove()`.
+ */
 export const CACHE_PLUGIN_NAME = "cache";
 
-/** The reserved cache priority band (see `docs/guide/plugin-lifecycle.md` §2.1). */
+/**
+ * 保留给缓存的优先级区间（见 `docs/guide/plugin-lifecycle.md` §2.1）。
+ *
+ * The reserved cache priority band (see `docs/guide/plugin-lifecycle.md` §2.1).
+ */
 export const CACHE_PRIORITY = -100;
 
 /** `ctx.state` slot holding the {@link CachePlan} of the current send. */
@@ -60,9 +86,16 @@ interface CachePlan {
   readonly invalidate: readonly string[];
 }
 
-/** The plugin object plus the manager behind it. */
+/**
+ * 插件对象，以及它背后的管理器。
+ *
+ * The plugin object plus the manager behind it.
+ */
 export interface CachePlugin extends SnailPluginObject<CacheOptions> {
   /**
+   * 存储引擎；插件被 `Service.use(...)` 安装后才可用——服务名（默认键前缀）与解析后的
+   * 日志级别都是在 `install` 阶段才确定的。
+   *
    * The storage engine, available once the plugin has been installed by
    * `Service.use(...)` — `install` is where the server name (the default key
    * prefix) and the resolved log level become known.
@@ -71,6 +104,8 @@ export interface CachePlugin extends SnailPluginObject<CacheOptions> {
 }
 
 /**
+ * 创建缓存插件；返回对象上的 `manager` 要等插件被安装之后才可用。
+ *
  * Create the cache plugin.
  *
  * ```ts
@@ -78,6 +113,8 @@ export interface CachePlugin extends SnailPluginObject<CacheOptions> {
  * Service.use(cache);
  * await cache.manager?.invalidateAll();
  * ```
+ *
+ * @param options 缓存插件的选项，全部可选 / Cache plugin options; all optional
  */
 export function Cache(options?: CacheOptions): CachePlugin {
   let manager: CacheManager | undefined;
@@ -312,6 +349,16 @@ function matchesCacheFor(
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 /**
+ * 把缓存中的响应体包装成插件必须回传的 axios 响应。
+ *
+ * `headers` 刻意为空：存储的条目只有响应体，凭空造出请求头会让下游插件对服务器从未
+ * 发送过的值作出反应。`config` 是当前请求，因此任何读取 `response.config` 的代码看到的
+ * 都是产生这次命中的那个请求。
+ *
+ * 响应体是被**复制**过的。若不做复制，交给调用方的对象就是缓存持有的那个对象，
+ * 一句 `result.data.name = "x"` 就会悄悄改写缓存条目；更糟的是，就地填充载荷的响应转换器
+ * 会破坏已存储的值，影响之后每一次命中。
+ *
  * Wrap a cached body into the axios response a plugin must hand back.
  *
  * `headers` is empty on purpose: the stored entry is only the body, and inventing
@@ -323,6 +370,11 @@ function matchesCacheFor(
  * the very object the cache holds, so one `result.data.name = "x"` would silently
  * rewrite the cache entry — and, worse, a response transformer that hydrates the
  * payload in place would corrupt the stored value for every later hit.
+ *
+ * @param body 要包装的缓存响应体 / The cached body to wrap
+ * @param config 产生这次命中的请求配置 / The request config that produced the hit
+ * @returns 一个 `status` 为 200 的 axios 响应，响应体为副本 / An axios response with
+ *   `status` 200 and a copied body
  */
 export function makeCachedResponse<T>(
   body: T,

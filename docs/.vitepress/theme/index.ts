@@ -7,23 +7,27 @@
  * show the **real component** next to its source, so the site now needs a theme that
  * can render live examples.
  *
- * ## Why Element Plus is registered globally here
+ * ## Why Element Plus is *not* registered globally here
  *
- * `@snail-js/editor` declares `element-plus` as a peer: a consumer provides it. The
- * docs site *is* such a consumer, so it installs Element Plus and registers it once
- * for the whole site. Doing it here rather than inside each demo keeps the demos
- * readable — they look exactly like the snippets printed beneath them, which is the
- * point of showing the source at all.
+ * `@snail-js/editor` declares `element-plus` as a peer (a consumer provides it), and it imports the
+ * components and the component styles it renders itself. Registering the whole library here would
+ * hide that: the site would look right because *the site* installed Element Plus globally, and a
+ * consumer following the same instructions would ship the entire library for one editor.
  *
- * Element Plus's stylesheet comes first so the site's own rules win where they
- * overlap.
+ * So the docs are the reference consumer: they add `element-plus` to `package.json`, import
+ * `@snail-js/editor/style.css`, and nothing else. `element-plus/dist/index.css` is deliberately not
+ * imported either — the editor's stylesheet carries the component styles it needs.
+ *
+ * The two injection keys are still provided: VitePress renders every page to HTML first and
+ * hydrates it in the browser, so Element Plus's generated ids and z-indexes must be identical on
+ * both sides, and without them the build warns (`[IdInjection]` / `[ZIndexInjection]`) and assigns
+ * from a counter that starts differently in the two runs — which is exactly a hydration mismatch.
  */
 import DefaultTheme from "vitepress/theme";
-import ElementPlus, { ID_INJECTION_KEY, ZINDEX_INJECTION_KEY } from "element-plus";
+import { ID_INJECTION_KEY, ZINDEX_INJECTION_KEY } from "element-plus";
 import SnailVue from "@snail-js/vue";
 import type { Theme } from "vitepress";
 
-import "element-plus/dist/index.css";
 import "@snail-js/vue/style.css";
 import "@snail-js/editor/style.css";
 import "./styles/docs.css";
@@ -33,14 +37,8 @@ import DemoBlock from "./components/DemoBlock.vue";
 export default {
   extends: DefaultTheme,
   enhanceApp({ app }) {
-    // VitePress renders every page to HTML first and hydrates it in the browser, so
-    // Element Plus's generated ids and z-indexes must be identical on both sides.
-    // Without these two providers it warns loudly at build time
-    // (`[IdInjection]` / `[ZIndexInjection]`) and assigns them from a counter that
-    // starts differently in the two runs — which is exactly a hydration mismatch.
     app.provide(ID_INJECTION_KEY, { prefix: 1024, current: 0 });
     app.provide(ZINDEX_INJECTION_KEY, { current: 0 });
-    app.use(ElementPlus);
     // Installed, not merely imported, so the docs exercise the library the way a
     // consumer does — including `<SIcon icon="IconVariable">`, which resolves an icon by
     // its registered name and therefore needs the set registered to work at all.

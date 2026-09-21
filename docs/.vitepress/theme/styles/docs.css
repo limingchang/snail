@@ -2,14 +2,35 @@
  * Site-level styles for the `@snail-js` documentation.
  *
  * Kept deliberately small: the components document themselves and the VitePress
- * default theme handles everything else. Only two things need saying here — how much
- * room a live editor example gets, and how the package cards on the home page look.
+ * default theme handles everything else. Only three things need saying here — how much
+ * room a live editor example gets, the full-width layout, and how the package cards on
+ * the home page look.
  */
 
+/* ============================================================
+   0. 变量：侧边栏宽度与示例高度
+   ============================================================ */
+:root {
+  --vp-sidebar-width: clamp(220px, 22vw, 300px) !important;
+
+  /* 一个完整 A4 纸张所需的示例高度。算式（见下方 `.demo-editor-stage`）：
+     工具栏 158px + 工作区上下内边距 2×5mm≈38px + 纸张 297mm≈1123px ≈ 1320px。
+     改小这个值，示例里就只能看到半页纸——这正是它被单独提出来当变量的原因。 */
+  --demo-editor-height: 1320px;
+}
+
+/* 固定在顶部的导航栏会盖住锚点目标：VitePress 自己没有设置 `scroll-padding`，
+   于是点目录跳转时标题会停在导航栏底下。 */
+html {
+  scroll-padding-top: calc(var(--vp-nav-height) + 16px);
+}
+
 /* A live `SEditor` needs a bounded height, or the demo pushes the rest of the page
-   off-screen. Every other component sizes itself. */
+   off-screen. The value above fits one whole A4 page plus the editor chrome, so a demo
+   shows a real sheet of paper instead of its top half. Every other component sizes
+   itself. */
 .demo-editor-stage {
-  height: 520px;
+  height: var(--demo-editor-height);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -25,13 +46,6 @@
    inherit the site's link styling inside it. */
 .demo-block__stage :where(a) {
   text-decoration: none;
-}
-
-/* ============================================================
-   0. 变量：左侧边栏宽度（响应式）
-   ============================================================ */
-:root {
-  --vp-sidebar-width: clamp(220px, 22vw, 300px) !important;
 }
 
 /* ============================================================
@@ -70,8 +84,15 @@
 /* ============================================================
    2. 内容区外层放开
    ============================================================ */
+/* 顶部的 `padding-top: var(--vp-nav-height)` 必须保留：导航栏是 `position: fixed`，
+   这行内边距是唯一让内容避开它的东西。此前这里写成 `padding: 0`，于是每一页的第一个标题
+   都被压在导航栏底下。左边距在下面交给 `.VPDoc.has-sidebar .container`，避免与容器上的
+   侧边栏偏移重复计算。 */
 .VPContent {
-  padding: 0 !important;
+  padding-top: var(--vp-nav-height) !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
   margin: 0 !important;
 }
 

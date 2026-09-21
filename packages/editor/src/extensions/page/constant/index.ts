@@ -1,4 +1,10 @@
 /**
+ * 页面模块的常量以及纸张 / 几何相关的再导出。
+ *
+ * `PAPER_SIZES`、`PaperFormat`、`Orientation` 和 `Margins` 都来自 `typings/paper.ts`；在
+ * `import { DEFAULT_MARGINS } from "@snail-js/editor/page"` 处再导出，使使用方拿到的是顶层组件
+ * 用的*同一批*对象，而不是一份可能漂移的副本。
+ *
  * The page module's constants and its paper/geometry re-exports.
  *
  * `PAPER_SIZES`, `PaperFormat`, `Orientation` and `Margins` come from
@@ -10,8 +16,6 @@
 export {
   DEFAULT_FURNITURE_HEIGHT,
   DEFAULT_FURNITURE_LINE,
-  DEFAULT_FOOTER_ALIGN,
-  DEFAULT_HEADER_ALIGN,
   DEFAULT_LOGO_ATTRIBUTES,
   DEFAULT_ORIENTATION,
   DEFAULT_PAGE_AUTO,
@@ -34,7 +38,11 @@ export {
   PAGE_INNER_CLASS,
   PAGE_LOGO_CLASS,
   PAGE_LOGO_PLACEHOLDER_CLASS,
-  PAGE_NUMBER_CLASS
+  PAGE_NUMBER_CLASS,
+  PAGE_REGION_CLASS,
+  PAGE_REGION_CONTENT_CLASS,
+  REGION_EDITING_CLASS,
+  REGION_LOCKED_CLASS
 } from "./dom";
 
 export type { Margins, Orientation, PaperFormat, PaperSize, ResolvedMargins } from "../../../typings/paper";

@@ -1,4 +1,19 @@
 /**
+ * 二维码的节点视图——一个普通的 ProseMirror `NodeView`。
+ *
+ * 它不是 Vue 组件，也没有用 `@tiptap/vue-3` 的 `VueNodeViewRenderer` 构建，因此扩展里没有
+ * 任何框架：同一个扩展在 Vue 宿主、React 宿主或裸 ProseMirror 编辑器里都可用。视图就是一个
+ * `<img>`——与 `renderHTML` 产出的是同一个元素，因此编辑器和导出的文档不可能长得不一样。
+ *
+ * ## 这个视图关掉的三个旧 bug
+ *
+ * - **文档是尺寸与位置的唯一来源。** 每条声明都来自 {@link qrCodeStyle}，而它由节点属性推导；
+ *   视图不写任何文档不知道的东西，因此重新渲染、撤销或重新加载都不会丢失它（缺陷 32）。
+ * - **位置就是节点自己的。** 任何地方都没有
+ *   `document.querySelector('[data-type="qrcode"]')`：那个查询是文档全局的，因此它可能改到
+ *   *另一个*编辑器的二维码，而且二维码一被删除它就会解引用 `null`（缺陷 33）。
+ * - **没有任何裁剪。** 元素自己绝对定位，不添加自己的裁剪盒，`z-index` 也保持在水印之下。
+ *
  * The QR code's node view — a plain ProseMirror `NodeView`.
  *
  * Not a Vue component and not built with `@tiptap/vue-3`'s `VueNodeViewRenderer`, so the
@@ -22,7 +37,7 @@
 import { normalizeAttrs, qrCodeStyle, styleString } from "./geometry";
 import type { QRCodeAttrs, QRCodeNodeView, QRCodeNodeViewContext } from "./typing";
 
-/** Build the view. */
+/** 构建视图。 / Build the view. */
 export function createQRCodeNodeView(context: QRCodeNodeViewContext): QRCodeNodeView {
   const image = document.createElement("img");
 
@@ -37,7 +52,11 @@ export function createQRCodeNodeView(context: QRCodeNodeViewContext): QRCodeNode
 
   let attrs = normalizeAttrs(context.attrs);
 
-  /** Mark why the raster is or is not visible, for CSS and for a diagnostic. */
+  /**
+   * 标记位图可见或不可见的原因，供 CSS 与诊断使用。
+   *
+   * Mark why the raster is or is not visible, for CSS and for a diagnostic.
+   */
   const setState = (state: "empty" | "loading" | "ready" | "error"): void => {
     image.dataset.qrcodeState = state;
   };
@@ -49,6 +68,12 @@ export function createQRCodeNodeView(context: QRCodeNodeViewContext): QRCodeNode
   image.addEventListener("error", handleError);
 
   /**
+   * 绘制当前属性。
+   *
+   * `style.cssText` 是一次整属性写入，在这里是正确的：视图拥有这个元素，而它可能携带的每条
+   * 声明都由 {@link qrCodeStyle} 产出，因此没有别的东西需要保留。（整写也是*被移除*的属性得
+   * 以生效的原因——逐属性赋值会留下过期的 `width`。）
+   *
    * Paint the current attributes.
    *
    * `style.cssText` is a whole-property write, which is correct here: the view owns this
@@ -96,6 +121,12 @@ export function createQRCodeNodeView(context: QRCodeNodeViewContext): QRCodeNode
     },
 
     /**
+     * 元素内部的每一次变更都是视图自己在绘制。
+     *
+     * 当 ProseMirror 的 observer 看到不是它造成的变更时，节点视图的 DOM 会被读回文档，而这个
+     * 元素的 `src`/`style`/`alt` 每次更新都由 {@link paint} 写入——所以没有这个方法的话，位图
+     * URL 会被当成一次文档编辑。
+     *
      * Every mutation inside the element is the view's own painting.
      *
      * A node view's DOM is read back into the document when ProseMirror's observer sees a

@@ -1,4 +1,25 @@
 /**
+ * 上下文菜单面向 DOM 的那一半：打开一个菜单、跟踪它、关闭它。
+ *
+ * 与 `menu.ts` 的分工是刻意的。所有不带浏览器也能推理的东西 —— 哪些行可见、哪些行
+ * 可启用、命令被拒绝时会发生什么 —— 都放在 `menu.ts` 里，它不 import 任何运行时代码。
+ * 本文件负责需要 document 的部分：虚拟指针参考、独立挂载的应用、共享的已打开菜单栈，
+ * 以及挂在 document 上的监听器。
+ *
+ * ## 旧的 `PopUpMenu.ts` 问题出在哪
+ *
+ * - `const { x, y } = useMouse()` 跑在**模块作用域**里，所以仅仅 import 这个模块就会
+ *   给 document 挂上 `mousemove` 监听器，而且没有办法移除。这里指针来自 `contextmenu`
+ *   事件本身（或 `options.position`），完全不存在全局指针监听器。
+ * - 清理时对一个模块级数组用了 `if` 而不是 `while`，然后去移除
+ *   `document.body.querySelector("#s-pop-up-menu")` —— 一个全局 id 查找，可能删掉
+ *   无关的节点。这里每个实例拥有自己的容器，并按一个正经的栈把自己幂等地关掉。
+ * - `registerIcons()` 在*每次打开*时注册 293 个 Element Plus 图标外加所有本地图标。
+ *   这里不做任何图标注册：`MenuItem.vue` 通过 `SIcon` 渲染，由 `SIcon` 自己解析内置
+ *   名称。
+ * - `handleClick` 调用命令时不 await，并立刻卸载，于是异步命令既没有等待态、也没有
+ *   错误处理，还能被重复进入。
+ *
  * The DOM-facing half of the context menu: opens one, tracks it, closes it.
  *
  * The split with `menu.ts` is deliberate. Everything that can be reasoned about
@@ -41,6 +62,11 @@ import type {
 const openMenus: Array<{ close: () => void }> = [];
 
 /**
+ * 关闭所有已打开的菜单。
+ *
+ * 在路由切换或打开模态框之前很有用。没有任何菜单打开时调用是安全的，从菜单自己的命令
+ * 里调用也是安全的。
+ *
  * Close every open menu.
  *
  * Useful before a route change or a modal open. Safe to call when nothing is open,
@@ -113,15 +139,25 @@ function inertHandle(): SPopUpMenuHandle {
 }
 
 /**
+ * 打开一个上下文菜单。
+ *
+ * 菜单立刻出现在指针处，行数据则惰性解析：哪些行可见、哪些行可启用由 `menu.ts` 判定。
+ *
  * Open a context menu.
  *
- * @param options Menu options; `context` is handed to every `command`.
- * @param items The rows, resolved lazily — the menu opens at the pointer immediately
+ * @param options 菜单选项；`context` 会传给每个 `command`。 /
+ *   Menu options; `context` is handed to every `command`.
+ * @param items 这些行会惰性解析：菜单立刻在指针处打开，异步的
+ *   `display`/`enabled` 行会在它们落定后出现 /
+ *   The rows, resolved lazily — the menu opens at the pointer immediately
  *   and rows whose `display`/`enabled` are async appear once they settle.
- * @param pointer The `contextmenu` event (or any `{ x, y }` / `{ clientX, clientY }`).
+ * @param pointer 指针：`contextmenu` 事件（或任何 `{ x, y }` /
+ *   `{ clientX, clientY }`）。键盘触发的菜单请省略它，菜单会锚定到聚焦的元素 /
+ *   The `contextmenu` event (or any `{ x, y }` / `{ clientX, clientY }`).
  *   Omit it for a keyboard-triggered menu; the menu then anchors to the focused
  *   element.
- * @returns A handle whose `close()` is idempotent.
+ * @returns 句柄；它的 `close()` 是幂等的 /
+ *   A handle whose `close()` is idempotent.
  */
 export function createContextMenu<TContext = unknown>(
   options: SPopUpMenuOptions<TContext> = {},
@@ -267,6 +303,11 @@ export function createContextMenu<TContext = unknown>(
 }
 
 /**
+ * 旧名字。
+ *
+ * `SPopUpMenu(options, items, event)` 是同一个函数：现有只传两个参数的调用点仍然可以
+ * 编译通过，把事件作为第三个参数传进来就能获得正确的定位。
+ *
  * The legacy name.
  *
  * `SPopUpMenu(options, items, event)` is the same function: existing call sites that

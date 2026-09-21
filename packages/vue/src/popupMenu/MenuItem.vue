@@ -39,6 +39,17 @@ import { iconComponents } from "../icon/icons";
 import type { ContextMenuIcon, MenuItemEmits, MenuItemProps } from "./type";
 
 /**
+ * 上下文菜单的一行。
+ *
+ * 这一行是 `<li role="none">` 里真正的 `<button role="menuitem">`，因此键盘激活由平台
+ * 提供（Enter/Space 会在按钮上产生 click），只有方向键与 Home/End 导航需要列表自己
+ * 实现。
+ *
+ * 子菜单本身**不**在这里渲染：`SContextMenu` 持有打开状态并渲染嵌套面板，这正是任意
+ * 层级嵌套能够工作的原因。旧的 `PopupMenuItem.vue` 把子项渲染成由 CSS `:hover` 规则
+ * 展开的嵌套 `<ul>`，于是子菜单键盘够不着、触摸设备上看不见，而且只有一层
+ * （`renderChild` 丢掉了所有孙级）。
+ *
  * One row of the context menu.
  *
  * The row is a real `<button role="menuitem">` inside a `<li role="none">`. Keyboard
