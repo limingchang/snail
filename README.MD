@@ -3,6 +3,11 @@
   <img src="https://img.shields.io/npm/v/axios?label=Axios&color=67C23A"></img>
 </p>
 
+### Why it's snail?
+- Is it slow?
+- no! because it's my son's nickname!
+- He always give me the motivation to programing.
+
 # @snail-js
 
 [官方文档 | Document](https://limingchang.github.io/snail/)
@@ -125,6 +130,9 @@ pnpm --filter @snail-js/skill test
 pnpm --filter @snail-js/docs  docs:build
 ```
 
-## 许可
+### 代码仓库
+- ![Static Badge](https://img.shields.io/badge/snail-js?style=flat&label=gitee&labelColor=F56C6C&link=https%3A%2F%2Fgitee.com%2Flimich%2Fsnail)
+- ![Static Badge](https://img.shields.io/badge/snail-js?style=flat&label=github&labelColor=F56C6C&link=https%3A%2F%2Fgihub.com%2Flimingchang%2Fsnail)
 
-MIT
+### 作者
+- mc.lee
