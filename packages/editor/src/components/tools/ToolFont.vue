@@ -44,6 +44,32 @@
         </el-button>
       </el-button-group>
     </div>
+
+    <!--
+      Text colour and background colour. Both are attributes of the same `textStyle` mark, so
+      they apply to the selection exactly like the family and size above — and both were
+      registered all along (`TextStyleKit` includes `Color` and `BackgroundColor` unless they
+      are explicitly disabled), they simply had no control.
+    -->
+    <div class="s-tool-font__row s-tool-font__row--colors">
+      <span class="s-tool-font__label">{{ t.font.color }}</span>
+      <el-color-picker
+        v-model="color"
+        size="small"
+        :title="t.font.color"
+        :predefine="TEXT_COLORS"
+        @change="applyColor"
+      />
+
+      <span class="s-tool-font__label">{{ t.font.backgroundColor }}</span>
+      <el-color-picker
+        v-model="backgroundColor"
+        size="small"
+        :title="t.font.backgroundColor"
+        :predefine="BACKGROUND_COLORS"
+        @change="applyBackgroundColor"
+      />
+    </div>
   </div>
 </template>
 
@@ -85,10 +111,46 @@ const t = computed(() => mergeEditorLocale(props.locale));
 
 const fontFamily = ref("");
 const fontSize = ref("");
+const color = ref("");
+const backgroundColor = ref("");
 const bold = ref(false);
 const italic = ref(false);
 const underline = ref(false);
 const strike = ref(false);
+
+/**
+ * Quick colours for text.
+ *
+ * A contract is a formal document: the useful non-black choices are an emphasis red and the
+ * greys used for annotations. Element Plus's colour picker also accepts any colour the user
+ * types, so this list is a shortcut rather than a restriction.
+ */
+const TEXT_COLORS = [
+  "#000000",
+  "#333333",
+  "#666666",
+  "#999999",
+  "#c0392b",
+  "#d4380d",
+  "#e6a23c",
+  "#409eff",
+  "#1e80ff",
+  "#a83279"
+];
+
+/** Quick colours for the highlight behind text — the same idea, kept light enough to read on. */
+const BACKGROUND_COLORS = [
+  "#ffffff",
+  "#f5f7fa",
+  "#fffbe6",
+  "#fff1f0",
+  "#e6f7ff",
+  "#f6ffed",
+  "#f9f0ff",
+  "#ffe58f",
+  "#ffccc7",
+  "#b7eb8f"
+];
 
 /** Re-read everything this panel shows from the current caret. */
 function sync(): void {
@@ -98,6 +160,9 @@ function sync(): void {
   const textStyle: Record<string, unknown> = editor.getAttributes("textStyle");
   fontFamily.value = typeof textStyle.fontFamily === "string" ? textStyle.fontFamily : "";
   fontSize.value = typeof textStyle.fontSize === "string" ? textStyle.fontSize : "";
+  color.value = typeof textStyle.color === "string" ? textStyle.color : "";
+  backgroundColor.value =
+    typeof textStyle.backgroundColor === "string" ? textStyle.backgroundColor : "";
 
   bold.value = editor.isActive("bold");
   italic.value = editor.isActive("italic");
@@ -168,6 +233,36 @@ function toggle(mark: "bold" | "italic" | "underline" | "strike"): void {
       break;
   }
 }
+
+/**
+ * Apply the text colour.
+ *
+ * `null` is what Element Plus's colour picker emits for its 清空 action, and it means "remove
+ * the attribute" rather than "set it to nothing" — `setColor("")` would write an empty
+ * declaration into the document and print an invalid `color:`.
+ */
+function applyColor(value: string | null): void {
+  const editor = props.editor;
+  if (!editor) return;
+
+  if (value === null || value === "") {
+    editor.chain().focus().unsetColor().run();
+    return;
+  }
+  editor.chain().focus().setColor(value).run();
+}
+
+/** The same for the background colour. */
+function applyBackgroundColor(value: string | null): void {
+  const editor = props.editor;
+  if (!editor) return;
+
+  if (value === null || value === "") {
+    editor.chain().focus().unsetBackgroundColor().run();
+    return;
+  }
+  editor.chain().focus().setBackgroundColor(value).run();
+}
 </script>
 
 <style scoped lang="scss">
@@ -175,12 +270,22 @@ function toggle(mark: "bold" | "italic" | "underline" | "strike"): void {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 210px;
+  min-width: 260px;
 
   &__row {
     display: flex;
     align-items: center;
     gap: 5px;
+
+    &--colors {
+      gap: 6px;
+    }
+  }
+
+  &__label {
+    font-size: 12px;
+    color: var(--se-color-text-secondary);
+    white-space: nowrap;
   }
 
   &__family {

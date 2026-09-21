@@ -24,16 +24,48 @@
       </el-button-group>
     </div>
 
+    <!--
+      First-line indent, expressed in **characters**. The legacy panel had only an on/off
+      toggle hardcoded to two characters; a Chinese template routinely wants one, two or
+      four, and the unit a Chinese author thinks in is the glyph, not the em. One CJK glyph
+      is one em, so the number maps straight onto `text-indent: N em` — which is also what
+      the legacy value `2em` meant.
+    -->
     <div class="s-tool-paragraph__row">
+      <span class="s-tool-paragraph__label">{{ t.paragraph.indent }}</span>
+      <el-input-number
+        v-model="indentChars"
+        size="small"
+        :min="0"
+        :max="INDENT_MAX"
+        :step="1"
+        :controls="false"
+        class="s-tool-paragraph__number"
+        @change="applyIndentChars"
+      />
+      <span class="s-tool-paragraph__label">{{ t.paragraph.indentUnit }}</span>
+
       <el-button-group>
-        <el-button size="small" :type="indented ? 'primary' : 'default'" :title="t.paragraph.indentIncrease" @click="setIndent('2em')">
-          <SIcon :icon="IconIndentIncrease" />
-        </el-button>
-        <el-button size="small" :type="indented ? 'default' : 'primary'" :title="t.paragraph.indentDecrease" @click="setIndent('0')">
+        <el-button
+          size="small"
+          :disabled="indentChars === 0"
+          :title="t.paragraph.indentDecrease"
+          @click="stepIndent(-1)"
+        >
           <SIcon :icon="IconIndentDecrease" />
         </el-button>
+        <el-button
+          size="small"
+          :disabled="indentChars >= INDENT_MAX"
+          :title="t.paragraph.indentIncrease"
+          @click="stepIndent(1)"
+        >
+          <SIcon :icon="IconIndentIncrease" />
+        </el-button>
       </el-button-group>
+    </div>
 
+    <div class="s-tool-paragraph__row">
       <span class="s-tool-paragraph__label">{{ t.paragraph.lineHeight }}</span>
       <el-select v-model="lineHeightKind" class="s-tool-paragraph__line-height" size="small" @change="applyLineHeightKind">
         <el-option v-for="option in LINE_HEIGHT_PRESETS" :key="option.value" :label="option.label" :value="option.value" />
@@ -147,7 +179,11 @@ const STYLE_TYPES = ["paragraph", "heading"] as const;
 
 const headingLevel = ref(0);
 const alignment = ref<"left" | "center" | "right" | "justify">("left");
-const indented = ref(false);
+/** The largest first-line indent the panel offers, in characters. */
+const INDENT_MAX = 8;
+
+/** First-line indent in characters; `0` means "no indent". */
+const indentChars = ref(0);
 
 type LineHeightKind = "single" | "oneAndHalf" | "double" | "fixed";
 const lineHeightKind = ref<LineHeightKind>("single");
@@ -219,7 +255,7 @@ function sync(): void {
     }
   }
 
-  indented.value = (readStyleAttribute("textIndent") ?? "0") !== "0";
+  indentChars.value = readIndentChars(readStyleAttribute("textIndent"));
 
   const textStyle: Record<string, unknown> = editor.getAttributes("textStyle");
   const lineHeight = typeof textStyle.lineHeight === "string" ? textStyle.lineHeight : undefined;
@@ -269,9 +305,50 @@ function applyAlign(value: "left" | "center" | "right" | "justify"): void {
   props.editor?.chain().focus().setTextAlign(value).run();
 }
 
-/** First-line indent on or off. The value is the CSS the model stores. */
-function setIndent(textIndent: string): void {
-  props.editor?.chain().focus().setParagraphStyle({ textIndent }).run();
+/**
+ * Read the stored `text-indent` back as a character count.
+ *
+ * Only `em`/`rem` (and a bare number, which is what the legacy `"0"` was) can be mapped to
+ * characters: one em is one CJK glyph, which is the unit the panel offers. A document that
+ * carries an absolute indent — `24pt`, `10mm` — is left alone and shows as `0` rather than
+ * being silently rewritten to a different length on the next selection change.
+ */
+function readIndentChars(raw: string | undefined): number {
+  if (!raw) return 0;
+
+  const match = /^(\d+(?:\.\d+)?)\s*(em|rem)?$/.exec(raw.trim());
+  if (!match) return 0;
+
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+
+  return Math.min(INDENT_MAX, Math.round(value));
+}
+
+/**
+ * Set the first-line indent, in characters.
+ *
+ * `null` removes the attribute rather than writing `text-indent: 0em`, so a paragraph with
+ * no indent stays clean in the serialised document (the same reason the extension defaults
+ * the attribute to `null`).
+ */
+function applyIndentChars(value: number | undefined): void {
+  const requested = Number(value ?? 0);
+  const chars = Number.isFinite(requested)
+    ? Math.max(0, Math.min(INDENT_MAX, Math.round(requested)))
+    : 0;
+
+  indentChars.value = chars;
+  props.editor
+    ?.chain()
+    .focus()
+    .setParagraphStyle({ textIndent: chars === 0 ? null : `${chars}em` })
+    .run();
+}
+
+/** Move the indent by one character, for the two arrow buttons. */
+function stepIndent(delta: number): void {
+  applyIndentChars(indentChars.value + delta);
 }
 
 /** A preset's line height. `fixed` keeps the current value; the others are multiples. */

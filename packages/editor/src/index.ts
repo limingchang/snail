@@ -44,6 +44,7 @@ export { default as TemplatePicker } from "./components/TemplatePicker.vue";
 export { default as ToolFont } from "./components/tools/ToolFont.vue";
 export { default as ToolParagraph } from "./components/tools/ToolParagraph.vue";
 export { default as ToolInsert } from "./components/tools/ToolInsert.vue";
+export { default as ToolTable } from "./components/tools/ToolTable.vue";
 export { default as ToolPage } from "./components/tools/ToolPage.vue";
 export { default as ToolVariable } from "./components/tools/ToolVariable.vue";
 export { default as ToolQrcode } from "./components/tools/ToolQrcode.vue";
@@ -81,6 +82,7 @@ export { useEditorRuntime } from "./editor/useEditorRuntime";
 export { useEditorSelection } from "./editor/useEditorSelection";
 export * from "./editor/locale";
 export * from "./editor/props";
+export * from "./editor/starter";
 export * from "./editor/template";
 export {
   countPages,

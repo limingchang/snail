@@ -9,5 +9,5 @@ packages:
 # and running it requires spawning a child process, which confined build
 # environments deny. Everything else in this workspace is pure JS.
 allowBuilds:
-  '@parcel/watcher': set this to true or false
+  '@parcel/watcher': true
   esbuild: false

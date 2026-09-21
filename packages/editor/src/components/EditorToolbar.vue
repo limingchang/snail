@@ -17,7 +17,11 @@
           </template>
 
           <template v-else-if="section.name === 'insert'">
-            <ToolInsert :editor="editor" :locale="locale" />
+            <ToolInsert :editor="editor" :locale="locale" @insert-variable="onInsertVariable?.()" />
+          </template>
+
+          <template v-else-if="section.name === 'table'">
+            <ToolTable :editor="editor" :locale="locale" />
           </template>
 
           <template v-else-if="section.name === 'page'">
@@ -75,13 +79,11 @@
  * pay for it: the legacy toolbar hard-imported every tool, which made tree-shaking
  * impossible.
  *
- * ## `table` and `template`
+ * ## `template`
  *
- * `ToolName` has nine members and the ribbon has eight panes. `"table"` is an alias of
- * `"insert"` — the table grid lives there, so naming either shows the same pane and
- * naming both shows it once. `"template"` is not a ribbon pane at all: the template list
- * is `TemplatePicker`, which belongs in the workspace where the document is, not in a
- * toolbar the user has to open to load a document.
+ * `ToolName` has ten members and the ribbon has nine panes. `"template"` is not a ribbon pane
+ * at all: the template list is `TemplatePicker`, which belongs in the workspace where the
+ * document is, not in a toolbar the user has to open to load a document.
  */
 
 import { computed, ref, watch } from "vue";
@@ -89,6 +91,7 @@ import { computed, ref, watch } from "vue";
 import type { Editor } from "@tiptap/core";
 
 import type { ToolName } from "../typings/editor";
+import { DEFAULT_TOOLS } from "../typings/editor";
 import type { VariableAttrs } from "../typings/variable";
 import type { PrintOptions, WatermarkOptions } from "../typings/editor";
 
@@ -101,6 +104,7 @@ import ToolPage from "./tools/ToolPage.vue";
 import ToolParagraph from "./tools/ToolParagraph.vue";
 import ToolPrint from "./tools/ToolPrint.vue";
 import ToolQrcode from "./tools/ToolQrcode.vue";
+import ToolTable from "./tools/ToolTable.vue";
 import ToolVariable from "./tools/ToolVariable.vue";
 import ToolWatermark from "./tools/ToolWatermark.vue";
 
@@ -111,7 +115,7 @@ const props = withDefaults(
     /** The editor. `undefined` before it has been created. */
     editor?: Editor;
 
-    /** Which sections the caller wants. */
+    /** Which sections the caller wants. Defaults to {@link DEFAULT_TOOLS}. */
     tools?: readonly ToolName[];
 
     /**
@@ -149,6 +153,20 @@ const props = withDefaults(
   }
 );
 
+/**
+ * The sections the caller asked for.
+ *
+ * Defaults to {@link DEFAULT_TOOLS}, which is the documented contract in
+ * `typings/editor.ts` and what the docs promise. It is resolved here rather than
+ * through `withDefaults` for two reasons: a `readonly` array default defeats Vue's
+ * `InferDefault` (it maps over the array's keys and then demands a factory function),
+ * and an explicit default reads the same as `SEditor`'s own
+ * `props.tools ?? DEFAULT_TOOLS`, so the two cannot drift.
+ *
+ * An explicit `[]` still means "no sections" — `requested()` simply finds nothing.
+ */
+const requestedTools = computed<readonly ToolName[]>(() => props.tools ?? DEFAULT_TOOLS);
+
 const t = computed(() => mergeEditorLocale(props.locale));
 
 /**
@@ -165,7 +183,13 @@ const RIBBON: readonly {
 }[] = [
   { name: "font", aliases: [], extensions: ["textStyle"] },
   { name: "paragraph", aliases: [], extensions: ["paragraphStyle"] },
-  { name: "insert", aliases: ["table"], extensions: ["table"] },
+  // The insert pane is backed by any of the extensions whose tools it holds, so it appears
+  // as soon as one of them is registered — a watermark-only setup has no insert pane, a
+  // variable-only one does.
+  { name: "insert", aliases: [], extensions: ["variable", "qrcode", "page", "image"] },
+  // `table` is its own section. It used to be an alias of `insert`, which meant the eight
+  // table operations sat in a pane named after a different job.
+  { name: "table", aliases: [], extensions: ["table"] },
   { name: "page", aliases: [], extensions: ["page"] },
   { name: "variable", aliases: [], extensions: ["variable"] },
   { name: "qrcode", aliases: [], extensions: ["qrcode"] },
@@ -183,8 +207,7 @@ const registered = computed<ReadonlySet<string>>(() => {
 
 /** `true` when the caller named the section or one of its aliases. */
 function requested(section: (typeof RIBBON)[number]): boolean {
-  const tools = props.tools;
-  if (!tools) return false;
+  const tools = requestedTools.value;
   return tools.includes(section.name) || section.aliases.some((alias) => tools.includes(alias));
 }
 

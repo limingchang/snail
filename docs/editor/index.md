@@ -1,6 +1,6 @@
-# 合同编辑器 `@snail-js/editor`
+# 模板文档编辑器 `@snail-js/editor`
 
-基于 [Tiptap 3](https://tiptap.dev/) 的**合同模板编辑器**。它不是一个通用的富文本输入框，
+基于 [Tiptap 3](https://tiptap.dev/) 的**模板文档编辑器**。它不是一个通用的富文本输入框，
 而是一台「排版机 + 模板引擎」：文档里是真的 `page` 节点，有页眉、页脚、Logo、自动分页、
 变量、二维码、水印和浏览器打印。
 
@@ -48,8 +48,13 @@ createApp(App).use(ElementPlus).mount("#app");
 
 ## 快速上手
 
-一个「一页一段」的空文档就够了：`mode` 默认是 `design`，页面 / 变量 / 二维码 / 水印 / 打印
-扩展默认注册，工具栏默认给出 `["font", "paragraph", "insert", "page"]` 四组。
+`mode` 默认是 `design`，页面 / 变量 / 二维码 / 水印 / 打印扩展默认注册，工具栏默认给出
+`["font", "paragraph", "insert", "table", "page"]` 五组。
+
+内容用 `createStarterDocument()` 装一份真实文档，第一次打开就能看到主标题、二级标题、正文、
+金额变量（小写与中文大写各一次）、普通表格、无边框布局表和二维码 —— 空文档也能用，只是这些
+能力都得自己先写一遍 ProseMirror JSON 才看得见。注意二维码节点只存内容，位图既不随文档保存、
+也不自动生成，需要在编辑器就绪后调一次 `regenerateQRCode()`。
 
 <script setup>
 import BasicEditor from "./examples/basic-editor.vue";
@@ -413,6 +418,10 @@ Tiptap 只会改选区内的节点，所以除非选区正好是一个 `NodeSele
 `paragraphStart` / `paragraphEnd`（段前 / 段后）。选项只有一个 `types`
 （默认 `["paragraph", "heading"]`）。
 
+首行缩进的单位是 `em`，而一个汉字正好是一个 `em`，所以工具栏里的「首行缩进 N 字符」写进文档的
+就是 `N em` —— 旧版那个按钮写死的 `2em` 也就是两个字符。读回时只认 `em` / `rem`：文档里带的
+绝对缩进（`24pt`、`10mm`）不会被悄悄改写成另一个长度。
+
 命令：`setParagraphStyle({ textIndent?, paragraphStart?, paragraphEnd? })`；
 `null` 表示移除该属性，而它和 `"0"` 是不同的值 —— 旧版默认成 `"0"`，
 于是每一段都被写上 `text-indent: 0;` 并序列化出去。
@@ -466,16 +475,24 @@ Word 那样的页眉 / 页脚在这里就是 `page` 的**子节点**：`pageHead
 | `removeHeader(pageIndex?)` / `removeFooter(pageIndex?)` | 移除 |
 | `setHeaderHeight(h, pageIndex?)` / `setFooterHeight(h, pageIndex?)` | 设高度 |
 | `setHeaderAlign(a, pageIndex?)` / `setFooterAlign(a, pageIndex?)` | 设对齐 |
+| `applyPageNumberFormat(format)` | 把每一页页码的格式设为 `format`；这一页还没有页码时**顺手建一个**（优先页脚，没有页脚就用页眉）。没有家具可放、或格式本来就一样时返回 `false` |
 | `addLogo(attrs?, pageIndex?)` / `removeLogo(pageIndex?)` / `setLogoPosition(position, pageIndex?)` | Logo（`src`、`width` 默认 `30mm`、`height` 默认 `auto`、`position` 左 / 中 / 右、`offsetX` / `offsetY` 毫米） |
 
 `pageIndex` 是 1 起的页码，省略就作用于所有页 —— 「只有部分页有页眉」是被支持的状态，
 不是坏掉的状态。
 
+**页眉 / 页脚点一下就能编辑。** 家具的内容是普通块，光标进去以后选中、排版、对齐都和正文一样。
+唯一要补的是「刚加上去的空页眉」：里面只有一个空段落，点在它的留白上时浏览器可能把**整块页眉**
+当成一个节点选中，看起来就像「页眉点不进去，一打字整块页眉被替换」。这里在 ProseMirror 自己的
+映射之后再补一步 —— 只有当这次点击的结果正好是**选中了这个家具节点**时，才把选区改成家具内部的
+文本选区（`planFurnitureClick`）；光标已经在里面、你选中了页码或二维码、点击落在别处，全都不动。
+所以它只修正坏掉的那一种结果，不和 ProseMirror 抢映射。
+
 ### 页码是一个节点
 
 页码是内联原子节点 `pageNumber`，属性只有一个 `format`，默认 `第{page}页，共{total}页`。
-`{page}`、`{total}` 在**渲染时**替换；旧版的 `#` 与 `&`（以及 `$index` / `$total`）也仍然
-认得，升级后老模板不会突然印不出数字。
+`{page}` 是当前页、`{total}` 是总页数，两者都在**渲染时**替换；`#` 与 `&`（以及
+`$index` / `$total`）是等价的写法，同样认得，所以一个存了很久的模板不会突然印不出数字。
 
 关键是：**节点里没有数字。** 标签由所在 `page` 的 `index` 现算，
 `index` 缺失或过旧时退化为「它是第几个 page」。所以：
@@ -487,6 +504,20 @@ Word 那样的页眉 / 页脚在这里就是 `page` 的**子节点**：`pageHead
 旧版是把页码当文本「盖」进每一页的（`textFormat` 模板 + `schema.text("")`），
 结果是默认文档里点「新页面」直接抛异常，而且 `__flush*` 在每一页上都盖 `index = 1`
 从不重排 —— 结构一变页码就全错。
+
+### 页码格式：选一个格式就是「要页码」
+
+「页面」页签里的页码格式下拉列的是 `第{page}页，共{total}页`、`{page}`、`{page} / {total}`
+这类常用写法，旁边 `?` 图标的提示里写着可用的占位符（`{page}` 当前页、`{total}` 总页数，
+`#` 与 `&` 等价）。选中一个格式走 `applyPageNumberFormat(format)`，它**不只是改属性**：
+
+1. 优先放进每一页的**页脚**，这一页没有页脚就用**页眉**；两者都没有的页不动；
+2. 每页只放一个 —— 已经有页码的页只改它的 `format`，不会又多出一个；
+3. 从后往前改，因为插入会移动它后面的位置（旧版 `__flush*` 从前往后盖，位置一错页码全错）。
+
+这条命令存在的理由是一个真实的死路：**刚打开的页脚里是空的**，没有页码节点可改，于是
+「开启页脚 → 选页码格式」只能得到一句「没有页脚节点」。选格式本身就是添加页码的方式，所以
+缺的那个由它建出来，而不是让用户自己先想办法插一个。
 
 ### 插入页码
 
@@ -567,20 +598,39 @@ editor.chain().focus().insertPageNumber("第{page}页 / 共{total}页").run();
 `TemplateDocument.watermark` 一起存下来，所以渲染方从模板上读它、
 而不是去 `doc` 里找（这正是 `TemplateDocument` 要带 `watermark` 字段的原因）。
 
-## 与 0.1.x 的差异
+## 工具栏分组
 
-| 方面 | 0.1.x | 现在 |
-| --- | --- | --- |
-| UI 框架 | `ant-design-vue` | **Element Plus**（peer 依赖，配色尽量贴近旧设计） |
-| 填写模式 | 改写文档：把变量替换成文本节点再 `setContent` | **只渲染**，文档不变；切回设计模式是免费的 |
-| 变量类型 | `text` `number` `money` `boolean` `date` `object` `list` `checkbox` `innerVariable` | 去掉 `object` / `list` / `checkbox`；`innerVariable` 改为输入方式 `keySource`；新增 `select`、`image`、`formula`、`system` |
-| 变量配置 | `type` 与 `data` 两个字段，`data` 从不序列化 | `data` 是判别联合，`type` 就是判别式，整体进 schema |
-| 分页 | 只在输入法组合期间跑；用字符数当 ProseMirror 偏移；溢出用纯文本重建 | 每次相关文档变更都跑；切的是真实节点切片；不再有 IME 门控 |
-| 页码 | 把 `index = 1` 盖到每一页，从不重排 | `pageNumber` 节点按所在页的 `index` 现算 |
-| 撤销 / 重做 | 完全没有注册 | 注册 `UndoRedo`；分页事务带 `addToHistory: false` |
-| 模板格式 | 只有 `getJSON()`，无版本，易变属性混在里面 | `TemplateDocument`（`version` + `doc` + `page` + `variables` + `watermark`），写入时剥掉易变属性 |
-| 模式 | `design` 在创建时冻结，`props.data` 从不读取 | `mode` 响应式，文档 / 填写数据 / 扩展配置都有 `watch` |
-| 多实例 | `generateExtensions` 改的是模块级数组，第二个实例或重挂载会重复注册扩展 | 每次创建都返回一份新的扩展数组 |
+工具栏的页签就是 `ToolName` 的成员，而每个分组只在**两件事同时成立**时出现：你在 `tools` 里点名它，
+并且它背后的扩展真的注册了 —— 所以没装水印扩展的应用不会看到一个空的「水印」页签。
+
+| 分组 | `tools` 名字 | 依赖的扩展 | 内容 |
+| --- | --- | --- | --- |
+| 格式 | `font` | `textStyle` | 字体、字号、加粗 / 斜体 / 下划线 / 删除线、**字体颜色**、**字体背景色** |
+| 段落 | `paragraph` | `paragraphStyle` | 样式（正文 / H1–H6）、对齐、行距、**首行缩进 N 字符**、段前 / 段后 |
+| 插入 | `insert` | `variable` / `qrcode` / `page` / `image` 任一 | **插入变量**、**插入二维码**、新页面、分页、插入图片 |
+| 表格 | `table` | `table` | 插入表格（8×8 网格）、插入布局表、合并 / 取消合并、加删行列 |
+| 页面 | `page` | `page` | 纸张、方向、页边距、页眉页脚、页码、logo |
+| 变量 | `variable` | `variable` | 文档里的变量列表，编辑 / 移除 |
+| 二维码 | `qrcode` | `qrcode` | 二维码内容、尺寸、位置、颜色、边距 |
+| 水印 | `watermark` | `watermark` | 文字 / 图片、角度、透明度、灰度、平铺 |
+| 打印 | `print` | `print` | 纸张 / 方向 / 页边距覆盖、`@page` margin box、文档标题 |
+
+几点值得单独说明：
+
+- **插入与表格是两个页签。** 它们曾经是同一个：表格工具住在「插入」里，于是那个页签同时表达
+  「往里放一个新东西」和「改你正踩着的这张表」。拆开之后，光标在表格里时一步就能点到表格操作，
+  「插入」只描述插入。`table` 不再是 `insert` 的别名，`DEFAULT_TOOLS` 里两者都在。
+- **字体颜色和背景色是同一个 `textStyle` mark 的属性**，和字体、字号一样作用于选区。它们本来就
+  已经注册（`TextStyleKit` 默认包含 `Color` 与 `BackgroundColor`，只有显式传 `false` 才关掉），
+  以前缺的只是控件。颜色面板里的「清空」写的是 `null`，于是走 `unsetColor` —— 而不是往文档里写一条
+  `color: ;` 空声明。
+- **首行缩进按字符数设置。** 一个汉字正好是一个 `em`，所以输入 `2` 写进文档的就是 `text-indent: 2em`
+  （也就是旧版按钮写死的那个值）。旁边两个箭头按钮是 ±1 字符的快捷方式。
+- **「插入变量」自己不弹对话框。** 它把事件交给 `SEditor`，因为变量节点自己的点击回调也要打开同一个
+  对话框；两个所有者正是旧版对话框被共享、并把上一个变量的状态带进下一个的原因。
+- **「插入二维码」的内容取文档的第一个标题**（没有标题时用一个默认链接），所以一次点击插入的是有内容
+  的二维码而不是空载荷；插进去之后可以在「二维码」页签里改内容和外观。位图是异步生成的，不会插两次。
+- **`template` 不是页签**：模板列表是工作区里的选择器，不是要展开工具栏才能用的东西。
 
 ## 组件接口
 
@@ -593,7 +643,7 @@ editor.chain().focus().insertPageNumber("第{page}页 / 共{total}页").run();
 | `design` | `boolean` | 已废弃，`mode` 优先 |
 | `doc` | `TemplateContent` | — |
 | `data` | `VariableFillData` | `{}` |
-| `tools` | `readonly ToolName[]` | `["font", "paragraph", "insert", "page"]` |
+| `tools` | `readonly ToolName[]` | `["font", "paragraph", "insert", "table", "page"]` |
 | `multiPage` | `boolean` | `true` |
 | `template` | `TemplateSource` | — |
 | `save` | `TemplateSaveTarget` | — |
@@ -610,9 +660,8 @@ editor.chain().focus().insertPageNumber("第{page}页 / 共{total}页").run();
 `loadTemplateList()`、`selectTemplate(id)`、`focus()`。
 
 `ToolName` 的十个成员是 `font`、`paragraph`、`insert`、`table`、`qrcode`、`variable`、
-`page`、`watermark`、`print`、`template`。其中 `table` 是 `insert` 的别名（表格在插入组里，
-两个都点名也只渲染一次），`template` 不是功能区的一个页签 —— 模板列表是工作区里的选择器，
-不是要展开工具栏才能用的东西。
+`page`、`watermark`、`print`、`template`，其中九个是页签（见[工具栏分组](#工具栏分组)），
+`template` 例外 —— 模板列表是工作区里的选择器，不是要展开工具栏才能用的东西。
 
 全部面向用户的文案都走 `locale`，默认中文：分组名、按钮、变量对话框、填写对话框、
 页码提示都在内。`locale` 是浅合并的局部覆盖，只改你关心的那几个键。

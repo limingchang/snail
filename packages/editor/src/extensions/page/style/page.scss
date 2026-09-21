@@ -92,6 +92,17 @@
 .s-editor-page-furniture-content {
   height: 100%;
   overflow: hidden;
+
+  // The block inside a header/footer is ordinary document content, so it inherits a document
+  // paragraph's margins — but inside a 50px band those margins push the text out of the
+  // visible area and leave the band's own padding as the only thing a click can land on,
+  // which is half of why an empty header felt uneditable. Neutralising them keeps the text
+  // where the band is, and the minimum height keeps an empty paragraph a real target instead
+  // of a zero-height line.
+  > * {
+    margin: 0;
+    min-height: 1.4em;
+  }
 }
 
 // The logo overlay: absolutely positioned inside the page node view's `dom`, as a sibling

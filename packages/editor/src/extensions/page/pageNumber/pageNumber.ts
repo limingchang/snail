@@ -29,6 +29,7 @@ import type { PageNumberOptions } from "../typing/pageNumber";
 import type { PageStorage } from "../typing/page";
 import { countPages, PAGE_NUMBER_NODE, resolvePageNumber } from "../utils/nodes";
 import { formatPageNumberLabel } from "../utils/pageNumberLabel";
+import { planPageNumberFormat } from "../utils/pageNumberFormat";
 
 export const PageNumber = Node.create<PageNumberOptions>({
   name: PAGE_NUMBER_NODE,
@@ -146,6 +147,27 @@ export const PageNumber = Node.create<PageNumberOptions>({
             type: PAGE_NUMBER_NODE,
             attrs: { format: format ?? fallback }
           });
+        },
+
+      /**
+       * Set the page number's format — and **create the number when the document has none**.
+       *
+       * This is what the 页码格式 control calls. Turning the footer on gives the page an empty
+       * footer, so "write the format onto the existing numbers" would have nothing to write to:
+       * choosing a format *is* how a user asks for a page number, so the missing one is created.
+       * {@link planPageNumberFormat} holds the whole rule (footer before header, one number per
+       * page, highest position first) and is pure, so the behaviour is unit-tested without a DOM.
+       *
+       * Returns `false` when there is nothing to do: no page has furniture, or every page number
+       * already carries this format.
+       */
+      applyPageNumberFormat:
+        (format: string) =>
+        ({ state, tr, dispatch }: CommandProps): boolean => {
+          const planned = planPageNumberFormat(state, format, tr);
+          if (!planned) return false;
+          if (dispatch) dispatch(planned);
+          return true;
         }
     };
   }

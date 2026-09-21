@@ -26,6 +26,11 @@ docs/.vitepress/cache/
 npm-debug.log*
 pnpm-debug.log*
 
+# A scratch browser profile from local verification runs. Edge keeps a lock on it
+# for as long as the browser is open, so it cannot always be deleted immediately —
+# it must never be committed.
+.edge-profile/
+
 # The pre-rewrite project, kept in-tree for reference only. It is not part of
 # this workspace (see `pnpm-workspace.yaml`) and must not be published.
 api/node_modules/

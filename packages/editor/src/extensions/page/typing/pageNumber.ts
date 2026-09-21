@@ -34,6 +34,17 @@ declare module "@tiptap/core" {
        * (defect 29).
        */
       insertPageNumber: (format?: string) => ReturnType;
+
+      /**
+       * Set the format on every page's page number, creating the number when a page's
+       * furniture has none.
+       *
+       * This is the command behind the 页码格式 control: turning a footer on leaves it empty,
+       * so "write the format onto the existing numbers" would have nothing to write to — the
+       * number is created here instead. Each page's footer is used, falling back to its
+       * header. Returns `false` when no page has any furniture.
+       */
+      applyPageNumberFormat: (format: string) => ReturnType;
     };
   }
 }

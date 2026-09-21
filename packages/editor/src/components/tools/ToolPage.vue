@@ -90,6 +90,12 @@
     <div class="s-tool-page__group s-tool-page__group--column">
       <div class="s-tool-page__row">
         <span class="s-tool-page__side">{{ t.page.pageNumber }}</span>
+        <!-- The token documentation lives in a tooltip rather than in a permanent hint line:
+             it is reference material a user reads once, and a line of it under every control
+             makes the panel taller than the thing it documents. -->
+        <el-tooltip :content="t.page.pageNumberTokens" placement="top">
+          <el-icon class="s-tool-page__help"><QuestionFilled /></el-icon>
+        </el-tooltip>
         <!-- `allow-create` is what makes a custom pattern possible: the stored value is
              one string on the `pageNumber` node, so a preset and a hand-written pattern
              are the same kind of thing. -->
@@ -100,13 +106,12 @@
           filterable
           allow-create
           default-first-option
-          :disabled="!hasFooter"
+          :disabled="!hasHeader && !hasFooter"
           @change="applyPageNumberFormat"
         >
           <el-option v-for="preset in PAGE_NUMBER_PRESETS" :key="preset.value" :label="preset.label" :value="preset.value" />
         </el-select>
       </div>
-      <p class="s-tool-page__hint">{{ t.page.pageNumberTokens }}</p>
     </div>
 
     <!-- Page break and logo ---------------------------------------------------- -->
@@ -156,7 +161,7 @@
 
 import { computed, reactive, ref } from "vue";
 
-import { Scissor } from "@element-plus/icons-vue";
+import { QuestionFilled, Scissor } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 
 import { SIcon } from "@snail-js/vue";
@@ -167,12 +172,7 @@ import type { NamedPaperFormat, ResolvedMargins } from "../../typings/paper";
 import { formatCssLength, toMillimetres } from "../../editor/cssLength";
 import { mergeEditorLocale } from "../../editor/locale";
 import type { ToolProps } from "../../editor/props";
-import {
-  findNodes,
-  readDocumentPageSetup,
-  readPageNumberFormat,
-  updateNodesOfType
-} from "../../editor/documentNodes";
+import { findNodes, readDocumentPageSetup, readPageNumberFormat } from "../../editor/documentNodes";
 import { useEditorSelection } from "../../editor/useEditorSelection";
 import { ALIGN_OPTIONS, LOGO_POSITIONS, MARGIN_PRESETS, ORIENTATION_OPTIONS, PAGE_NUMBER_PRESETS, PAPER_FORMAT_OPTIONS } from "./constants";
 
@@ -358,13 +358,27 @@ function applyRegionAlign(): void {
   props.editor?.chain().focus().setFooterAlign(regionAlign.value).run();
 }
 
-/** Write the pattern onto every `pageNumber` node in the document. */
+/**
+ * Apply the page-number pattern.
+ *
+ * Picking a format **is** how a user asks for a page number, so this calls the command that
+ * both writes the format onto the existing numbers *and* creates one when a page has none.
+ * Turning the footer on leaves it empty, so the old "write onto the numbers that already exist"
+ * behaviour had nothing to write to and could only report that the footer had no page number —
+ * a dead end rather than an explanation.
+ *
+ * The command's `false` has two causes, and only one deserves a message: every number already
+ * carries this format (nothing happened, nothing to say), or the document has no furniture to
+ * put a number in — the state this panel exists to explain. Note the control is enabled when
+ * *either* band exists, because the command falls back to the header.
+ */
 function applyPageNumberFormat(value: string): void {
   if (value === "") return;
-  const changed = updateNodesOfType(props.editor, "pageNumber", { format: value });
-  if (changed === 0) {
-    // No page-number node exists yet — creating one is the footer's own job, so the panel
-    // says what it did rather than leaving the user to wonder why nothing changed.
+  const editor = props.editor;
+  if (!editor) return;
+
+  const changed = editor.commands.applyPageNumberFormat(value);
+  if (!changed && !hasHeader.value && !hasFooter.value) {
     ElMessage.warning(t.value.page.pageNumberMissing);
   }
 }
@@ -452,12 +466,16 @@ function applyLogoPosition(): void {
     margin-left: 4px;
   }
 
-  &__hint {
-    margin: 0;
-    max-width: 260px;
+  // The `?` next to 页码格式: it is a reference note, so it reads as a quiet affordance and
+  // the tooltip carries the text.
+  &__help {
     color: var(--se-color-text-secondary);
-    font-size: 12px;
-    line-height: 1.4;
+    font-size: 13px;
+    cursor: help;
+
+    &:hover {
+      color: var(--el-color-primary);
+    }
   }
 
   &__preset {

@@ -18,6 +18,8 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import type { CommandProps } from "@tiptap/core";
 import { Fragment } from "@tiptap/pm/model";
 import type { Node as PMNode, Schema } from "@tiptap/pm/model";
+import { NodeSelection, Plugin, TextSelection } from "@tiptap/pm/state";
+import type { EditorState, Transaction } from "@tiptap/pm/state";
 
 import {
   DEFAULT_FOOTER_ALIGN,
@@ -121,6 +123,10 @@ export function createPageFurniture(side: FurnitureSide): Node<FurnitureOptions>
       return renderFurnitureNodeView(side);
     },
 
+    addProseMirrorPlugins() {
+      return [furnitureClickPlugin(names)];
+    },
+
     addCommands() {
       const defaults: FurnitureAttributes = {
         height: this.options.height,
@@ -160,6 +166,83 @@ export const PageHeader = createPageFurniture("top");
 
 /** The footer extension (`pageFooter` + `addFooter`/`removeFooter`/…). */
 export const PageFooter = createPageFurniture("bottom");
+
+/**
+ * Clicking anywhere in a header/footer band puts the caret **inside** it.
+ *
+ * ## The problem this solves
+ *
+ * A header is a `block*` container whose content, when freshly added, is a single empty
+ * paragraph. Clicking the band's padding — or, depending on the browser, the empty paragraph
+ * itself — does not resolve to a *text* position: there is no text to hit, so the click maps
+ * to the node boundary and ProseMirror selects the whole header (`NodeSelection`). From the
+ * user's side that reads as "the header cannot be edited": there is no caret, typing replaces
+ * the header instead of filling it, and clicking again does not help. The theme even carries
+ * a `.ProseMirror-selectednode` rule for the band, which is this state made visible.
+ *
+ * ## Why the fix runs after ProseMirror, not instead of it
+ *
+ * This handler deliberately does **not** intercept the click. It lets ProseMirror do its own
+ * mapping and only intervenes in the one case that is wrong: a `NodeSelection` produced by a
+ * click that landed inside a band. If the click already produced a caret in the band, nothing
+ * here runs — so a future ProseMirror that maps empty bands correctly simply makes this
+ * handler a no-op rather than a competing implementation.
+ *
+ * `TextSelection.near(..., 1)` also handles the "clicked the padding, not the paragraph" case:
+ * it walks to the nearest position that can actually hold a caret.
+ */
+function furnitureClickPlugin(names: FurnitureNames): Plugin {
+  return new Plugin({
+    props: {
+      handleDOMEvents: {
+        click: (view, event) => {
+          // In fill mode the document is read-only: there is no caret to place.
+          if (!view.editable) return false;
+
+          const target = event.target as HTMLElement | null;
+          const band = target?.closest?.(`[data-type="${names.dataType}"]`) as HTMLElement | null;
+          if (!band || !view.dom.contains(band)) return false;
+
+          const tr = planFurnitureClick(view.state, view.posAtDOM(band, 0), names.node);
+          if (!tr) return false;
+
+          view.dispatch(tr);
+          view.focus();
+          return false;
+        }
+      }
+    }
+  });
+}
+
+/**
+ * The transaction that turns "the whole header got selected" back into "the caret is in the
+ * header" — or `null` when the click produced a state that is already correct.
+ *
+ * Pure and separate from the plugin so the one rule that matters is unit-tested without a DOM:
+ * it fires **only** when the resulting selection is a `NodeSelection` on exactly this band
+ * (`bandPos` is the position before the band, which is what `view.posAtDOM(band, 0)` reports for
+ * a node view). A caret already inside the band, a node selection the user made deliberately
+ * (a page number, a QR code), or a click elsewhere all return `null` — so this can only correct
+ * the broken case, never compete with ProseMirror's own mapping.
+ */
+export function planFurnitureClick(
+  state: EditorState,
+  bandPos: number,
+  nodeName: string
+): Transaction | null {
+  if (!(state.selection instanceof NodeSelection)) return null;
+
+  const clamped = Math.min(Math.max(bandPos, 0), state.doc.content.size);
+  if (state.selection.from !== clamped) return null;
+  if (state.selection.node.type.name !== nodeName) return null;
+
+  // `clamped + 1` is inside the band: `TextSelection.near` walks to the nearest position that
+  // can actually hold a caret, which also covers a click on the band's padding rather than on
+  // its paragraph.
+  const inside = state.doc.resolve(Math.min(clamped + 1, state.doc.content.size));
+  return state.tr.setSelection(TextSelection.near(inside, 1));
+}
 
 /**
  * Add the furniture node to the pages that lack it.

@@ -14,7 +14,7 @@ export default defineConfig({
   lang: "zh-CN",
   title: "@snail-js",
   description:
-    "装饰器驱动的 HTTP 客户端、OpenAPI 代码生成器、合同模板编辑器与 Vue 组件库 —— 只依赖 axios，一切皆插件。",
+    "装饰器驱动的 HTTP 客户端、OpenAPI 代码生成器、模板文档编辑器与 Vue 组件库 —— 只依赖 axios，一切皆插件。",
   head: [
     ["meta", { name: "viewport", content: "width=device-width,initial-scale=1" }]
   ],
@@ -138,11 +138,14 @@ export default defineConfig({
           ]
         },
         {
+          text: "工具栏",
+          items: [{ text: "工具栏分组", link: "/editor/#工具栏分组" }]
+        },
+        {
           text: "接口",
           items: [
             { text: "组件接口", link: "/editor/#组件接口" },
-            { text: "已知的清晰边界", link: "/editor/#已知的清晰边界" },
-            { text: "与 0.1.x 的差异", link: "/editor/#与-0-1-x-的差异" }
+            { text: "已知的清晰边界", link: "/editor/#已知的清晰边界" }
           ]
         }
       ],

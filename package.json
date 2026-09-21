@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Monorepo for the @snail-js tooling family: a decorator-driven HTTP client, an OpenAPI code generator, a Tiptap contract editor and a Vue component library.",
+  "description": "Monorepo for the @snail-js tooling family: a decorator-driven HTTP client, an OpenAPI code generator, a Tiptap template document editor and a Vue component library.",
   "license": "MIT",
   "packageManager": "pnpm@11.7.0",
   "engines": {

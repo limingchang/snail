@@ -23,7 +23,7 @@ features:
     link: /cli/
     linkText: 阅读文档
   - title: "@snail-js/editor"
-    details: 基于 Tiptap 的合同模板编辑器。真实分页与页眉页脚、变量填充、二维码、水印，以及浏览器原生打印。
+    details: 基于 Tiptap 的模板文档编辑器。真实分页与页眉页脚、变量填充、二维码、水印，以及浏览器原生打印。
     link: /editor/
     linkText: 阅读文档
   - title: "@snail-js/vue"

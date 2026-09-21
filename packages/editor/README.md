@@ -1,6 +1,6 @@
 # `@snail-js/editor`
 
-A Tiptap 3 + Vue 3 contract editor: a Word-like workspace with real pages, headers and
+A Tiptap 3 + Vue 3 template document editor: a Word-like workspace with real pages, headers and
 footers, automatic pagination, variables, a QR code, a watermark and browser printing.
 The UI framework is **Element Plus**.
 
@@ -63,7 +63,7 @@ function save() {
   <SEditor
     ref="editor"
     mode="design"
-    :tools="['font', 'paragraph', 'insert', 'page', 'variable', 'qrcode', 'watermark']"
+    :tools="['font', 'paragraph', 'insert', 'table', 'page', 'variable', 'qrcode', 'watermark']"
     :save="{ kind: 'local', storageKey: 'my-contract' }"
     @save="save"
   />
@@ -177,15 +177,16 @@ section could render with nothing behind it and every command in it resolved to 
 | --- | --- |
 | 格式 `font` | `textStyle` |
 | 段落 `paragraph` | `paragraphStyle` |
-| 插入/表格 `insert`, `table` | `table` |
+| 插入 `insert` | `variable`, `qrcode`, `page` or `image` (any one) |
+| 表格 `table` | `table` |
 | 页面 `page` | `page` |
 | 变量 `variable` | `variable` |
 | 二维码 `qrcode` | `qrcode` |
 | 水印 `watermark` | `watermark` |
 | 打印 `print` | `print` |
 
-`multiPage: false` removes the page **nodes** but never the document: the multi-page
-`Document` is always the schema's top node, so ProseMirror's
+`multiPage: false` removes the page **nodes** but never the document: the top node is then
+the standard `block+` `Document` instead of the `page+` one, so ProseMirror's
 `Schema is missing its top node type (doc)` cannot happen.
 
 ---

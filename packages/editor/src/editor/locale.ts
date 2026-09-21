@@ -79,6 +79,8 @@ export interface EditorLocale {
   font: {
     family: string;
     size: string;
+    color: string;
+    backgroundColor: string;
     bold: string;
     italic: string;
     underline: string;
@@ -95,6 +97,14 @@ export interface EditorLocale {
     alignRight: string;
     alignJustify: string;
     indent: string;
+    /**
+     * Suffix shown after the indent input.
+     *
+     * The indent is expressed in **characters**, not in an abstract number: "首行缩进 2"
+     * means two characters to a Chinese author, and `2em` is exactly that (one CJK glyph is
+     * one em). The legacy panel only had an on/off toggle, hardcoded to two characters.
+     */
+    indentUnit: string;
     indentIncrease: string;
     indentDecrease: string;
     lineHeight: string;
@@ -108,6 +118,20 @@ export interface EditorLocale {
 
   /** `ToolInsert`. */
   insert: {
+    variable: string;
+    qrcode: string;
+    image: string;
+    newPage: string;
+    pageBreak: string;
+  };
+
+  /**
+   * `ToolTable`.
+   *
+   * A group of its own rather than entries under `insert`: the table tools act on the table
+   * the caret is already in, which is a different job from inserting something new.
+   */
+  table: {
     table: string;
     layoutTable: string;
     layoutTableHint: string;
@@ -120,9 +144,6 @@ export interface EditorLocale {
     addRowAfter: string;
     deleteColumn: string;
     deleteRow: string;
-    image: string;
-    newPage: string;
-    pageBreak: string;
   };
 
   /** `ToolPage`. */
@@ -293,7 +314,7 @@ export interface EditorLocale {
 
 /** The built-in Chinese strings. */
 export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
-  editor: "合同编辑器",
+  editor: "模板文档编辑器",
   save: "保存",
   saved: "保存成功",
   saveFailed: "保存失败",
@@ -335,6 +356,8 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
   font: {
     family: "字体",
     size: "字号",
+    color: "字体颜色",
+    backgroundColor: "字体背景色",
     bold: "加粗",
     italic: "斜体",
     underline: "下划线",
@@ -350,6 +373,7 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
     alignRight: "右对齐",
     alignJustify: "两端对齐",
     indent: "首行缩进",
+    indentUnit: "字符",
     indentIncrease: "增加缩进",
     indentDecrease: "减少缩进",
     lineHeight: "行距",
@@ -362,6 +386,14 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
   },
 
   insert: {
+    variable: "插入变量",
+    qrcode: "插入二维码",
+    image: "插入图片",
+    newPage: "新页面",
+    pageBreak: "分页"
+  },
+
+  table: {
     table: "插入表格",
     layoutTable: "插入布局表",
     layoutTableHint: "一般用于分栏布局",
@@ -373,10 +405,7 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
     addRowBefore: "上方插入行",
     addRowAfter: "下方插入行",
     deleteColumn: "删除当前列",
-    deleteRow: "删除当前行",
-    image: "插入图片",
-    newPage: "新页面",
-    pageBreak: "分页"
+    deleteRow: "删除当前行"
   },
 
   page: {
@@ -401,8 +430,8 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
     pageNumber: "页码格式",
     pageNumberPreset: "预设样式",
     pageNumberCustom: "自定义",
-    pageNumberTokens: "支持 {page} 当前页、{total} 总页数；# 与 & 为旧版别名",
-    pageNumberMissing: "当前页脚没有页码节点，请先启用页脚",
+    pageNumberTokens: "支持 {page} 当前页、{total} 总页数；# 与 & 同样可用",
+    pageNumberMissing: "文档还没有页眉或页脚，请先启用页脚再设置页码",
     insertPageBreak: "插入分页符",
     logo: "Logo",
     addLogo: "添加 Logo",
@@ -578,6 +607,7 @@ export function mergeEditorLocale(overrides?: Partial<EditorLocale>): EditorLoca
     font: { ...DEFAULT_EDITOR_LOCALE.font, ...overrides.font },
     paragraph: { ...DEFAULT_EDITOR_LOCALE.paragraph, ...overrides.paragraph },
     insert: { ...DEFAULT_EDITOR_LOCALE.insert, ...overrides.insert },
+    table: { ...DEFAULT_EDITOR_LOCALE.table, ...overrides.table },
     page: { ...DEFAULT_EDITOR_LOCALE.page, ...overrides.page },
     variable: {
       ...DEFAULT_EDITOR_LOCALE.variable,

@@ -183,7 +183,13 @@ export interface EditorChangeEvent {
   html: string;
 }
 
-/** Toolbar sections. A section only renders when its extension is registered. */
+/**
+ * Toolbar sections. A section only renders when its extension is registered.
+ *
+ * `table` is a section in its own right — the table tools used to share the `insert` pane,
+ * which made that pane a mixture of "put something new in" and "change the table you are
+ * standing in". Each name here is both a `tools` entry and a pane.
+ */
 export type ToolName =
   | "font"
   | "paragraph"
@@ -196,8 +202,19 @@ export type ToolName =
   | "print"
   | "template";
 
-/** The toolbar sections shown when `tools` is not given. */
-export const DEFAULT_TOOLS: readonly ToolName[] = ["font", "paragraph", "insert", "page"];
+/**
+ * The toolbar sections shown when `tools` is not given.
+ *
+ * `table` is in the default set: a table is the first thing a template author reaches for,
+ * and a section that only appears when somebody knows to name it is a section nobody finds.
+ */
+export const DEFAULT_TOOLS: readonly ToolName[] = [
+  "font",
+  "paragraph",
+  "insert",
+  "table",
+  "page"
+];
 
 /** Options for the watermark extension, re-exported for the prop type. */
 export interface WatermarkOptions {

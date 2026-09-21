@@ -63,7 +63,7 @@ import { Text } from "@tiptap/extension-text";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import { Underline } from "@tiptap/extension-underline";
-import { CharacterCount, Placeholder, UndoRedo } from "@tiptap/extensions";
+import { CharacterCount, Gapcursor, Placeholder, UndoRedo } from "@tiptap/extensions";
 
 import { createDocument } from "../extensions/document";
 import { LayoutMode } from "../extensions/layoutMode";
@@ -310,6 +310,12 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
       // Defect 14: no history. Registered unconditionally — a document editor without
       // undo is not a document editor.
       UndoRedo,
+      // A gap cursor is what makes an empty *container* reachable at all: an empty header or
+      // footer is a `block*` region with nothing to click into, and without this plugin the
+      // only way in is the first keystroke that happens to land there. The furniture click
+      // handler in `extensions/page/utils/furniture.ts` covers the other half of the problem
+      // (a click that selects the band instead of entering it).
+      Gapcursor,
       Placeholder.configure({ placeholder: config?.placeholder ?? "" }),
       CharacterCount.configure(
         config?.characterLimit === undefined ? {} : { limit: config.characterLimit }

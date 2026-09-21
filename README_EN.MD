@@ -13,7 +13,7 @@ Monorepo for the `@snail-js/*` request tooling family.
 | --- | --- |
 | [`@snail-js/api`](./packages/api) | Decorator-driven, plugin-first HTTP client built on axios. |
 | [`@snail-js/cli`](./packages/cli) | Generate typed front-end request code straight from an OpenAPI 3 document. |
-| [`@snail-js/editor`](./packages/editor) | Tiptap-based contract template editor: real pages, headers and footers, variables, QR codes, a watermark and browser printing. |
+| [`@snail-js/editor`](./packages/editor) | Tiptap-based template document editor: real pages, headers and footers, variables, QR codes, a watermark and browser printing. |
 | [`@snail-js/vue`](./packages/vue) | Vue 3 component library: the icons Element Plus lacks, plus captcha, click-to-copy, a context menu and a word cloud. |
 | [`@snail-js/skill`](./packages/skill) | Agent skill that teaches an AI assistant to write `@snail-js/api` code correctly. |
 | [`docs`](./docs) | VitePress documentation site. |

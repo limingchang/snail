@@ -36,6 +36,13 @@ export { collectPages, countPages, resolvePageNumber } from "./utils/nodes";
 /** The page-number label formatter (pure, so a status bar can reuse it). */
 export { formatPageNumberLabel } from "./utils/pageNumberLabel";
 
+/**
+ * The two pure planners behind UI controls: the page-number format (which *creates* the number
+ * when the furniture is empty) and the header/footer click correction.
+ */
+export { planPageNumberFormat } from "./utils/pageNumberFormat";
+export { planFurnitureClick } from "./utils/furniture";
+
 /** The CSS length resolver, shared with the measurer (defect 12's fix). */
 export {
   DEFAULT_ROOT_FONT_SIZE,

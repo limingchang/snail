@@ -26,3 +26,121 @@
 .demo-block__stage :where(a) {
   text-decoration: none;
 }
+
+/* ============================================================
+   0. 变量：左侧边栏宽度（响应式）
+   ============================================================ */
+:root {
+  --vp-sidebar-width: clamp(220px, 22vw, 300px) !important;
+}
+
+/* ============================================================
+   1. 顶部导航栏：Title 与搜索框
+   ============================================================ */
+.VPNavBar .container,
+.VPNav .container {
+  max-width: none !important;
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+/* Title 与侧边栏等宽，背景为顶部栏颜色 */
+.VPNavBar.has-sidebar .title {
+  position: absolute !important;
+  width: var(--vp-sidebar-width) !important;
+  min-width: 0 !important;
+  max-width: var(--vp-sidebar-width) !important;
+  box-sizing: border-box !important;
+  padding-left: 24px !important;
+  padding-right: 16px !important;
+  background-color: var(--vp-nav-bg-color) !important;
+  border-right: none !important;
+}
+
+/* 搜索框避开 Title */
+.VPNavBar.has-sidebar .content {
+  padding-left: var(--vp-sidebar-width) !important;
+}
+
+.VPNavBar.has-sidebar .content .container {
+  padding-left: 0 !important;
+  max-width: none !important;
+}
+
+/* ============================================================
+   2. 内容区外层放开
+   ============================================================ */
+.VPContent {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.VPDoc {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* 无侧边栏时的 container */
+.VPDoc .container {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  justify-content: flex-start !important;
+}
+
+/* 有侧边栏时：container 左侧让位（关键修复） */
+@media (min-width: 960px) {
+  .VPDoc.has-sidebar .container {
+    padding-left: var(--vp-sidebar-width) !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* ============================================================
+   3. 中间内容容器
+   ============================================================ */
+.VPDoc.has-aside .content {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+.VPDoc.has-aside .content-container {
+  max-width: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding-left: 32px !important;
+  padding-right: 32px !important;
+}
+
+/* ============================================================
+   4. 左侧边栏：强制宽度
+   ============================================================ */
+.VPSidebar {
+  width: clamp(220px, 22vw, 300px) !important;
+  min-width: 220px !important;
+  max-width: 300px !important;
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+  box-sizing: border-box !important;
+}
+
+/* ============================================================
+   5. 右侧目录：宽度控制
+   ============================================================ */
+.VPDoc.has-aside .aside {
+  width: 22% !important;
+  min-width: 200px !important;
+  max-width: 320px !important;
+  padding-left: 0 !important;
+  padding-right: 24px !important;
+  box-sizing: border-box !important;
+  flex: 0 0 auto !important;
+}
+
+.VPDoc .aside-container,
+.VPDoc .aside-content,
+.VPDoc .VPDocAside {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
