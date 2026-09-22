@@ -1,6 +1,6 @@
 {
   "name": "@snail-js/editor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Tiptap-based template document editor: a Word-like workspace with real pages, headers and footers, automatic pagination, variables, QR codes, a watermark and browser printing.",
   "keywords": [
     "vue",
@@ -40,8 +40,7 @@
     "build:types": "vue-tsc -p tsconfig.build.json",
     "typecheck": "vue-tsc -p tsconfig.json --noEmit",
     "test": "node ./scripts/vitest-runner.mjs run",
-    "test:watch": "node ./scripts/vitest-runner.mjs",
-    "prepublishOnly": "pnpm run build"
+    "test:watch": "node ./scripts/vitest-runner.mjs"
   },
   "dependencies": {
     "@snail-js/vue": "^1.0.0",
