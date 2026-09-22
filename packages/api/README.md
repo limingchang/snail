@@ -206,6 +206,9 @@ class BackEnd extends SnailServer {}
 请阅读[插件生命周期](https://limingchang.github.io/snail/guide/plugin-lifecycle)（英文原文见
 [Plugin lifecycle](https://limingchang.github.io/snail/guide/plugin-lifecycle_EN)）。
 
-## License
+### 代码仓库
+- ![Static Badge](https://img.shields.io/badge/snail-js?style=flat&label=gitee&labelColor=F56C6C&link=https%3A%2F%2Fgitee.com%2Flimich%2Fsnail)
+- ![Static Badge](https://img.shields.io/badge/snail-js?style=flat&label=github&labelColor=F56C6C&link=https%3A%2F%2Fgihub.com%2Flimingchang%2Fsnail)
 
-[MIT](./LICENSE)
+### 作者
+- mc.lee

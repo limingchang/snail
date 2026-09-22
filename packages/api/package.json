@@ -1,6 +1,6 @@
 {
   "name": "@snail-js/api",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Decorator-driven, plugin-first HTTP client built on axios. Nest.js-style decorators, an everything-is-a-plugin core and alova-style request strategies.",
   "keywords": [
     "axios",
