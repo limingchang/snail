@@ -11,3 +11,8 @@ packages:
 allowBuilds:
   '@parcel/watcher': true
   esbuild: false
+
+#  pnpm 11 的供应链安全策略 minimumReleaseAge：它默认会拒绝使用“发布时间太短”的包，防止刚被投毒的新版本被立即拉取。
+# 这个包的“年龄”还没达到策略要求的冷却期（大约 24 小时），所以被拦下了。
+# 0 表示完全关闭发布时间检查。你也可以设一个小一点的值，比如 60（分钟），但既然是自己发布的包，直接设 0 最简单。
+minimumReleaseAge: 0
