@@ -4,7 +4,7 @@ layout: home
 hero:
   name: "@snail-js"
   text: 请求、生成、编辑、组件
-  tagline: 只依赖 axios —— 装饰器描述请求，可选能力皆为插件，一套约定贯穿四个包。
+  tagline: 请求管理、模板文档编辑器、vue扩展组件。同时提供请求自动化生成cli。
   actions:
     - theme: brand
       text: 快速上手
