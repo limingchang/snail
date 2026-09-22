@@ -15,11 +15,11 @@ hero:
 
 features:
   - title: "@snail-js/api"
-    details: 装饰器驱动的 HTTP 客户端。@Server / @Api / @Get 描述请求，插件承载横切关注点，请求策略驱动组件状态。
+    details: 装饰器驱动的 HTTP 客户端。@Server / @Api / @Get 描述请求，插件系统，请求策略，适配vue/react的state。
     link: /guide/introduction
     linkText: 阅读文档
   - title: "@snail-js/cli"
-    details: 从 OpenAPI 3.0 / 3.1 文档生成带完整类型的装饰器请求代码 —— 相同的输入永远产出逐字节相同的输出。
+    details: 自动化从 OpenAPI 3.0 / 3.1 文档生成带完整类型的`@snail-js/api`代码。
     link: /cli/
     linkText: 阅读文档
   - title: "@snail-js/editor"
@@ -27,7 +27,7 @@ features:
     link: /editor/
     linkText: 阅读文档
   - title: "@snail-js/vue"
-    details: Vue 3 组件库。补齐 Element Plus 缺失的图标，外加阿里验证码、点击复制、右键菜单与 3D 词云。
+    details: Vue 3 组件库。新增图标，阿里验证码、点击复制、右键菜单与 3D 词云。
     link: /vue/
     linkText: 阅读文档
 ---
