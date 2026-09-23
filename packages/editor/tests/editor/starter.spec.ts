@@ -29,6 +29,13 @@ function nodesOfType(node: JSONContent | undefined, type: string, found: JSONCon
   return found;
 }
 
+/** All the text under a node, concatenated. */
+function textOf(node: JSONContent | undefined): string {
+  if (!node) return "";
+  if (typeof node.text === "string") return node.text;
+  return (node.content ?? []).map(textOf).join("");
+}
+
 describe("createStarterDocument", () => {
   it("is a `page+` document with exactly one page and a pageContent", () => {
     const doc = createStarterDocument();
@@ -81,12 +88,66 @@ describe("createStarterDocument", () => {
     expect(tables.some((table) => table.attrs?.layoutMode !== true)).toBe(true);
   });
 
+  it("lays the sample layout table out as 2 rows × 4 columns, with the fill-in cells empty", () => {
+    const layout = nodesOfType(createStarterDocument(), "table").find(
+      (table) => table.attrs?.layoutMode === true
+    );
+    const rows = layout?.content ?? [];
+
+    expect(rows).toHaveLength(2);
+
+    for (const row of rows) {
+      const cells = row.content ?? [];
+      expect(cells).toHaveLength(4);
+
+      // Columns 1 and 3 name a signature block; columns 2 and 4 are the fill-in positions and have
+      // to stay empty, so a designer can drop a variable in and fill mode has somewhere to show its
+      // value. An empty paragraph — not a paragraph with empty text — is what "empty" means here.
+      for (const index of [0, 2]) {
+        expect(textOf(cells[index]), `cell ${index + 1} must stay labelled`).not.toBe("");
+      }
+      for (const index of [1, 3]) {
+        expect(textOf(cells[index]), `cell ${index + 1} must stay empty`).toBe("");
+        expect(cells[index]?.content?.[0]?.type).toBe("paragraph");
+        expect(cells[index]?.content?.[0]?.content ?? []).toHaveLength(0);
+      }
+    }
+  });
+
   it("carries a QR payload but no raster", () => {
     const [qrcode] = nodesOfType(createStarterDocument(), "qrcode");
 
     expect(qrcode?.attrs?.text).toBe(STARTER_QR_TEXT);
     // The bitmap is generated asynchronously and deliberately not baked into the fixture.
     expect(qrcode?.attrs?.src ?? "").toBe("");
+  });
+
+  it("gives its atom nodes no content, which a leaf spec refuses", () => {
+    // ProseMirror throws `RangeError: Content hole not allowed in a leaf node spec` the moment a leaf is
+    // handed content — a mistake that is invisible in the fixture's own shape and only shows up when a
+    // host parses it, so it is pinned here rather than discovered in a browser console.
+    const document = createStarterDocument();
+
+    for (const type of ["qrcode", "variable", "pageNumber", "pageLogo"]) {
+      for (const node of nodesOfType(document, type)) {
+        expect(node.content ?? [], `${type} is a leaf node`).toHaveLength(0);
+      }
+    }
+  });
+
+  it("places the QR example early enough in the body to land on the first page", () => {    // The code is positioned against the page, but *which* page it belongs to is decided by where the
+    // node sits in the flow — and the paginator moves what does not fit. At the end of this document it
+    // landed on the last page; before the services table it is on page one, which is where a
+    // verification code belongs.
+    const body = createStarterDocument().content?.[0]?.content?.[0]?.content ?? [];
+    const qrAt = body.findIndex((node) => node.type === "qrcode");
+    const firstTableAt = body.findIndex((node) => node.type === "table");
+
+    expect(qrAt, "the fixture has a QR code in the body").toBeGreaterThanOrEqual(0);
+    expect(firstTableAt, "the fixture has a table in the body").toBeGreaterThanOrEqual(0);
+    expect(qrAt).toBeLessThan(firstTableAt);
+    // …and its caption follows it, as the example reads "扫描上方二维码".
+    expect(textOf(body[qrAt + 1])).toContain("二维码");
   });
 
   it("declares variables with the types the fill dialog understands", () => {

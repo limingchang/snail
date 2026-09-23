@@ -27,6 +27,7 @@ import {
   QR_DEFAULT_ALT,
   QR_DEFAULT_COLOR,
   QR_DEFAULT_MARGIN,
+  QR_DEFAULT_PAGE,
   QR_DEFAULT_POSITION,
   QR_DEFAULT_SIZE
 } from "../../src/extensions/qrcode/geometry";
@@ -124,7 +125,8 @@ const FULL: QRCodeAttrs = normalizeAttrs({
   size: { value: 42, unit: "mm" },
   position: { x: 15, y: 25, unit: "mm" },
   color: { dark: "#112233", light: "#fefefe" },
-  margin: 2
+  margin: 2,
+  page: "last"
 });
 
 describe("parseHTML(renderHTML(attrs))", () => {
@@ -179,7 +181,8 @@ describe("the encoding", () => {
       size: FULL.size,
       position: FULL.position,
       color: FULL.color,
-      margin: FULL.margin
+      margin: FULL.margin,
+      page: FULL.page
     });
   });
 
@@ -206,7 +209,8 @@ describe("the encoding", () => {
       size: QR_DEFAULT_SIZE,
       position: QR_DEFAULT_POSITION,
       color: QR_DEFAULT_COLOR,
-      margin: QR_DEFAULT_MARGIN
+      margin: QR_DEFAULT_MARGIN,
+      page: QR_DEFAULT_PAGE
     });
   });
 });

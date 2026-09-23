@@ -12,14 +12,12 @@
  * {@link createStarterDocument} 返回一份用到了编辑器所围绕的每一种节点类型的文档，因此
  * `new Editor({ content: createStarterDocument() })` 显示的是真实的一页，而不是空白页。
  *
- * ## 二维码还没有位图
+ * ## 二维码没有位图，但会自己长出来
  *
  * `qrcode` 节点同时存放它的载荷（`text`）和生成出来的图片（`src`），而生成图片是异步的。
- * **同步**工厂无法等待它，二维码扩展也刻意不自行生成位图（那会在每次加载、每一份文档上
- * 造成意外的异步工作）。因此起始文档只带上载荷，需要位图的宿主在编辑器就绪后调用一次
- * `regenerateQRCode()`（下面英文段落中的示例即是如此）。
- *
- * 在那之前，节点视图绘制它的「空」占位符；这是诚实，而不是坏掉。
+ * **同步**工厂无法等待它，所以起始文档只带上载荷 —— 但宿主也不需要做任何事：二维码扩展在文档
+ * 打开后会为每一个「有载荷、还没有位图」的节点补上位图（见 `extensions/qrcode` 的 `onCreate`）。
+ * 在那之前，节点视图绘制它的「空」占位符。
  *
  * A starter document for the editor.
  *
@@ -36,21 +34,13 @@
  * editor is built around, so `new Editor({ content: createStarterDocument() })` shows a
  * real page rather than an empty one.
  *
- * ## The QR code has no raster yet
+ * ## The QR code carries no raster, and grows one by itself
  *
  * The `qrcode` node stores both its payload (`text`) and its generated image (`src`), and
- * generating the image is asynchronous. A *sync* factory cannot await it, and the QR
- * extension deliberately does not generate rasters on its own (that would be surprise async
- * work at load, on every document, forever). So the starter document carries the payload
- * and a host that wants the bitmap calls once, after the editor is ready:
- *
- * ```ts
- * const editor = new Editor({ content: createStarterDocument() });
- * editor.on("create", () => editor.commands.regenerateQRCode());
- * ```
- *
- * Until then the node view paints its "empty" placeholder, which is honest rather than
- * broken.
+ * generating the image is asynchronous. A *sync* factory cannot await it, so the starter document
+ * carries the payload only — and the host has nothing to do either, because the QR extension
+ * rasterises every code that has a payload and no raster once the document is open (see
+ * `onCreate` in `extensions/qrcode`). Until then the node view paints its "empty" placeholder.
  */
 
 import type { JSONContent } from "@tiptap/core";
@@ -212,6 +202,23 @@ function row(values: readonly string[], header = false): JSONContent {
 }
 
 /**
+ * 一个留给填写者的空白单元格。
+ *
+ * 布局表的第 2、4 列是填写位：设计模式里由设计者放进变量，填写模式里显示填好的值。所以它从一段
+ * 空段落开始，而不是像 {@link cell} 那样先带一段占位文字 —— 「空」正是它此刻诚实的状态。
+ *
+ * A blank cell left for the person filling the form.
+ *
+ * Columns 2 and 4 of the layout table are the fill-in positions: a designer drops variables into
+ * them in design mode and the filled values show there in fill mode. One therefore starts as an
+ * empty paragraph instead of carrying placeholder text the way {@link cell} does — being empty is
+ * exactly its honest state here.
+ */
+function blankCell(): JSONContent {
+  return { type: "tableCell", content: [{ type: "paragraph" }] };
+}
+
+/**
  * 构建起始文档。
  *
  * 内容刻意是一份文档，而不是一段 lorem-ipsum 填充，并且遵循中文合同实际具有的形态：
@@ -264,6 +271,16 @@ export function createStarterDocument(options: StarterDocumentOptions = {}): JSO
       run("。乙方向甲方提供下列技术服务，服务的范围、交付物与验收标准以本条约定为准，未约定的事项由双方另行协商。")
     ]),
 
+    // The verification code sits early in the body on purpose: the example has to *show* it, and a
+    // QR node placed at the end of this document lands on the last page once the paginator has run.
+    // It is positioned against the page (see `qrCodeStyle`), so where it sits in the flow only
+    // decides which page it belongs to.
+    {
+      type: "qrcode",
+      attrs: { text: options.qrText ?? STARTER_QR_TEXT }
+    },
+    caption("扫描上方二维码可核验本合同。"),
+
     {
       type: "table",
       content: [
@@ -301,9 +318,10 @@ export function createStarterDocument(options: StarterDocumentOptions = {}): JSO
       run("）。")
     ]),
 
-    // A borderless two-column table: the layout table exists for positioning, so its cells
-    // start empty of decorative content and it carries `layoutMode` on the table and on
-    // every row — that is what the layout-mode extension reads to drop the borders.
+    // A borderless four-column table: columns 1 and 3 carry the labels that name the two
+    // signatures, while columns 2 and 4 are the fill-in positions — empty cells a designer drops
+    // variables into, and where fill mode then paints their values. `layoutMode` sits on the table
+    // and on every row — that is what the layout-mode extension reads to drop the borders.
     {
       type: "table",
       attrs: { layoutMode: true },
@@ -311,21 +329,15 @@ export function createStarterDocument(options: StarterDocumentOptions = {}): JSO
         {
           type: "tableRow",
           attrs: { layoutMode: true },
-          content: [cell("甲方（盖章）："), cell("乙方（盖章）：")]
+          content: [cell("甲方（盖章）："), blankCell(), cell("乙方（盖章）："), blankCell()]
         },
         {
           type: "tableRow",
           attrs: { layoutMode: true },
-          content: [cell("日期："), cell("日期：")]
+          content: [cell("日期："), blankCell(), cell("日期："), blankCell()]
         }
       ]
-    },
-
-    {
-      type: "qrcode",
-      attrs: { text: options.qrText ?? STARTER_QR_TEXT }
-    },
-    caption("扫描上方二维码可核验本合同。")
+    }
   ];
 
   if (!multiPage) return { type: "doc", content: body };

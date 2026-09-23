@@ -72,7 +72,8 @@ export { DEFAULT_PAGINATION_TOLERANCE, planPagination, planPullback } from "./ut
  * the *number* is maintained on `editor.storage.page.total` and can also be read directly
  * as `countPages(editor.state.doc)`.
  */
-export { collectPages, countPages, resolvePageNumber } from "./utils/nodes";
+export { collectPages, contentStart, countPages, findPageContent, resolvePageNumber } from "./utils/nodes";
+export type { PageChildRef, PageRef } from "./utils/nodes";
 
 /**
  * 页码标签格式化函数（纯函数，状态栏可以复用它）。

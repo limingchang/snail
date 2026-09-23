@@ -14,12 +14,12 @@
  * teleported panel inherits the private `--se-*` values), and the editor's own overlays opt into
  * `.s-editor-popper` for the Element Plus tokens as well.
  *
- * ## 2. The colour controls are Word's "A", drawn as CSS
+ * ## 2. The colour controls are Word's "A", drawn as markup
  *
- * `el-color-picker` has no trigger slot, so an SVG icon could only be shown by overlaying an
- * invisible picker. The "A" is therefore a pseudo-element on the picker's *own* trigger, and the
- * picked colour reaches it through one custom property. A regression here is silent too: the
- * control still works, it just stops looking like the thing it does.
+ * `el-color-picker` has no trigger slot, so its own trigger is used as an invisible layer and the "A"
+ * plus its coloured bar are elements this component owns. A regression here is silent too: the control
+ * still works, it just stops looking like the thing it does — and Element Plus's `empty` marker (a
+ * *close icon*) reappears the moment the invisible layer stops covering it.
  */
 
 import { readFileSync } from "node:fs";
@@ -77,38 +77,49 @@ describe("Element Plus overlays keep the editor's palette", () => {
 describe("the colour controls are Word's capital A", () => {
   const font = source("components/tools/ToolFont.vue");
 
-  it("draws the A on the picker's own trigger, with a bar and a block variant", () => {
-    expect(font).toContain("--s-tool-color-value");
-    expect(font).toContain("--s-tool-color-glyph");
-    expect(font).toContain("&--text");
-    expect(font).toContain("&--background");
-
-    // The glyph itself, and the bar the text colour fills.
-    expect(font).toMatch(/content: "A";/);
-    expect(font).toContain("background-color: var(--s-tool-color-value);");
+  it("draws the A and the coloured bar as elements, one pair per variant", () => {
+    // A real tree — `swatch > (glyph "A", bar)` — not a pseudo-element on the picker's trigger.
+    expect((font.match(/class="s-tool-font__glyph">A</g) ?? []).length).toBe(2);
+    expect((font.match(/class="s-tool-font__bar"/g) ?? []).length).toBe(2);
+    // The bar's colour is the model value (or its default) written as an inline style.
+    expect(font).toContain(":style=\"{ backgroundColor: color || DEFAULT_TEXT_COLOR }\"");
+    expect(font).toContain(":style=\"{ backgroundColor: backgroundColor || DEFAULT_BACKGROUND_COLOR }\"");
+    // The two variants differ only in where the bar sits.
+    expect(font).toContain("&__color--text &__bar");
+    expect(font).toContain("&__color--background {");
   });
 
-  it("hides *every* Element Plus element inside the trigger", () => {
-    // Hiding a hand-picked list is what shipped a cross: Element Plus renders an `empty` marker for
-    // "no colour", and it was not on the list. The whole subtree goes.
-    expect(font).toMatch(/:deep\(\.el-color-picker__trigger\)\s*\{[^}]*>\s*\*\s*\{[^}]*display:\s*none/s);
-    expect(font).not.toContain(".el-color-picker__color)");
+  it("is the same size as Element Plus's small trigger, so no pixel is dead", () => {
+    // The invisible picker only opens its panel when the click lands on its own trigger, and EP's
+    // `--small` trigger is 24×24 filling its root. A control of the same size cannot leave an edge
+    // where a click hits the picker's root instead and nothing happens.
+    expect(font).toMatch(/&__color \{[\s\S]*?width: 24px;[\s\S]*?height: 24px;/);
+    expect(font).toMatch(/&__color \{[\s\S]*?flex: none;/);
+    // The visible layer must never take the click away from the picker on top of it.
+    expect(font).toMatch(/&__swatch \{[\s\S]*?pointer-events: none/);
+  });
+
+  it("hides every Element Plus element by covering the whole control", () => {
+    // The layer fills the control, so nothing of EP's trigger can show through anywhere.
+    expect(font).toMatch(/&-input \{[\s\S]*?position: absolute;[\s\S]*?inset: 0;[\s\S]*?opacity: 0/);
+    // A visible focus ring: the real control is invisible, so it has to come from the layer below.
+    expect(font).toContain("&:focus-within &__swatch");
   });
 
   it("defaults to black for text and white for the highlight block", () => {
     // Black is what "no colour chosen" means for text; a white block for the highlight, because a
     // black block under a black glyph is invisible.
-    expect(font).toContain("--s-tool-color-value: #000000;");
-    expect(font).toContain("--s-tool-color-glyph: #000000;");
-    expect(font).toMatch(/&--background\s*\{[^}]*--s-tool-color-value: #ffffff;/s);
+    expect(font).toContain('const DEFAULT_TEXT_COLOR = "#000000";');
+    expect(font).toContain('const DEFAULT_BACKGROUND_COLOR = "#ffffff";');
+    // Those two defaults reach both the inline style and `data-color`.
+    expect((font.match(/:data-color="/g) ?? []).length).toBe(2);
   });
 
-  it("binds the picked colour to the trigger, and only when there is one", () => {
-    // One binding per picker, and no `|| 'transparent'`: writing the property for "not set" would
-    // override the stylesheet's defaults and leave both controls looking dead.
-    const bindings = font.match(/'--s-tool-color-value': /g) ?? [];
-    expect(bindings).toHaveLength(2);
-    expect(font).toContain(":style=\"color ? { '--s-tool-color-value': color } : undefined\"");
+  it("binds every visible part to the picked colour, with the default as the fallback", () => {
+    // Two controls, two style bindings and two data attributes — and no `transparent` fallback,
+    // which is what once left both controls looking dead.
+    expect((font.match(/:style="\{ backgroundColor:/g) ?? []).length).toBe(2);
     expect(font).not.toContain("transparent'");
+    expect(font).not.toContain("--s-tool-color-value");
   });
 });

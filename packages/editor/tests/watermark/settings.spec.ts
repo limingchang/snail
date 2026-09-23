@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vitest";
 
 import { QR_CODE_Z_INDEX } from "../../src/extensions/qrcode/geometry";
+import { Watermark } from "../../src/extensions/watermark";
 import {
   estimateTextWidth,
   isWatermarkVisible,
@@ -21,7 +22,9 @@ import {
   WATERMARK_DEFAULT_COLOR,
   WATERMARK_DEFAULT_FONT_SIZE,
   WATERMARK_DEFAULT_OPACITY,
+  WATERMARK_DEFAULT_TEXT,
   WATERMARK_GREY,
+  watermarkSettingsKey,
   WATERMARK_IMAGE_TILE_VIEW_BOX,
   WATERMARK_TILE_COLUMNS,
   WATERMARK_TILE_CLASS,
@@ -46,7 +49,9 @@ describe("resolving the settings", () => {
     const settings = resolveWatermarkSettings(undefined);
     expect(settings).toStrictEqual({
       enabled: false,
-      text: "",
+      // An *absent* text gets the documented default, so turning the watermark on shows 「水印」
+      // rather than nothing; an explicitly empty string is still honoured (asserted below).
+      text: WATERMARK_DEFAULT_TEXT,
       imageSrc: "",
       angle: WATERMARK_DEFAULT_ANGLE,
       opacity: WATERMARK_DEFAULT_OPACITY,
@@ -106,10 +111,11 @@ describe("when there is something to draw", () => {
     expect(isWatermarkVisible(resolveWatermarkSettings({ text: "机密" }))).toBe(false);
   });
 
-  it("is false for an enabled but empty mark", () => {
-    // Otherwise every page would get an invisible overlay.
-    expect(isWatermarkVisible(resolveWatermarkSettings({ enabled: true }))).toBe(false);
+  it("is false for an explicitly empty mark, but true for one that only says `enabled`", () => {
+    // Otherwise every page would get an invisible overlay — and "enabled with no text" is exactly the
+    // state the panel is in when the user flips the switch, so it has to paint the default 「水印」.
     expect(isWatermarkVisible(resolveWatermarkSettings({ enabled: true, text: "" }))).toBe(false);
+    expect(isWatermarkVisible(resolveWatermarkSettings({ enabled: true }))).toBe(true);
   });
 
   it("is true for either kind of mark", () => {
@@ -259,5 +265,52 @@ describe("font size and width estimation", () => {
   it("never estimates less than one em, so a single character still has a tile", () => {
     expect(estimateTextWidth("", 48)).toBe(48);
     expect(estimateTextWidth("i", 48)).toBe(48);
+  });
+});
+
+describe("the extension's own defaults", () => {
+  it("shows a 45° 「水印」 the moment it is enabled", () => {    // The stored template keeps whatever it recorded; this is about a *fresh* editor, where an
+    // empty text would paint nothing and a 30° tilt would contradict the documented mark.
+    expect(Watermark.options.text).toBe(WATERMARK_DEFAULT_TEXT);
+    expect(Watermark.options.angle).toBe(WATERMARK_DEFAULT_ANGLE);
+    expect(WATERMARK_DEFAULT_ANGLE).toBe(-45);
+    expect(WATERMARK_DEFAULT_TEXT).toBe("水印");
+    expect(Watermark.options.enabled).toBe(false);
+  });
+
+  it("still honours a caller that asks for no text", () => {
+    // A template may legitimately hold an image watermark, or an intentionally blank one: the
+    // default above is a starting point, not a value written over the caller's.
+    expect(resolveWatermarkSettings({ text: "", angle: -45 }).text).toBe("");
+  });
+});
+
+describe("the decoration fingerprint", () => {
+  const base = resolveWatermarkSettings({ enabled: true, text: "机密" });
+
+  it("changes for every setting that is drawn", () => {
+    // ProseMirror keeps an existing widget's DOM when its `key` is unchanged, so a key that ignores a
+    // setting is a setting that does nothing on screen after the first render — the reported bug.
+    const variants = [
+      { ...base, text: "水印" },
+      { ...base, imageSrc: "x.png" },
+      { ...base, angle: 0 },
+      { ...base, opacity: 0.5 },
+      { ...base, greyscale: true },
+      { ...base, tiled: true },
+      { ...base, fontSize: "72px" },
+      { ...base, color: "#ff0000" },
+      { ...base, enabled: false }
+    ];
+
+    const keys = new Set([watermarkSettingsKey(base)]);
+    for (const variant of variants) {
+      expect(keys.has(watermarkSettingsKey(variant)), `a changed setting must change the key`).toBe(false);
+      keys.add(watermarkSettingsKey(variant));
+    }
+  });
+
+  it("is stable for the same settings, so nothing is rebuilt needlessly", () => {
+    expect(watermarkSettingsKey(base)).toBe(watermarkSettingsKey(resolveWatermarkSettings(base)));
   });
 });

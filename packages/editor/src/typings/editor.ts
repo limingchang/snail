@@ -324,17 +324,35 @@ export type ToolName =
  * `table` 在默认集合里：表格是模板作者最先要用的东西，而一个只有在知道要指名它时
  * 才出现的分区，是谁也找不到的分区。
  *
+ * `template` 也在默认集合里，并且排在第一个：加载一份模板是作者在编辑之前要做的事，
+ * 把它放在「格式」之后意味着先改格式、再发现模板选错了。它没有对应的扩展——模板管线是
+ * `editor/template.ts` 而不是一个 Tiptap 扩展——所以它的分区不带扩展闸门。
+ *
+ * `watermark` 收尾：水印是成品合同的一部分，不是一个高级选项，而一个只有在知道要指名它时
+ * 才出现的分区，是谁也找不到的分区。放在最后，因为它是作者最后才会去动的东西。
+ *
  * The toolbar sections shown when `tools` is not given.
  *
  * `table` is in the default set: a table is the first thing a template author reaches for,
  * and a section that only appears when somebody knows to name it is a section nobody finds.
+ *
+ * `template` is in the default set too, and first: loading a template is what an author does
+ * before editing, and putting it after 「格式」 means changing the formatting before noticing the
+ * wrong template was loaded. It has no extension behind it — the template pipeline is
+ * `editor/template.ts` rather than a Tiptap extension — so its section carries no extension gate.
+ *
+ * `watermark` closes the default set: a watermark is part of a finished contract rather than an
+ * advanced option, and a section that only appears when somebody knows to name it is a section
+ * nobody finds. It is last because it is the last thing an author reaches for.
  */
 export const DEFAULT_TOOLS: readonly ToolName[] = [
+  "template",
   "font",
   "paragraph",
   "insert",
   "table",
-  "page"
+  "page",
+  "watermark"
 ];
 
 /**

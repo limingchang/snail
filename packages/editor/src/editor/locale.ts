@@ -279,6 +279,13 @@ export interface EditorLocale {
     pageNumber: string;
     /** `page` 分组：「预设样式」。 / `page` group: a preset page-number pattern. */
     pageNumberPreset: string;
+    /**
+     * `page` 分组：双击到被锁定区域（承载页码或 Logo）时的提示。
+     *
+     * `page` group: the message shown when a locked region (holding a page number or a logo) is
+     * double-clicked.
+     */
+    lockedRegionHint: string;
     /** `page` 分组：「自定义」。 / `page` group: a custom page-number pattern. */
     pageNumberCustom: string;
     /**
@@ -493,6 +500,23 @@ export interface EditorLocale {
     left: string;
     /** `qrcode` 分组：「边距」。 / `qrcode` group: the margin. */
     margin: string;
+    /**
+     * `qrcode` 分组：「所在页面」。
+     *
+     * 这是一段*模板*，`{page}` 会被页码标签替换，因此「第一页 / 最后一页 / 第 3 页」的写法
+     * 由语言决定，而不是由组件里的三个分支决定。
+     *
+     * `qrcode` group: "which page". A *template*: `{page}` is replaced by the page label, so how
+     * "the first page / the last page / page 3" reads is the language's business rather than
+     * three branches inside the component.
+     */
+    page: string;
+    /** `qrcode` 分组：「第一页」。 / `qrcode` group: the first page. */
+    pageFirst: string;
+    /** `qrcode` 分组：「最后一页」。 / `qrcode` group: the last page. */
+    pageLast: string;
+    /** `qrcode` 分组：「中间页」，`{page}` 是页码。 / `qrcode` group: a middle page, `{page}` being the number. */
+    pageMiddle: string;
     /** `qrcode` 分组：「前景色」。 / `qrcode` group: the foreground colour. */
     color: string;
     /** `qrcode` 分组：「背景色」。 / `qrcode` group: the background colour. */
@@ -511,6 +535,8 @@ export interface EditorLocale {
     notExists: string;
     /** `qrcode` 分组：「二维码插入失败」。 / `qrcode` group: shown when insertion failed. */
     insertFailed: string;
+    /** `qrcode` 分组：选项弹窗的标题。 / `qrcode` group: the options dialog's title. */
+    dialogTitle: string;
   };
 
   /** `ToolWatermark`。 / `ToolWatermark`. */
@@ -613,6 +639,22 @@ export interface EditorLocale {
      * `template` group: the hint telling the user to pick a template and press load.
      */
     manualHint: string;
+    /** `template` 分组：重新拉取模板列表的按钮。 / `template` group: the button that refetches the list. */
+    load: string;
+    /** `template` 分组：从内置起始文档新建模板。 / `template` group: start a new template. */
+    create: string;
+    /** `template` 分组：载入本机已保存的模板。 / `template` group: load the locally saved template. */
+    pickLocal: string;
+    /** `template` 分组：没有配置远程列表时的说明。 / `template` group: no remote list is configured. */
+    noSource: string;
+    /** `template` 分组：填写模式下本地载入的说明。 / `template` group: the fill-mode local-load hint. */
+    localHint: string;
+    /** `template` 分组：本地模板已载入。 / `template` group: a local template was loaded. */
+    localLoaded: string;
+    /** `template` 分组：本机没有已保存的模板。 / `template` group: nothing is saved on this machine. */
+    noLocal: string;
+    /** `template` 分组：新模板已就绪。 / `template` group: a new template is ready. */
+    created: string;
   };
 
   /** 纯模板层报告的失败。 / A failure reported by the pure template layer. */
@@ -738,6 +780,7 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
     headerFooterHeight: "页眉页脚高度",
     pageNumber: "页码",
     pageNumberPreset: "预设样式",
+    lockedRegionHint: "该区域已放置页码或 Logo，不能编辑；请先移除它们",
     pageNumberCustom: "自定义",
     pageNumberTokens: "支持 {page} 当前页、{total} 总页数；# 与 & 同样可用",
     pageNumberHidden: "不显示",
@@ -832,6 +875,10 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
     top: "上",
     left: "左",
     margin: "边距",
+    page: "所在页面",
+    pageFirst: "第一页",
+    pageLast: "最后一页",
+    pageMiddle: "第 {page} 页",
     color: "前景色",
     background: "背景色",
     insert: "插入二维码",
@@ -840,7 +887,8 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
     regenerate: "重新生成",
     exists: "文档中已存在二维码",
     notExists: "文档中暂无二维码",
-    insertFailed: "二维码插入失败"
+    insertFailed: "二维码插入失败",
+    dialogTitle: "二维码选项"
   },
 
   watermark: {
@@ -883,7 +931,15 @@ export const DEFAULT_EDITOR_LOCALE: EditorLocale = {
 
   template: {
     title: "模板列表",
-    manualHint: "请选择模板后点击「载入」"
+    manualHint: "请选择模板后点击「载入」",
+    load: "加载模板",
+    create: "新建模板",
+    pickLocal: "加载本地模板",
+    noSource: "未配置远程模板列表",
+    localHint: "从本机已保存的模板载入",
+    localLoaded: "已加载本地模板",
+    noLocal: "本机没有已保存的模板",
+    created: "已新建模板"
   },
 
   errors: {

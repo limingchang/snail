@@ -1,6 +1,9 @@
 <template>
   <div class="s-tool-insert">
-    <div class="s-tool-insert__group">
+    <!-- The variable and the QR code sit in one *column*, not one row: both insert a
+         document-level object whose options are edited afterwards, and stacking them keeps the
+         pane readable next to the operations column below. -->
+    <div class="s-tool-insert__group s-tool-insert__group--column">
       <!-- The variable dialog is owned by `SEditor`, not by this panel: the variable node
            view's own click callback opens it too, and two owners is exactly how the legacy
            dialog ended up shared and leaking the previous variable's state. -->
@@ -126,6 +129,14 @@ const emits = defineEmits<{
    * The user asked to insert a variable; `SEditor` owns the dialog.
    */
   insertVariable: [];
+
+  /**
+   * 二维码刚刚插入成功，请宿主把它自己的选项弹出来。
+   *
+   * A QR code was just inserted; the host should reveal its options. Emitted only after the
+   * command was accepted, so a refused insertion (no legal position) opens nothing.
+   */
+  insertQrcode: [];
 }>();
 
 const t = computed(() => mergeEditorLocale(props.locale));
@@ -221,7 +232,15 @@ function insertQrcode(): void {
   const text = findHeadingText(editor.getJSON()) ?? STARTER_QR_TEXT;
   const accepted = editor.chain().focus().insertQRCode({ text }).run();
 
-  if (!accepted) ElMessage.warning(t.value.notReady);
+  if (!accepted) {
+    ElMessage.warning(t.value.notReady);
+    return;
+  }
+
+  // The options are the interesting part of a freshly inserted code, so the host is asked to
+  // reveal them. The raster is still being drawn at this point — the node appears a moment
+  // later and the dialog follows it, because it reads the document rather than a snapshot.
+  emits("insertQrcode");
 }
 
 /**

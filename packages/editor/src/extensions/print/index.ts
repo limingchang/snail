@@ -1,10 +1,15 @@
 /**
- * `print` 扩展 —— 用编辑器自身文档里的原生 `@media print` 打印。
+ * `print` 扩展 —— 打印编辑器自己的纸张，别的一概不印。
  *
  * 没有 iframe、没有 `window.open`、没有依赖（已批准的决策 5）。旧的 `browserPrint.ts` 造了一个
  * `display: none` 的 iframe 并把页面副本写进去，那是一个*新文档*：应用的样式表不在那里，
  * `<link media="screen">` 规则被丢弃，字体和图片必须从头再等一遍，剩下的由用户的「背景图形」
- * 与「页眉和页脚」复选框决定。打印实时文档可以消除上述每一种失败模式。
+ * 与「页眉和页脚」复选框决定。这里拷贝的是**同一份文档**里的纸张，所以样式表、字体和图片都已
+ * 就位，上述失败模式一个都不成立。
+ *
+ * 只在实时文档上打补丁还不够：打印对话框渲染整个文档，宿主的侧边栏、工具栏会跟着一起印出来
+ * （缺陷 43）。所以纸张被搬进一个只为打印而存在的容器，它成了打印时 `<body>` 下唯一可见的孩子
+ * —— 见 `printRoot.ts` 与 `buildPrintRootStyles()`。
  *
  * ## 两条命令
  *
@@ -23,14 +28,20 @@
  * 但监听器是按窗口的，同一个页面上有两个编辑器时赢的会是错误的那个 —— 静默地、
  * 且只是偶尔发生，这比一条有文档说明的限制更糟。）
  *
- * The `print` extension — native `@media print` in the editor's own document.
+ * The `print` extension — it prints the editor's own sheets and nothing else.
  *
  * No iframe, no `window.open`, no dependency (approved decision 5). The legacy
  * `browserPrint.ts` built a `display: none` iframe and wrote a copy of the pages into it,
  * which is a *new document*: the application's stylesheets are not there, `<link
  * media="screen">` rules are dropped, fonts and images have to be waited for all over again,
  * and the user's "Background graphics" and "Headers and footers" checkboxes decide the rest.
- * Printing the live document removes every one of those failure modes.
+ * The copy here is taken from the **same document**, so the stylesheets, fonts and images are
+ * already in effect and not one of those failure modes applies.
+ *
+ * Patching the live document alone is not enough either: the print dialog renders the whole
+ * document, so the host's sidebar and toolbars print with it (defect 43). The sheets are therefore
+ * moved into a container that exists only to be printed, and it becomes the only visible `<body>`
+ * child while printing — see `printRoot.ts` and `buildPrintRootStyles()`.
  *
  * ## The two commands
  *
@@ -71,6 +82,7 @@ export type {
 } from "./typing";
 export type { PrintOptions } from "../../typings/editor";
 export {
+  buildPrintRootStyles,
   buildPrintStyles,
   formatMargins,
   isZeroLength,
@@ -80,6 +92,8 @@ export {
   PRINT_MARGIN_BOX_RESERVE,
   PRINT_PAGE_SELECTOR,
   PRINT_PAPER_SELECTOR,
+  PRINT_ROOT_CLASS,
+  PRINT_ROOT_SELECTOR,
   PRINT_STYLE_ELEMENT_ID,
   PRINT_ZERO_MARGINS,
   resolvePrintMargins
@@ -115,6 +129,25 @@ export {
   withOptionOverrides,
   withTimeout
 } from "./printDocument";
+
+/**
+ * 克隆容器自己的助手。
+ *
+ * 只有想把打印结果自己放到别处（导出、预览）的使用方需要它们；`runPrint` 已经在流水线里调用了
+ * 同一批函数。
+ *
+ * The clone container's own helpers.
+ *
+ * Only a host that wants the printable copy somewhere else (an export, a preview) needs them;
+ * `runPrint` already calls the same functions inside the pipeline.
+ */
+export {
+  collectPrintPages,
+  createPrintRoot,
+  mountPrintRoot,
+  resolvePrintSource
+} from "./printRoot";
+export type { MountedPrintRoot } from "./printRoot";
 
 /** `print` 扩展。 / The `print` extension. */
 export const Print = Extension.create<PrintExtensionOptions>({

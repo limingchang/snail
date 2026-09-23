@@ -102,8 +102,14 @@ import {
   sameQRCodeAttrs,
   styleString
 } from "./geometry";
+import { planPageMove } from "./pageAnchor";
 import { createQRCodeNodeView } from "./nodeView";
-import type { QRCodeAttrs, QRCodeInput, QRCodeOptions } from "./typing";
+import type { QRCodeAttrs, QRCodeInput, QRCodeOptions, QRPageAnchor } from "./typing";
+
+// The design/fill mode belongs to the editor, and the variable extension is where it is kept.
+// Imported at run time — not only as a type — because the node view reads it on every click;
+// nothing in the variable extension imports this one, so there is no cycle.
+import { getVariableMode } from "../variable";
 
 /**
  * 重新导出契约，让宿主从一个地方导入所有内容。
@@ -121,13 +127,14 @@ export type {
   QRColor,
   QRErrorCorrectionLevel,
   QRLength,
+  QRPageAnchor,
   QRPosition,
   QRUnit
 } from "./typing";
 export { QR_UNITS } from "./typing";
 export type { ToDataURL } from "./generate";
 export { generateQRCodeDataURL, generationOptions, loadToDataURL } from "./generate";
-export {
+export { pageContentEnd, pageIndexOf, planPageMove } from "./pageAnchor";export {
   decodeQRCodeConfig,
   encodeQRCodeConfig,
   isQRUnit,
@@ -137,12 +144,14 @@ export {
   normalizeConfig,
   normalizeLength,
   normalizeMargin,
+  normalizePage,
   normalizePosition,
   qrCodeStyle,
   QR_CODE_Z_INDEX,
   QR_DEFAULT_ALT,
   QR_DEFAULT_COLOR,
   QR_DEFAULT_MARGIN,
+  QR_DEFAULT_PAGE,
   QR_DEFAULT_POSITION,
   QR_DEFAULT_SIZE,
   QR_DEFAULT_TEXT,
@@ -150,6 +159,7 @@ export {
   QR_MIN_RASTER_PIXELS,
   QR_PRINT_DPI,
   rasterInputsChanged,
+  resolvePageIndex,
   sameLength,
   sameQRCodeAttrs,
   styleString,
@@ -251,14 +261,7 @@ export function findCurrentQRCode(state: EditorState): FoundQRCode | undefined {
     return { pos: selection.from, node: selection.node };
   }
 
-  const found: FoundQRCode[] = [];
-  state.doc.descendants((node, pos) => {
-    if (node.type.name === "qrcode") {
-      found.push({ pos, node });
-      return false;
-    }
-    return true;
-  });
+  const found = findQRCodeNodes(state);
 
   if (found.length === 0) return undefined;
   if (found.length === 1) return found[0];
@@ -273,6 +276,34 @@ export function findCurrentQRCode(state: EditorState): FoundQRCode | undefined {
     }
   }
   return best;
+}
+
+/**
+ * 文档里的每一个二维码，按文档顺序。
+ *
+ * Every QR code in the document, in document order.
+ */
+export function findQRCodeNodes(state: EditorState): FoundQRCode[] {
+  const found: FoundQRCode[] = [];
+  state.doc.descendants((node, pos) => {
+    if (node.type.name === "qrcode") {
+      found.push({ pos, node });
+      // One is enough for this node; a QR code has no content to search anyway.
+      return false;
+    }
+    return true;
+  });
+  return found;
+}
+
+/** 一个二维码节点携带的载荷，按规范化之后的样子。 / A QR node's payload, normalised. */
+function payloadOf(node: ProseMirrorNode): string {
+  return normalizeAttrs(node.attrs as Partial<QRCodeAttrs>).text;
+}
+
+/** 一个二维码节点现有的位图，没有时是空串。 / A QR node's raster, empty when it has none. */
+function rasterOf(node: ProseMirrorNode): string {
+  return normalizeAttrs(node.attrs as Partial<QRCodeAttrs>).src;
 }
 
 /**
@@ -364,16 +395,72 @@ function commitInsertion(editor: Editor, attrs: QRCodeAttrs): boolean {
 }
 
 /**
- * 生成位图并把它写到 `pos` 处的二维码上，**只用一个**事务。
+ * 生成完成之后，那个二维码*现在*在哪里；找不回来时为 `undefined`。
+ *
+ * ## 为什么不能再用「回头看同一个位置」
+ *
+ * 生成位图要等一次 canvas（`qrcode` 是惰性导入的），而在这几毫秒里，自动分页完全可能把内容在页面
+ * 之间搬一次 —— 包括这个零高度的二维码节点。旧写法在 `await` 之后只看 `nodeAt(pos)` 是不是二维码，
+ * *不是* 就安静地什么都不做，于是「打开文档 → 位图永远不出现，直到用户手动按一次『更新』」：这正是
+ * 报告里的那个 bug。位置过期并不是「别再写了」的理由，它是「先重新找到它」的理由。
+ *
+ * 查找顺序：
+ *
+ * 1. 原位还是同一个载荷、**且还没有位图**的二维码 —— 最常见的路径，也是最快的一条；
+ * 2. 文档里第一个还没有位图、载荷相同的二维码 —— 被分页器搬走的那个；
+ * 3. 原位还是同一个载荷的二维码 —— 位图已经写好、位置也没变；
+ * 4. 文档里第一个载荷相同的二维码 —— 位图已经写好、但被搬走了。
+ *
+ * 找不到任何匹配就返回 `undefined`：那时二维码确实已经被删除或替换，什么都不做才是对的。
+ *
+ * Where the code *is now* once generation finished, or `undefined` when it cannot be found.
+ *
+ * ## Why looking at the same offset again is not enough
+ *
+ * Rasterising waits on a canvas (and `qrcode` is imported lazily), and during those milliseconds the
+ * automatic paginator may well move content between pages — including this zero-height node. The old
+ * code asked only whether `nodeAt(pos)` was still a QR code and silently did nothing when it was not,
+ * which is exactly "open the document and the raster never appears until the user presses 更新 by
+ * hand". A stale position is not a reason to give up; it is a reason to look the node up again.
+ *
+ * The search order is: the original offset when it still holds a code with the same payload **and no
+ * raster yet** (the one this generation was for, and the cheapest path); then the first code with the
+ * same payload and no raster (the one the paginator moved); then the original offset when it holds a
+ * code with the same payload at all; then the first code with that payload. It cannot be the original
+ * offset *first* and unconditionally, because a document may hold two codes with the same payload and
+ * only one of them is waiting for a raster.
+ */
+export function resolveQRCodePosition(state: EditorState, pos: number, text: string): number | undefined {
+  const current = state.doc.nodeAt(pos);
+  const samePayload = current?.type.name === "qrcode" && payloadOf(current) === text;
+  if (samePayload && rasterOf(current) === "") return pos;
+
+  const candidates = findQRCodeNodes(state);
+  const empty = candidates.find(
+    (candidate) => payloadOf(candidate.node) === text && rasterOf(candidate.node) === ""
+  );
+  if (empty) return empty.pos;
+
+  if (samePayload) return pos;
+  return candidates.find((candidate) => payloadOf(candidate.node) === text)?.pos;
+}
+
+/**
+ * 生成位图并写到那个二维码上，**只用一个**事务。
  *
  * 属性与 `src` 是刻意一起写入的：一个只改尺寸、不带匹配位图的中间事务会有一帧渲染出被拉伸的
  * 图片，还会为一次用户操作在撤销历史里留下两步。
  *
- * Generate a raster and write it onto the QR code at `pos`, in **one** transaction.
+ * `pos` 只是起点：`await` 之后真正写到哪里由 {@link resolveQRCodePosition} 决定。
  *
- * Attributes and `src` are written together on purpose: an intermediate transaction that
- * changed the size without the matching raster would render a stretched image for a frame,
- * and would put two steps in the undo history for one user action.
+ * Generate a raster and write it onto the QR code, in **one** transaction.
+ *
+ * Attributes and `src` are written together on purpose: an intermediate transaction that changed the
+ * size without the matching raster would render a stretched image for a frame, and would put two steps
+ * in the undo history for one user action.
+ *
+ * `pos` is only a starting point: where the write actually lands is decided by
+ * {@link resolveQRCodePosition} after the `await`.
  */
 function generateAndApply(editor: Editor, pos: number, attrs: QRCodeAttrs, options: QRCodeOptions): void {
   void generateQRCodeDataURL(attrs, generationOptions(options))
@@ -381,14 +468,13 @@ function generateAndApply(editor: Editor, pos: number, attrs: QRCodeAttrs, optio
       // The generation outlives the command, so the editor may be gone by now.
       if (editor.isDestroyed) return;
 
-      const current = editor.state.doc.nodeAt(pos);
-      // The position is re-checked rather than re-resolved. If the code was deleted or
-      // replaced while the canvas was drawing, writing these attributes onto whatever now
-      // sits at that offset would corrupt an unrelated node; doing nothing is the honest
-      // outcome, and the window is a few milliseconds wide.
-      if (!current || current.type.name !== "qrcode") return;
+      const at = resolveQRCodePosition(editor.state, pos, attrs.text);
+      // Nothing matches any more: the code was deleted (or its payload replaced) while the canvas was
+      // drawing, and writing these attributes onto whatever now sits at the old offset would corrupt an
+      // unrelated node. Doing nothing is the honest outcome.
+      if (at === undefined) return;
 
-      editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...attrs, src }));
+      editor.view.dispatch(editor.state.tr.setNodeMarkup(at, undefined, { ...attrs, src }));
     })
     .catch((error: unknown) => {
       options.onError(error);
@@ -436,6 +522,45 @@ export const QRCode = Node.create<QRCodeOptions>({
     return qrCodeAttributes();
   },
 
+  /**
+   * 打开文档时，为每一个「有载荷但还没有位图」的二维码补上位图。
+   *
+   * ## 为什么扩展自己生成，而不是等宿主叫它
+   *
+   * 位图是**派生**数据：文档只存载荷，而屏幕要的是图。让宿主记得在就绪时调一次
+   * `regenerateQRCode()` 是一条只在文档里存在的约定，而漏掉它的后果是「页面上一张加载失败的图片，
+   * 只显示 alt 文字，直到用户自己打开面板按一次更新」—— 报告里的原话。既然节点本身已经有载荷，
+   * 生成它所需的一切就都在手上，扩展在这里做这件事既不需要宿主配合，也不需要用户操作。
+   *
+   * 代价是每份文档、每次打开一个 canvas；`qrcode` 是惰性导入的，所以只有真的存在这样一个节点时才
+   * 付这笔钱。已经带位图的文档（保存过、或导出的 HTML）完全不付。
+   *
+   * Rasterise every code that has a payload but no raster yet, once the document is open.
+   *
+   * ## Why the extension does this instead of waiting to be asked
+   *
+   * The raster is **derived** data: the document stores the payload, the screen needs the image.
+   * Making the host remember to call `regenerateQRCode()` on ready is a convention that only exists in
+   * documentation, and what happens when it is missed is "a broken image that shows nothing but the
+   * alt text until the user opens the panel and presses update" — the report, verbatim. The node
+   * already carries its payload, so everything needed to draw it is right here, and doing it here
+   * needs neither host code nor a user action.
+   *
+   * The cost is one canvas per such node per open; `qrcode` is imported lazily, so it is paid only
+   * when such a node actually exists. A document that already carries its rasters (a saved template, an
+   * exported HTML) pays nothing.
+   */
+  onCreate() {
+    const editor = this.editor;
+    const options = this.options;
+
+    for (const found of findQRCodeNodes(editor.state)) {
+      const attrs = normalizeAttrs(found.node.attrs as Partial<QRCodeAttrs>);
+      if (attrs.src.length > 0 || attrs.text.trim().length === 0) continue;
+      generateAndApply(editor, found.pos, attrs, options);
+    }
+  },
+
   parseHTML() {
     return [
       {
@@ -472,10 +597,21 @@ export const QRCode = Node.create<QRCodeOptions>({
   },
 
   addNodeView() {
+    const extension = this;
+
     return (props) =>
       createQRCodeNodeView({
         name: "qrcode",
-        attrs: normalizeAttrs(props.node.attrs as Partial<QRCodeAttrs>)
+        attrs: normalizeAttrs(props.node.attrs as Partial<QRCodeAttrs>),
+        // `props.editor` is the `Editor`, which is what selecting the node needs; the mode is
+        // read live so a view built before a mode switch still reports the mode in force.
+        editor: props.editor as unknown as Editor,
+        getPos: () => {
+          const pos = props.getPos();
+          return typeof pos === "number" ? pos : undefined;
+        },
+        getMode: () => getVariableMode(props.editor as unknown as Editor),
+        onRequestEdit: extension.options.onRequestEdit
       });
   },
 
@@ -638,7 +774,49 @@ export const QRCode = Node.create<QRCodeOptions>({
       hasQRCode:
         () =>
         ({ state }) =>
-          docHasQRCode(state.doc)
+          docHasQRCode(state.doc),
+
+      /**
+       * 把当前二维码放到某一页上。
+       *
+       * 移动与写属性在**一个**事务里完成，所以撤销一次就同时退回页与属性。目标页里没有可插入
+       * 的位置（单页编辑器、或页码超出范围）时只写属性：一个不存在的页面不是可以搬进去的地方。
+       *
+       * Move the current QR code onto a page.
+       *
+       * The move and the attribute write happen in **one** transaction, so a single undo steps
+       * back both. When the target page has nowhere to insert — a single-page editor, or a page
+       * number out of range — only the attribute is written: a page that does not exist is not
+       * somewhere to move into.
+       */
+      setQRCodePage:
+        (anchor: QRPageAnchor) =>
+        ({ state, tr, dispatch }) => {
+          const found = findCurrentQRCode(state);
+          if (!found) return false;
+
+          const current = normalizeAttrs(found.node.attrs as Partial<QRCodeAttrs>);
+          const next = mergeQRCodeAttrs(current, { page: anchor });
+          const move = planPageMove(state.doc, found.pos, next.page);
+          if (!move && sameQRCodeAttrs(current, next)) return false;
+
+          if (dispatch) {
+            if (move) {
+              const node = found.node.type.create({ ...next });
+              // Delete first, then insert: the inserted position is mapped through the
+              // deletion, so the replica lands where it was planned, and the new node's
+              // position after the insert is exactly `insertAt` — which is why the
+              // selection can be set from it without a second mapping step.
+              tr.delete(found.pos, found.pos + found.node.nodeSize);
+              const insertAt = tr.mapping.map(move.insertAt);
+              tr.insert(insertAt, node);
+              tr.setSelection(NodeSelection.create(tr.doc, insertAt));
+            } else {
+              tr.setNodeMarkup(found.pos, undefined, { ...next });
+            }
+          }
+          return true;
+        }
     };
   }
 });
@@ -684,6 +862,13 @@ declare module "@tiptap/core" {
        * `true` when the document contains a QR code. Derived, never stored.
        */
       hasQRCode: () => ReturnType;
+
+      /**
+       * 把当前二维码放到某一页上。没有二维码时返回 `false`。
+       *
+       * Place the current QR code on a page. `false` when the document has no QR code.
+       */
+      setQRCodePage: (anchor: QRPageAnchor) => ReturnType;
     };
   }
 }

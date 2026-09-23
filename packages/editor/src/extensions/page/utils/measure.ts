@@ -166,7 +166,10 @@ const MAX_LINE_BOXES = 5000;
  */
 export function measurePageContent(input: MeasurePageContentInput): PageContentMeasurement {
   const contentElement = resolveContentElement(input.element);
-  const contentHeight = availableContentHeight(input.element);
+  // The *inner* element carries the page margins as its padding (see `page.scss`), so the usable height is
+  // that element's box minus its own padding. Measuring the outer one would silently hand the blocks the
+  // margins as extra room.
+  const contentHeight = availableContentHeight(contentElement);
 
   const blocks: MeasuredBlock[] = [];
   const elementChildren = contentElement.children;

@@ -67,7 +67,7 @@
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
 import { TextSelection } from "@tiptap/pm/state";
-import type { Node as PMNode } from "@tiptap/pm/model";
+import type { Fragment, Node as PMNode } from "@tiptap/pm/model";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 import { DATA_TYPE, REGION_EDITING_CLASS } from "../constant/dom";
@@ -375,11 +375,156 @@ function bandStillExists(doc: PMNode, editing: FurnitureEditingState): boolean {
 }
 
 /**
+ * 单击页眉/页脚时的决策，提取为纯函数以便测试。
+ *
+ * 中文：三种结果 —— 「切到同一栏的另一区域」（返回进入事务）、「退出」（点到了家具之外）、
+ * 「什么都不做」。**单击未打开的条带返回 `null`**：打开条带是双击的职责，否则「双击才编辑」这条
+ * 规则实际上不存在。
+ *
+ * What a single click on furniture means, as a pure function so the rule can be tested.
+ *
+ * Three outcomes: switch to another region of the band that is already open, leave the furniture, or
+ * do nothing. A click on a band that is **not** open returns `null` — opening it is the double-click's
+ * job, and without that rule "double-click to edit" does not exist.
+ */
+export function planFurnitureMousedown(
+  state: EditorState,
+  target: { side: FurnitureSide; slot: FurnitureSlot } | null
+): Transaction | null {
+  const editing = readFurnitureEditing(state);
+
+  if (target === null) {
+    // Outside the furniture: only meaningful when something was open.
+    return editing === null ? null : planExitFurniture(state);
+  }
+
+  if (editing === null) return null;
+  if (editing.side === target.side && editing.slot === target.slot) {
+    // Already here: leave the caret to the browser, which places it where the pointer is.
+    return null;
+  }
+  // Another band is not a switch — the user has to double-click into it.
+  if (editing.side !== target.side) return null;
+
+  return planEnterFurniture(state, target.side, target.slot, { select: false });
+}
+
+/**
+ * 某个区域是否被锁定（承载页码或 Logo，因此不可编辑）。
+ *
+ * Whether a region is locked, i.e. holds a page number or a logo and can therefore not be edited.
+ */
+export function isFurnitureRegionLocked(
+  state: EditorState,
+  side: FurnitureSide,
+  slot: FurnitureSlot
+): boolean {
+  for (const band of collectBands(state.doc)) {
+    if (band.side !== side) continue;
+    const region = regionMap(collectRegions(band.node, band.pos))[slot];
+    return region ? regionIsLocked(region.node) : false;
+  }
+  return false;
+}
+
+/**
+ * 一次编辑之后，同侧的每个条带的同一槽位应当与用户改过的那条一致。
+ *
+ * ## 为什么
+ *
+ * 页眉不是「第一页的页眉」：它是**每一页的页眉**。文档模型里每条栏各有一份区域，所以在一页上写下
+ * 公司名，另外两页不会自己变 —— 而用户看到的是一份合同上的同一个页眉。同步就是把这份一致性补上：
+ * 改哪一页都行，改完之后所有页都长一样。
+ *
+ * ## 哪些不动
+ *
+ * - **被锁定的目标区域跳过**：里面有页码或 Logo，那些由各自的命令统一维护；把一段文字铺进去会抹掉
+ *   它们。
+ * - **内容已经相同就跳过**：这也是它幂等、不会与规范化或分页互相追逐的原因。
+ * - 只有**用户编辑**（不是 `addToHistory: false` 的分页 / 规范化事务）才触发；组合期间也不触发
+ *   （见 `furniture.ts` 的插件状态）。
+ *
+ * After one edit, the same slot of every band on that side should match the band the user edited.
+ *
+ * ## Why
+ *
+ * A header is not "page one's header": it is **every page's** header. The document model keeps one copy of
+ * the regions per band, so writing a company name on one page leaves the others alone — while what the user
+ * sees is one header on one contract. This sync closes that gap: edit any page and every page ends up the
+ * same.
+ *
+ * ## What it leaves alone
+ *
+ * - **A locked target region is skipped**: it holds a page number or a logo, which their own commands keep
+ *   in step, and pasting text into it would wipe them.
+ * - **Identical content is skipped**, which is what makes it idempotent and unable to chase the normaliser
+ *   or the paginator.
+ * - Only a **user edit** starts it (never an `addToHistory: false` pagination / normalisation
+ *   transaction), and never while an IME composition is in flight (see the plugin state in `furniture.ts`).
+ */
+export function planFurnitureSync(
+  state: EditorState,
+  ranges: ReadonlyArray<{ from: number; to: number }>
+): Transaction | null {
+  const plans: Array<{ from: number; to: number; content: Fragment }> = [];
+
+  for (const side of ["top", "bottom"] as const) {
+    const bands = collectBands(state.doc).filter((band) => band.side === side);
+    if (bands.length < 2) continue;
+
+    // The band the user actually edited: the first one a touched range falls inside. Everything else on
+    // this side is made to match it.
+    const source = bands.find((band) =>
+      ranges.some((range) => range.to > band.pos && range.from < band.pos + band.node.nodeSize)
+    );
+    if (!source) continue;
+
+    const sourceRegions = regionMap(collectRegions(source.node, source.pos));
+
+    for (const band of bands) {
+      if (band === source) continue;
+
+      const targetRegions = regionMap(collectRegions(band.node, band.pos));
+      for (const slot of Object.keys(sourceRegions) as FurnitureSlot[]) {
+        const from = sourceRegions[slot];
+        const to = targetRegions[slot];
+        if (!from || !to) continue;
+        if (regionIsLocked(to.node)) continue;
+        if (from.node.content.eq(to.node.content)) continue;
+
+        plans.push({
+          from: to.pos + 1,
+          to: to.pos + to.node.nodeSize - 1,
+          content: from.node.content
+        });
+      }
+    }
+  }
+
+  if (plans.length === 0) return null;
+
+  // Last position first: replacing one region shifts everything after it.
+  plans.sort((a, b) => b.from - a.from);
+
+  const transaction = state.tr;
+  for (const plan of plans) transaction.replaceWith(plan.from, plan.to, plan.content);
+  // A furniture command of ours: the editing filter lets those through without a band being open, and the
+  // sync must never be refused by the very rule that protects the furniture.
+  transaction.setMeta(FURNITURE_META, { type: "command", command: true } satisfies FurnitureMeta);
+  return transaction;
+}
+
+/**
  * 创建持有编辑状态、手势与过滤器三者的插件。
  *
  * Create the plugin that owns the editing state, the gestures and the filter.
+ *
+ * @param options.onLockedRegion 双击到被锁定区域时调用（宿主据此给出提示）/
+ *   - called when a locked region is double-clicked, so the host can say why nothing happens.
  */
-export function createFurnitureEditingPlugin(): Plugin {
+export function createFurnitureEditingPlugin(
+  options: { onLockedRegion?: (region: { side: FurnitureSide; slot: FurnitureSlot }) => void } = {}
+): Plugin {
   return new Plugin<FurnitureEditingState | null>({
     key: furnitureEditingPluginKey,
 
@@ -453,6 +598,13 @@ export function createFurnitureEditingPlugin(): Plugin {
           const target = regionFromElement(event.target as HTMLElement | null);
           if (!target) return false;
 
+          // A locked region holds a page number or a logo, so it is not something the user may type into.
+          // Saying so is the whole point: silently doing nothing reads as a broken double-click.
+          if (isFurnitureRegionLocked(view.state, target.side, target.slot)) {
+            options.onLockedRegion?.(target);
+            return false;
+          }
+
           const transaction = planEnterFurniture(view.state, target.side, target.slot);
           if (!transaction) return false;
 
@@ -463,29 +615,23 @@ export function createFurnitureEditingPlugin(): Plugin {
           return false;
         },
 
+        /**
+         * 单击：只做两件事 —— 在已经打开的条带内切换区域，以及点击别处时退出。
+         *
+         * 中文：**单击一个未打开的条带不会进入编辑**（那是双击的职责）。这一点很重要：如果单击就进入，
+         * 「双击才编辑」这条规则实际上不存在，光标会落在用户只是随手点了一下的页眉里。
+         *
+         * A single click does exactly two things: switch between regions of the band that is *already*
+         * open, and leave the furniture when the click lands anywhere else. It deliberately does **not**
+         * open a band — that is the double-click's job. See {@link planFurnitureMousedown}.
+         */
         mousedown: (view, event) => {
           if (!view.editable) return false;
 
-          const editing = readFurnitureEditing(view.state);
           const target = regionFromElement(event.target as HTMLElement | null);
-
-          if (target === null) {
-            // A click in the body (or anywhere outside the furniture) leaves the band. Guarded by
-            // `editing !== null` so the common case allocates nothing.
-            if (editing !== null) {
-              const exit = planExitFurniture(view.state);
-              if (exit) view.dispatch(exit);
-            }
-            return false;
-          }
-
-          if (editing !== null && editing.side === target.side && editing.slot === target.slot) {
-            // Already here: let the browser place the caret exactly where it was clicked.
-            return false;
-          }
-
-          const transaction = planEnterFurniture(view.state, target.side, target.slot, { select: false });
+          const transaction = planFurnitureMousedown(view.state, target);
           if (!transaction) return false;
+
           view.dispatch(transaction);
           return false;
         },

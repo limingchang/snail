@@ -59,11 +59,11 @@ import type { CommandProps } from "@tiptap/core";
 import { Fragment } from "@tiptap/pm/model";
 import type { Node as PMNode, Schema } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
-import type { Transaction } from "@tiptap/pm/state";
+import type { EditorState, Transaction } from "@tiptap/pm/state";
 
 import { DEFAULT_FURNITURE_HEIGHT, DEFAULT_FURNITURE_LINE } from "../constant/defaults";
 import type { FurnitureAttributes, FurnitureSide } from "../typing/headerFooter";
-import { FURNITURE_META } from "./furnitureEditing";
+import { FURNITURE_META, planFurnitureSync, touchedRanges } from "./furnitureEditing";
 import type { FurnitureMeta } from "./furnitureEditing";
 import { renderFurnitureNodeView } from "./furnitureView";
 import {
@@ -289,46 +289,171 @@ export function bandNodeName(side: FurnitureSide): string {
  * transaction at all, so this costs one comparison per band per change.
  */
 export function createFurnitureRegionsPlugin(): Plugin {
-  return new Plugin({
+  return new Plugin<FurnitureRegionsState>({
     key: furnitureRegionsPluginKey,
+
+    /**
+     * 是否正在输入法组合中。
+     *
+     * 中文：插件状态里记这个标志，是因为 `appendTransaction` 看不到 DOM 事件，而**组合期间绝不能改
+     * 文档**：输入法在 `compositionend` 之前只在浏览器里维护那段拼音，编辑器这时改文档会让组合被取消，
+     * 结果就是用户打了一串拼音、中文没上屏。分页器早就有同一道闸门（它自己监听组合事件），这里是第二
+     * 处会改文档的地方 —— 规范化会整体替换条带的子节点，比搬动内容更粗暴。
+     *
+     * Whether an IME composition is in flight.
+     *
+     * The flag lives in the plugin state because `appendTransaction` sees no DOM events, and the document
+     * must **never** be changed mid-composition: until `compositionend` the IME only keeps that pinyin in the
+     * browser, and an outside change cancels the composition — which is exactly "I typed pinyin and no
+     * Chinese appeared". The paginator has had the same gate for a while (it listens to the composition
+     * events itself); this is the second place that changes the document, and replacing a band's children
+     * whole is cruder than moving content.
+     */
+    state: {
+      init: (): FurnitureRegionsState => ({ composing: false }),
+      apply: (transaction, value): FurnitureRegionsState => {
+        const meta = transaction.getMeta(FURNITURE_COMPOSITION_META) as boolean | undefined;
+        if (meta === undefined) return value;
+        return meta === value.composing ? value : { composing: meta };
+      }
+    },
+
+    props: {
+      handleDOMEvents: {
+        /**
+         * 组合开始：记下标志（一个没有文档步骤、也不进历史的事务）。
+         *
+         * Composition started: record the flag (a transaction with no document step and no history
+         * entry, so it changes nothing the user can see).
+         */
+        compositionstart: (view) => {
+          view.dispatch(compositionTransaction(view.state, true));
+          return false;
+        },
+
+        /**
+         * 组合结束：清掉标志，并补跑组合期间被推迟的那次规范化。
+         *
+         * Composition ended: clear the flag and run the normalisation that was deferred while it lasted.
+         */
+        compositionend: (view) => {
+          view.dispatch(compositionTransaction(view.state, false));
+          const plan = planFurnitureNormalisation(view.state);
+          if (plan) view.dispatch(plan);
+          return false;
+        }
+      }
+    },
 
     appendTransaction: (transactions, _oldState, newState) => {
       // Nothing was edited (a selection-only change): there is nothing to normalise.
       if (!transactions.some((transaction) => transaction.docChanged)) return null;
+      // Never rebuild a band while the user's IME is composing in it: see the plugin state's comment.
+      if (furnitureRegionsPluginKey.getState(newState)?.composing === true) return null;
       // Note: a transaction of *ours* is normalised too. Removing a page number leaves an empty
       // region behind, and that is exactly what needs a fresh paragraph. ProseMirror calls
       // `appendTransaction` again for the transaction this returns, so termination rests on the
       // plan being idempotent: the second pass finds nothing to change and returns `null`.
 
-      const tr = newState.tr;
-      let changed = false;
-
-      // Last band first: replacing a band shifts every position after it.
-      const bands = collectPages(newState.doc)
-        .flatMap((page) =>
-          [PAGE_HEADER_NODE, PAGE_FOOTER_NODE]
-            .map((name) => findChild(page, name))
-            .filter((child): child is NonNullable<typeof child> => child !== null)
-        )
-        .reverse();
-
-      for (const band of bands) {
-        const plan = planBandRegions(band.node, band.pos);
-        if (!plan) continue;
-        tr.replaceWith(plan.from, plan.to, plan.content);
-        changed = true;
-      }
-
-      if (!changed) return null;
-      // Layout repair, never an undo step: one Ctrl+Z must not restore a malformed band.
-      tr.setMeta("addToHistory", false);
-      return tr;
+      return planFurnitureNormalisation(newState);
     }
   });
 }
 
+/** 规范化插件的状态：只记「是否正在组合」。 / The normaliser's state: only "is a composition in flight". */
+interface FurnitureRegionsState {
+  composing: boolean;
+}
+
+/**
+ * 标记组合开始 / 结束的事务。
+ *
+ * A transaction marking the start / end of a composition.
+ */
+function compositionTransaction(state: EditorState, composing: boolean): Transaction {
+  return state.tr.setMeta(FURNITURE_COMPOSITION_META, composing).setMeta("addToHistory", false);
+}
+
+/**
+ * 让每个条带恰好三个可用区域的规范化事务；无事可做时返回 `null`。
+ *
+ * The normalisation transaction that keeps every band at exactly three usable regions, or `null` when
+ * there is nothing to do.
+ */
+export function planFurnitureNormalisation(state: EditorState): Transaction | null {
+  const tr = state.tr;
+  let changed = false;
+
+  // Last band first: replacing a band shifts every position after it.
+  const bands = collectPages(state.doc)
+    .flatMap((page) =>
+      [PAGE_HEADER_NODE, PAGE_FOOTER_NODE]
+        .map((name) => findChild(page, name))
+        .filter((child): child is NonNullable<typeof child> => child !== null)
+    )
+    .reverse();
+
+  for (const band of bands) {
+    const plan = planBandRegions(band.node, band.pos);
+    if (!plan) continue;
+    tr.replaceWith(plan.from, plan.to, plan.content);
+    changed = true;
+  }
+
+  if (!changed) return null;
+  // Layout repair, never an undo step: one Ctrl+Z must not restore a malformed band.
+  tr.setMeta("addToHistory", false);
+  return tr;
+}
+
 /** 标识区域规范化插件。 / Identifies the region-normalising plugin. */
 export const furnitureRegionsPluginKey = new PluginKey("snailFurnitureRegions");
+
+/**
+ * 标记「输入法组合开始 / 结束」的 meta 键。
+ *
+ * Meta key marking the start / end of an IME composition.
+ */
+export const FURNITURE_COMPOSITION_META = "snailFurnitureComposition";
+
+/**
+ * 让同侧每个条带的同一槽位跟随用户的编辑。
+ *
+ * 中文：它与规范化插件成对 —— 规范化保证「每个条带恰好三个区域」，同步保证「这些区域在每一页上
+ * 是同一次编辑的结果」。只有在用户**真的**编辑了版面配件时才动手（分页与规范化事务都被排除），
+ * 组合期间不动（见规范化插件的状态），内容相同则什么都不做，因此它不会和另外两者互相追逐。
+ *
+ * Make the same slot of every band on a side follow the user's edit.
+ *
+ * It pairs with the normaliser: the normaliser guarantees "every band has exactly three regions", the sync
+ * guarantees "those regions are the result of the same edit on every page". It only acts on a **user** edit
+ * (pagination and normalisation transactions are excluded), never mid-composition (see the normaliser's
+ * state), and does nothing when the content already matches — which is why it cannot chase the other two.
+ */
+export function createFurnitureSyncPlugin(): Plugin {
+  return new Plugin({
+    key: furnitureSyncPluginKey,
+
+    appendTransaction: (transactions, _oldState, newState) => {
+      if (furnitureRegionsPluginKey.getState(newState)?.composing === true) return null;
+
+      // Only a real edit: a pagination pass or the normaliser copying furniture around is not the user
+      // saying "this is what my header says".
+      const edits = transactions.filter(
+        (transaction) => transaction.docChanged && transaction.getMeta("addToHistory") !== false
+      );
+      if (edits.length === 0) return null;
+
+      const ranges = edits.flatMap((transaction) => touchedRanges(transaction));
+      if (ranges.length === 0) return null;
+
+      return planFurnitureSync(newState, ranges);
+    }
+  });
+}
+
+/** 标识条带同步插件。 / Identifies the band-syncing plugin. */
+export const furnitureSyncPluginKey = new PluginKey("snailFurnitureSync");
 
 /**
  * 新建条带的初始内容：三个空区域。

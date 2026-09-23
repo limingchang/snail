@@ -54,6 +54,8 @@ export { default as SEditor } from "./editor/SEditor.vue";
 export { default as EditorToolbar } from "./components/EditorToolbar.vue";
 export { default as VariableDialog } from "./components/VariableDialog.vue";
 export { default as FillVariableDialog } from "./components/FillVariableDialog.vue";
+export { default as QrcodeDialog } from "./components/QrcodeDialog.vue";
+export { default as QrcodeForm } from "./components/QrcodeForm.vue";
 export { default as TemplatePicker } from "./components/TemplatePicker.vue";
 
 export { default as ToolFont } from "./components/tools/ToolFont.vue";

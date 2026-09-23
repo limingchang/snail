@@ -19,10 +19,12 @@ import {
   normalizeConfig,
   normalizeLength,
   normalizeMargin,
+  normalizePage,
   normalizePosition,
   QR_CODE_Z_INDEX,
   QR_DEFAULT_COLOR,
   QR_DEFAULT_MARGIN,
+  QR_DEFAULT_PAGE,
   QR_DEFAULT_POSITION,
   QR_DEFAULT_SIZE,
   QR_MAX_RASTER_PIXELS,
@@ -30,6 +32,7 @@ import {
   QR_PRINT_DPI,
   qrCodeStyle,
   rasterInputsChanged,
+  resolvePageIndex,
   sameQRCodeAttrs,
   sameLength,
   styleString,
@@ -137,8 +140,37 @@ describe("attribute normalisation", () => {
       size: QR_DEFAULT_SIZE,
       position: QR_DEFAULT_POSITION,
       color: QR_DEFAULT_COLOR,
-      margin: QR_DEFAULT_MARGIN
+      margin: QR_DEFAULT_MARGIN,
+      page: QR_DEFAULT_PAGE
     });
+  });
+
+  it("reads a page anchor as a keyword, a page number, or nothing", () => {
+    expect(normalizePage("first")).toBe("first");
+    expect(normalizePage("last")).toBe("last");
+    expect(normalizePage(3)).toBe(3);
+    // Page 0 and page 0.5 do not exist; clamping keeps the select and the move in agreement.
+    expect(normalizePage(2.7)).toBe(2);
+    expect(normalizePage(0)).toBe(1);
+    // Anything else — including the default itself — means "never specified".
+    expect(normalizePage(null)).toBeNull();
+    expect(normalizePage(undefined)).toBeNull();
+    expect(normalizePage("third")).toBeNull();
+    expect(normalizePage(Number.NaN)).toBeNull();
+  });
+
+  it("resolves a relative anchor against the page count", () => {
+    expect(resolvePageIndex("first", 4)).toBe(1);
+    expect(resolvePageIndex("last", 4)).toBe(4);
+    // A one-page document has no other answer, and no pages at all is treated as one page.
+    expect(resolvePageIndex("last", 1)).toBe(1);
+    expect(resolvePageIndex("last", 0)).toBe(1);
+    // An absolute page is clamped into the document.
+    expect(resolvePageIndex(3, 4)).toBe(3);
+    expect(resolvePageIndex(9, 4)).toBe(4);
+    expect(resolvePageIndex(0, 4)).toBe(1);
+    // Unspecified: the first page is the only answer available without the document.
+    expect(resolvePageIndex(null, 4)).toBe(1);
   });
 
   it("gives an absent label the accessible default rather than an empty `alt`", () => {

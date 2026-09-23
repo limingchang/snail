@@ -110,6 +110,27 @@ export interface VariableLocale {
   empty: string;
 
   /**
+   * 悬停提示里「描述」一行的标题。默认 `"描述"`。
+   *
+   * The label of the tip's description row. Default `"描述"`.
+   */
+  tipDescription: string;
+
+  /**
+   * 悬停提示里「默认值」一行的标题。默认 `"默认值"`。
+   *
+   * The label of the tip's default-value row. Default `"默认值"`.
+   */
+  tipDefault: string;
+
+  /**
+   * 悬停提示里 key 一行的标题。默认 `"key"`（它是标识符，不翻译）。
+   *
+   * The label of the tip's key row. Default `"key"` — an identifier, deliberately not translated.
+   */
+  tipKey: string;
+
+  /**
    * 填写值被 `maxLength` 截断时的 `textContent`。默认 `"已超出长度限制"`。
    *
    * `textContent` when a fill value was cut off at `maxLength`. Default `"已超出长度限制"`.

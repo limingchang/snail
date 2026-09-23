@@ -8,7 +8,27 @@
         :label="section.title"
       >
         <div class="s-editor-toolbar-pane">
-          <template v-if="section.name === 'font'">
+          <template v-if="section.name === 'template'">
+            <ToolTemplate
+              :editor="editor"
+              :locale="locale"
+              :items="templateItems"
+              :loading="templateLoading"
+              :error="templateError"
+              :policy="templatePolicy"
+              :selected="templateSelected"
+              :design="templateDesign"
+              :list-source="templateListSource"
+              @refresh="onRefreshTemplates?.()"
+              @select="(id: string) => onSelectTemplate?.(id)"
+              @load="(id: string) => onLoadTemplate?.(id)"
+              @retry="onRetryTemplates?.()"
+              @create="onCreateTemplate?.()"
+              @pick-local="onPickLocalTemplate?.()"
+            />
+          </template>
+
+          <template v-else-if="section.name === 'font'">
             <ToolFont :editor="editor" :locale="locale" />
           </template>
 
@@ -17,7 +37,12 @@
           </template>
 
           <template v-else-if="section.name === 'insert'">
-            <ToolInsert :editor="editor" :locale="locale" @insert-variable="onInsertVariable?.()" />
+            <ToolInsert
+              :editor="editor"
+              :locale="locale"
+              @insert-variable="onInsertVariable?.()"
+              @insert-qrcode="onInsertQrcode?.()"
+            />
           </template>
 
           <template v-else-if="section.name === 'table'">
@@ -78,8 +103,9 @@
  *
  * ## `template`
  *
- * `ToolName` 有十个成员，功能区有九个面板。`"template"` 根本不是功能区的面板：模板列表是
- * `TemplatePicker`，它属于文档所在的工作区，而不是一个用户为了载入文档还得先打开的工具栏。
+ * `ToolName` 有十个成员，功能区也有十个面板。`"template"` 是第一个面板，而且它的闸门只有
+ * `tools` 一道：模板管线是 `editor/template.ts` 而不是一个 Tiptap 扩展，所以第二个闸门
+ * （「扩展已注册」）对它不适用。
  *
  * `EditorToolbar` — the ribbon.
  *
@@ -106,9 +132,9 @@
  *
  * ## `template`
  *
- * `ToolName` has ten members and the ribbon has nine panes. `"template"` is not a ribbon pane
- * at all: the template list is `TemplatePicker`, which belongs in the workspace where the
- * document is, not in a toolbar the user has to open to load a document.
+ * `ToolName` has ten members and the ribbon has ten panes. `"template"` is the first pane, and
+ * `tools` is its only gate: the template pipeline is `editor/template.ts` rather than a Tiptap
+ * extension, so the second gate ("the extension is registered") does not apply to it.
  */
 
 import { computed, ref, watch } from "vue";
@@ -117,11 +143,13 @@ import type { Editor } from "@tiptap/core";
 
 import type { ToolName } from "../typings/editor";
 import { DEFAULT_TOOLS } from "../typings/editor";
+import type { TemplateListItem } from "../typings/editor";
 import type { VariableAttrs } from "../typings/variable";
 import type { PrintOptions, WatermarkOptions } from "../typings/editor";
 
 import { mergeEditorLocale, sectionLabel } from "../editor/locale";
 import type { EditorLocale } from "../editor/locale";
+import type { TemplateLoadPolicy } from "../editor/template";
 
 import ToolFont from "./tools/ToolFont.vue";
 import ToolInsert from "./tools/ToolInsert.vue";
@@ -130,6 +158,7 @@ import ToolParagraph from "./tools/ToolParagraph.vue";
 import ToolPrint from "./tools/ToolPrint.vue";
 import ToolQrcode from "./tools/ToolQrcode.vue";
 import ToolTable from "./tools/ToolTable.vue";
+import ToolTemplate from "./tools/ToolTemplate.vue";
 import ToolVariable from "./tools/ToolVariable.vue";
 import ToolWatermark from "./tools/ToolWatermark.vue";
 import { ElTabs, ElTabPane } from "element-plus";
@@ -176,8 +205,54 @@ const props = withDefaults(
     /** 为新变量打开设计对话框。 / Open the design dialog for a new variable. */
     onInsertVariable?: () => void;
 
+    /**
+     * 二维码插入完成后调用，让宿主弹出它的选项。
+     *
+     * Called once a QR code has been inserted, so the host can reveal its options.
+     */
+    onInsertQrcode?: () => void;
+
     /** 为已有变量打开设计对话框。 / Open the design dialog for an existing variable. */
     onEditVariable?: (attrs: VariableAttrs, pos: number) => void;
+
+    /** 模板列表的条目。 / The template list's entries. */
+    templateItems?: TemplateListItem[];
+
+    /** 模板列表正在被拉取。 / Whether the template list is being fetched. */
+    templateLoading?: boolean;
+
+    /** 模板列表的失败文案，已由宿主本地化。 / The list's failure text, localised by the host. */
+    templateError?: string;
+
+    /** 条目由宿主自动加载还是等用户按「载入」。 / Whether entries load automatically. */
+    templatePolicy?: TemplateLoadPolicy;
+
+    /** 当前选中的条目 id。 / The selected entry's id. */
+    templateSelected?: string;
+
+    /** 是否处于设计模式：填写模式只显示「加载本地模板」。 / Design mode shows the list. */
+    templateDesign?: boolean;
+
+    /** 是否配置了远程模板列表。 / Whether a remote template list is configured. */
+    templateListSource?: boolean;
+
+    /** 重新拉取模板列表。 / Fetch the template list again. */
+    onRefreshTemplates?: () => void;
+
+    /** 选中一个条目，但不载入它。 / Select an entry without loading it. */
+    onSelectTemplate?: (id: string) => void;
+
+    /** 载入一个条目。 / Load one entry. */
+    onLoadTemplate?: (id: string) => void;
+
+    /** 列表拉取失败后重试。 / Retry after a failed list request. */
+    onRetryTemplates?: () => void;
+
+    /** 从内置的起始文档新建一个模板。 / Start a new template from the built-in starter. */
+    onCreateTemplate?: () => void;
+
+    /** 载入本机已保存的模板。 / Load the template saved on this machine. */
+    onPickLocalTemplate?: () => void;
   }>(),
   {
     editor: undefined,
@@ -187,7 +262,21 @@ const props = withDefaults(
     watermark: undefined,
     print: undefined,
     onInsertVariable: undefined,
-    onEditVariable: undefined
+    onInsertQrcode: undefined,
+    onEditVariable: undefined,
+    templateItems: () => [],
+    templateLoading: false,
+    templateError: "",
+    templatePolicy: "manual",
+    templateSelected: "",
+    templateDesign: true,
+    templateListSource: false,
+    onRefreshTemplates: undefined,
+    onSelectTemplate: undefined,
+    onLoadTemplate: undefined,
+    onRetryTemplates: undefined,
+    onCreateTemplate: undefined,
+    onPickLocalTemplate: undefined
   }
 );
 
@@ -233,6 +322,11 @@ const RIBBON: readonly {
   aliases: readonly ToolName[];
   extensions: readonly string[];
 }[] = [
+  // First, before 格式: loading a template is what an author does before editing anything, so a
+  // tab that has to be found after the formatting controls is in the wrong place. Its
+  // `extensions` list is empty on purpose — the template pipeline is not a Tiptap extension, and
+  // an empty list means "no extension gate" (see `availableSections`).
+  { name: "template", aliases: [], extensions: [] },
   { name: "font", aliases: [], extensions: ["textStyle"] },
   { name: "paragraph", aliases: [], extensions: ["paragraphStyle"] },
   // The insert pane is backed by any of the extensions whose tools it holds, so it appears
@@ -274,12 +368,19 @@ function requested(section: (typeof RIBBON)[number]): boolean {
 /**
  * 既被要求、又有已注册扩展支撑的每一个区块。
  *
+ * 空的 `extensions` 表示该区块不设扩展闸门：模板区块背后不是 Tiptap 扩展，而是
+ * `editor/template.ts` 的模板管线，所以它只由 `tools` 决定。
+ *
  * Every section that is both requested and backed by a registered extension.
+ *
+ * An empty `extensions` list means the section carries no extension gate: the template section is
+ * backed by `editor/template.ts` rather than by a Tiptap extension, so `tools` alone decides it.
  */
 const availableSections = computed(() =>
   RIBBON.filter(
     (section) =>
-      requested(section) && section.extensions.some((name) => registered.value.has(name))
+      requested(section) &&
+      (section.extensions.length === 0 || section.extensions.some((name) => registered.value.has(name)))
   ).map((section) => ({
     name: section.name,
     title: sectionLabel(t.value, section.name)

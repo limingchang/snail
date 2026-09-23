@@ -34,6 +34,8 @@
  *   box of its own, and its `z-index` stays below the watermark's.
  */
 
+import { NodeSelection } from "@tiptap/pm/state";
+
 import { normalizeAttrs, qrCodeStyle, styleString } from "./geometry";
 import type { QRCodeAttrs, QRCodeNodeView, QRCodeNodeViewContext } from "./typing";
 
@@ -101,6 +103,48 @@ export function createQRCodeNodeView(context: QRCodeNodeViewContext): QRCodeNode
 
   paint();
 
+  /**
+   * 设计模式下点击这个码，请宿主打开它的选项面板。
+   *
+   * 中文：与变量走同一条通道——视图不拥有对话框，宿主拥有，而且宿主可以自由忽略这个请求。填写
+   * 模式下什么都不做：那时这个码是内容，不是可以调整的东西。
+   *
+   * 位置在点击的**此刻**解析，从不缓存；并且先把节点选中：宿主的面板据此知道该编辑哪一个码，
+   * 而一个忽略了回调的宿主至少留下一个被选中的码，而不是把光标丢在别处。
+   *
+   * A click in design mode asks the host to open the code's options panel.
+   *
+   * The same channel the variable uses: the view does not own a dialog, the host does, and the
+   * host is free to ignore the request. In fill mode nothing happens — the code is content then,
+   * not something to adjust.
+   *
+   * The position is resolved *now*, never captured, and the node is selected first: the host's
+   * panel learns which code it is editing, and a host that ignores the callback is still left
+   * with a selected code rather than a caret somewhere else.
+   */
+  const handleClick = (event: MouseEvent): void => {
+    if (context.getMode?.() !== "design") return;
+
+    // The default would run ProseMirror's own handling, whose caret placement an atom must
+    // refuse; the selection is set below instead.
+    event.preventDefault();
+    event.stopPropagation();
+
+    const editor = context.editor;
+    const pos = context.getPos?.();
+    if (editor && pos !== undefined) {
+      editor.view.dispatch(
+        editor.view.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos))
+      );
+    }
+
+    // `onRequestEdit` is only called with a real position: a silent `-1` would make the host
+    // edit whatever sits at the top of the document instead of doing nothing.
+    if (pos !== undefined) context.onRequestEdit?.(pos);
+  };
+
+  image.addEventListener("click", handleClick);
+
   return {
     dom: image,
 
@@ -141,6 +185,7 @@ export function createQRCodeNodeView(context: QRCodeNodeViewContext): QRCodeNode
       // otherwise keep a detached image alive for the lifetime of the page.
       image.removeEventListener("load", handleLoad);
       image.removeEventListener("error", handleError);
+      image.removeEventListener("click", handleClick);
     }
   };
 }

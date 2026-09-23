@@ -61,7 +61,7 @@ import { PageRegion } from "./pageRegion/pageRegion";
 import { renderPageNodeView } from "./pageView";
 import type { PageAttributes, PageContentOptions, PageOptions, PageStorage } from "./typing";
 import { createPageNode } from "./utils/createPage";
-import { createFurnitureRegionsPlugin } from "./utils/furniture";
+import { createFurnitureRegionsPlugin, createFurnitureSyncPlugin } from "./utils/furniture";
 import { createFurnitureEditingPlugin } from "./utils/furnitureEditing";
 import {
   collectPages,
@@ -160,7 +160,14 @@ export const Page = Node.create<PageOptions, PageStorage>({
    *   (see `utils/furnitureEditing.ts`).
    */
   addProseMirrorPlugins() {
-    return [createFurnitureRegionsPlugin(), createFurnitureEditingPlugin()];
+    return [
+      createFurnitureRegionsPlugin(),
+      // After the normaliser: the structure has to be right before it is copied around.
+      createFurnitureSyncPlugin(),
+      createFurnitureEditingPlugin({
+        onLockedRegion: (region) => this.options.onLockedFurniture?.(region)
+      })
+    ];
   },
 
   addStorage(): PageStorage {

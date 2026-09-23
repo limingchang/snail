@@ -6,19 +6,35 @@
   -->
   <el-config-provider :locale="elementLocale">
     <div class="s-editor s-editor-scope" :class="{ 's-editor-fill': mode === 'fill' }" :aria-label="t.editor">
-      <!-- Design mode: the ribbon. Fill mode: no ribbon at all — a print operator cannot
-           change the template, so offering the controls would be a lie (see the mode table
-           in `typings/editor.ts`). -->
+      <!-- Design mode: the ribbon. Fill mode: one tab only, and only when it has something to
+           offer — a print operator cannot change the template, so a full ribbon would be a lie
+           (see the mode table in `typings/editor.ts`). The 模板 tab stays reachable in fill mode
+           because choosing *which* template to fill is exactly what an operator does, and it
+           disappears when the remote template is configured: there is then nothing to choose. -->
       <EditorToolbar
-        v-if="mode === 'design' && showToolbar"
+        v-if="showToolbar && (mode === 'design' || fillTemplateTab)"
         :editor="editor"
-        :tools="props.tools"
+        :tools="ribbonTools"
         :extensions="enabledExtensions"
         :locale="props.locale"
         :watermark="props.watermark"
         :print="props.print"
         :on-insert-variable="() => openVariableDialog()"
+        :on-insert-qrcode="openQrcodeDialog"
         :on-edit-variable="openVariableDialog"
+        :template-items="templateItems"
+        :template-loading="listLoading"
+        :template-error="listError"
+        :template-policy="loadPolicy"
+        :template-selected="selectedTemplateId"
+        :template-design="mode === 'design'"
+        :template-list-source="isListSource"
+        :on-refresh-templates="() => void loadTemplateList()"
+        :on-select-template="(id: string) => (selectedTemplateId = id)"
+        :on-load-template="(id: string) => void selectTemplate(id)"
+        :on-retry-templates="retryTemplate"
+        :on-create-template="createNewTemplate"
+        :on-pick-local-template="pickLocalTemplate"
       />
 
       <div class="s-editor-workspace">
@@ -29,20 +45,6 @@
           <el-alert type="error" :title="templateError" :closable="false" show-icon />
           <el-button size="small" @click="retryTemplate">{{ t.retry }}</el-button>
         </div>
-
-        <TemplatePicker
-          v-if="isListSource"
-          class="s-editor-template-picker"
-          :items="templateItems"
-          :loading="listLoading"
-          :error="listError"
-          :load="loadPolicy"
-          :model-value="selectedTemplateId"
-          :locale="props.locale"
-          @update:model-value="(id: string) => (selectedTemplateId = id)"
-          @load="(id: string) => void selectTemplate(id)"
-          @retry="() => void loadTemplateList()"
-        />
 
         <EditorContent class="s-editor-content" :editor="editor" />
       </div>
@@ -81,6 +83,15 @@
         :total="pageCount"
         :locale="props.locale"
         @submit="applyFill"
+      />
+
+      <!-- The QR dialog has the same two owners as the variable dialog: a click on the code
+           itself, and the 插入 section's button. Owning it here is what keeps them from
+           becoming two dialog states that disagree. -->
+      <QrcodeDialog
+        v-model:open="qrcodeDialogOpen"
+        :editor="editor"
+        :locale="props.locale"
       />
     </div>
   </el-config-provider>
@@ -186,15 +197,18 @@ import type {
   TemplateDocument,
   TemplateListItem,
   TemplatePageSetup,
-  TemplateWatermark
+  TemplateSaveTarget,
+  TemplateWatermark,
+  ToolName
 } from "../typings/editor";
 import type { VariableAttrs, VariableFillData, VariableType } from "../typings/variable";
 
 import { collectDocumentVariables, getVariableValues, setVariableValues } from "../extensions/variable";
+import type { PageOptions } from "../extensions/page";
 
 import EditorToolbar from "../components/EditorToolbar.vue";
 import FillVariableDialog from "../components/FillVariableDialog.vue";
-import TemplatePicker from "../components/TemplatePicker.vue";
+import QrcodeDialog from "../components/QrcodeDialog.vue";
 import VariableDialog from "../components/VariableDialog.vue";
 
 import { findNodes } from "./documentNodes";
@@ -202,10 +216,13 @@ import { describeTemplateError, mergeEditorLocale } from "./locale";
 import type { SEditorEmits, SEditorProps } from "./props";
 import {
   buildTemplateDocument,
+  emptyDocument,
   fetchTemplate,
   fetchTemplateList,
   isRemoteListSource,
+  isRemoteSource,
   parseTemplateInput,
+  readStoredTemplate,
   resolveTemplateContentUrl,
   saveTemplateToTarget,
   templateErrorCode,
@@ -301,6 +318,7 @@ const variableDialogOpen = ref(false);
 const editingVariableAttrs = ref<VariableAttrs | undefined>(undefined);
 const editingVariablePos = ref<number | undefined>(undefined);
 const fillDialogOpen = ref(false);
+const qrcodeDialogOpen = ref(false);
 
 /** `local` 模板提供的文档，如果有的话。 / The document a `local` template supplies, if any. */
 const localTemplateContent = computed<TemplateContent | undefined>(() =>
@@ -329,7 +347,16 @@ const { editor, enabledExtensions, hasExtension, setContent, values: readValues 
   data: computed(() => props.data),
   multiPage: computed(() => props.multiPage),
   extensions: computed(() => props.extensions),
-  page: computed(() => props.page),
+  // The cast: the runtime merges whatever is missing from `Page.addOptions()`, so a partial object here
+  // is what a caller passes and what the extension expects at run time.
+  page: computed(
+    () =>
+      ({
+        ...props.page,
+        // A locked region is not editable by design; the host is the only one who can explain why.
+        onLockedFurniture: () => ElMessage.warning(t.value.page.lockedRegionHint)
+      }) as PageOptions
+  ),
   variable: computed(() => props.variable),
   qrcode: computed(() => props.qrcode),
   watermark: computed(() => props.watermark),
@@ -350,6 +377,10 @@ const { editor, enabledExtensions, hasExtension, setContent, values: readValues 
 
   onRequestVariableEdit: (attrs, pos) => {
     openVariableDialog(attrs, pos);
+  },
+
+  onRequestQrcodeEdit: () => {
+    openQrcodeDialog();
   }
 });
 
@@ -359,6 +390,43 @@ const { editor, enabledExtensions, hasExtension, setContent, values: readValues 
  * Whether the ribbon has anything to show. An empty `tools` hides it entirely.
  */
 const showToolbar = computed(() => (props.tools ?? DEFAULT_TOOLS).length > 0);
+
+/**
+ * 模板区块是否需要向使用方索要（即 `tools` 里点名了它）。
+ *
+ * Whether the caller asked for the template section at all — that is, named it in `tools`.
+ */
+const wantsTemplateTab = computed(() => (props.tools ?? DEFAULT_TOOLS).includes("template"));
+
+/**
+ * 填写模式下是否还显示模板区块。
+ *
+ * 中文：填写模式下整条功能区都是隐藏的，唯一的例外是模板 —— 但只在「远程模板地址已经配好」之外
+ * 的情况下出现。配好了地址就意味着模板已经确定，此时再提供选择才是骗人；没有配则是打印员自己
+ * 挑一份本机模板来填，那是真实存在的操作。
+ *
+ * Whether the template section is still shown in fill mode.
+ *
+ * In fill mode the whole ribbon is hidden, with the template as the one exception — and only when
+ * a remote template URL is *not* configured. A configured URL already decides the template, so
+ * offering a choice would be a lie; without one, the print operator picking a local template to
+ * fill is a real action.
+ */
+const fillTemplateTab = computed(() => mode.value === "fill" && wantsTemplateTab.value && !isRemoteSource(props.template));
+
+/**
+ * 传给功能区的区块清单。
+ *
+ * 设计模式用使用方自己的清单；填写模式只放模板 —— 那时功能区里唯一有意义的区块就是它。
+ *
+ * The section list handed to the ribbon.
+ *
+ * Design mode uses the caller's own list; fill mode carries the template alone, which is the only
+ * section that means anything there.
+ */
+const ribbonTools = computed<readonly ToolName[]>(() =>
+  mode.value === "design" ? (props.tools ?? DEFAULT_TOOLS) : ["template"]
+);
 
 // ---------------------------------------------------------------------------------
 // Environment
@@ -587,6 +655,54 @@ function retryTemplate(): void {
   void applyTemplateSource();
 }
 
+/**
+ * 从编辑器自己的空白文档新建一份模板。
+ *
+ * 用的是**编辑器**在没有内容时使用的那份文档（{@link emptyDocument}），而不是另一份「新建
+ * 模板」的样子：两处各有一份空文档，是它们迟早会不一样的原因。选择也被清掉，因为屏幕上这份
+ * 东西已经不是列表里的任何一项了。
+ *
+ * Start a new template from the editor's own empty document.
+ *
+ * It is the document the *editor* uses when it has no content ({@link emptyDocument}) rather than a
+ * second idea of what a new template looks like: two empty documents are how they end up different.
+ * The selection is cleared too, because what is on screen is no longer any entry in the list.
+ */
+function createNewTemplate(): void {
+  selectedTemplateId.value = "";
+  templateError.value = "";
+  renderTemplate(emptyDocument());
+  ElMessage.success(t.value.template.created);
+}
+
+/**
+ * 载入本机保存下来的那份模板。
+ *
+ * 目标是使用方为保存配置的本地目标（`save: { kind: "local" }`），没有配置时就是默认的
+ * `localStorage` 槽位 —— 与 {@link save} 写的是同一处，这正是「保存到本地、填写时再载入」这条
+ * 路径能成立的原因。
+ *
+ * Load the template saved on this machine.
+ *
+ * The target is the local one the caller configured for saving (`save: { kind: "local" }`), and the
+ * default `localStorage` slot when there is none — the same place {@link save} writes, which is what
+ * makes "save locally, load it while filling" one path rather than two.
+ */
+function pickLocalTemplate(): void {
+  const target: Extract<TemplateSaveTarget, { kind: "local" }> =
+    props.save?.kind === "local" ? props.save : { kind: "local" };
+  const stored = readStoredTemplate(target, environmentStorage().local);
+
+  if (!stored) {
+    ElMessage.warning(t.value.template.noLocal);
+    return;
+  }
+
+  templateError.value = "";
+  renderTemplate(stored.doc, stored.page, stored.watermark);
+  ElMessage.success(t.value.template.localLoaded);
+}
+
 // The template request waits for the editor, and re-runs when the source prop changes.
 // `ready` flipping is what makes this work: the runtime's `onReady` fires before this
 // component's refs exist, so the work cannot live in that callback.
@@ -650,6 +766,23 @@ function openVariableDialog(attrs?: VariableAttrs, pos?: number): void {
   editingVariableAttrs.value = attrs;
   editingVariablePos.value = pos;
   variableDialogOpen.value = true;
+}
+
+/**
+ * 打开二维码的选项弹窗。
+ *
+ * 没有参数也不找节点：表单从**文档**里读，所以弹窗不需要知道「编辑哪一个码」—— 节点视图在
+ * 调用之前已经把它选中了，命令据此定位。从「插入」区块插入一个码之后，这个函数也会被调用。
+ *
+ * Open the QR code's options dialog.
+ *
+ * No arguments and no node lookup: the form reads from the **document**, so the dialog needs no
+ * notion of "which code" — the node view has already selected it by the time this is called, and
+ * the commands address it through that selection. It is also what the 插入 section calls after
+ * inserting a code.
+ */
+function openQrcodeDialog(): void {
+  qrcodeDialogOpen.value = true;
 }
 
 /**

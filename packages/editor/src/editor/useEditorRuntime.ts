@@ -106,6 +106,7 @@ import { migrateFurnitureContent } from "../extensions/page/utils/migrateFurnitu
 import { ParagraphStyle } from "../extensions/paragraphStyle";
 import { Print } from "../extensions/print";
 import { QRCode } from "../extensions/qrcode";
+import { TableResizeGuard } from "../extensions/table/resizeGuard";
 import {
   getVariableValues,
   setVariableMode,
@@ -219,6 +220,20 @@ export interface UseEditorRuntimeOptions {
    * A variable was clicked in design mode. `pos` is `-1` when it could not be resolved.
    */
   onRequestVariableEdit?: (attrs: VariableAttrs, pos: number) => void;
+
+  /**
+   * 在设计模式下点了一个二维码，参数是它的文档位置。
+   *
+   * 与 `onRequestVariableEdit` 同一个通道：扩展不知道对话框怎么写，只把请求交出来。填写模式下
+   * 从不调用，因为那时二维码不可调整。
+   *
+   * A QR code was clicked in design mode, with its document position.
+   *
+   * The same channel as `onRequestVariableEdit`: the extension does not know how a dialog is
+   * spelled, it only hands the request over. Never called in fill mode, where a QR code is not
+   * something to adjust.
+   */
+  onRequestQrcodeEdit?: (pos: number) => void;
 }
 
 /** {@link useEditorRuntime} 返回的东西。 / What {@link useEditorRuntime} returns. */
@@ -434,6 +449,9 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Heading.configure({ levels: [...(config?.heading?.levels ?? DEFAULT_HEADING_LEVELS)] }),
       TableKit.configure({ table: { resizable: config?.table?.resizable !== false } }),
+      // Never resizable *itself* — it only cleans up after the table extension's column drag, which
+      // that extension cannot do when its own `mouseup` handler throws (see the file).
+      TableResizeGuard,
       Image,
       // Defect 14: no history. Registered unconditionally — a document editor without
       // undo is not a document editor.
@@ -470,7 +488,14 @@ export function useEditorRuntime(options: UseEditorRuntimeOptions): EditorRuntim
     }
 
     if (!disabled.has("qrcode")) {
-      list.push(QRCode.configure({ ...(toValue(options.qrcode) ?? {}) }));
+      list.push(
+        QRCode.configure({
+          ...(toValue(options.qrcode) ?? {}),
+          // The host's callback is merged in after the prop, so a caller cannot accidentally
+          // override the wiring that opens the dialog by passing its own `onRequestEdit`.
+          onRequestEdit: (pos) => options.onRequestQrcodeEdit?.(pos)
+        })
+      );
     }
 
     if (!disabled.has("watermark")) {

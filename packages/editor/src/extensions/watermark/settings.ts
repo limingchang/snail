@@ -58,9 +58,30 @@ export const WATERMARK_TILE_CLASS = "s-editor-watermark__tile";
 /**
  * 默认倾角，单位为度。在 CSS 中负值是逆时针，也就是经典的水印样子。
  *
+ * 默认 `-45`：这正是「开启水印就得看到一条斜着的字」所要求的角度，而不需要用户先去调倾角。
+ *
  * Default tilt, in degrees. Negative is anti-clockwise in CSS, i.e. the classic watermark.
+ *
+ * `-45` by default: that is the tilt "turn the watermark on and see a diagonal mark" asks for,
+ * without the user having to adjust the angle first.
  */
-export const WATERMARK_DEFAULT_ANGLE = -30;
+export const WATERMARK_DEFAULT_ANGLE = -45;
+
+/**
+ * 默认水印文字。
+ *
+ * 开启水印后必须马上看得到东西，所以默认文字不是空串：一个空文字的水印在页面上什么都不画，
+ * 用户看到的是「开了但没有效果」。显式传入 `text: ""` 的调用方仍然得到空文字——模板里存下的
+ * 选择不会被这里覆盖。
+ *
+ * Default watermark text.
+ *
+ * Turning the watermark on has to show something immediately, so the default is not the empty
+ * string: a watermark with no text paints nothing, which reads as "it is on but nothing happened".
+ * A caller that passes `text: ""` explicitly still gets an empty mark — a choice stored in a
+ * template is never overridden here.
+ */
+export const WATERMARK_DEFAULT_TEXT = "水印";
 
 /**
  * 默认不透明度。取值很低，因为合同隔着自身的水印也必须可读。
@@ -112,6 +133,36 @@ function round2(value: number): number {
 }
 
 /**
+ * 一份设置在装饰键里的指纹。
+ *
+ * 中文：**这是「改了设置水印不更新」的修复。**ProseMirror 用 widget 的 `key` 判断两个装饰是不是同一个
+ * 东西，键相同就沿用已经在页面上的那个 DOM，不会重新 `toDOM()` —— 于是换文字、换角度、换透明度全都
+ * 只改了状态、没改画面。把设置本身编进键里，键变了，装饰就被替换，新设置才真的画出来；设置没变时键
+ * 也不变，所以同一个水印不会每次事务都重建一遍 DOM。
+ *
+ * A fingerprint of one set of settings for the decoration key.
+ *
+ * **This is the fix for "changing the watermark does nothing after the first time".** ProseMirror decides
+ * whether two widgets are the same thing by their `key`: the same key means the DOM already on the page
+ * is kept and `toDOM()` is not called again — so a new text, angle or opacity changed the state and
+ * nothing on screen. Folding the settings into the key means a real change replaces the widget, while
+ * unchanged settings keep the same key and therefore do not rebuild the DOM on every transaction.
+ */
+export function watermarkSettingsKey(settings: WatermarkSettings): string {
+  return [
+    settings.enabled ? "on" : "off",
+    settings.text,
+    settings.imageSrc,
+    String(settings.angle),
+    String(settings.opacity),
+    settings.greyscale ? "grey" : "colour",
+    settings.tiled ? "tiled" : "single",
+    settings.fontSize,
+    settings.color
+  ].join("|");
+}
+
+/**
  * 把一份部分配置解析为完整设置。
  *
  * 每个值都会被校验：`angle` 为 `NaN` 会产出 `rotate(NaNdeg)`，从而悄悄让整条声明失效、水印
@@ -131,7 +182,10 @@ export function resolveWatermarkSettings(options: WatermarkOptions | undefined):
 
   return {
     enabled: source.enabled === true,
-    text: typeof source.text === "string" ? source.text : "",
+    // An *absent* text gets the default, an explicitly empty one stays empty: a template that says
+    // "no text" keeps saying it, while a host that only turns the watermark on gets the documented
+    // 「水印」 rather than a mark that paints nothing.
+    text: typeof source.text === "string" ? source.text : WATERMARK_DEFAULT_TEXT,
     imageSrc: typeof source.imageSrc === "string" ? source.imageSrc : "",
     angle: typeof angle === "number" && Number.isFinite(angle) ? angle : WATERMARK_DEFAULT_ANGLE,
     opacity:

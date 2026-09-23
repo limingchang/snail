@@ -65,7 +65,17 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { WatermarkOptions } from "../../typings/editor";
 
 import { createWatermarkElement } from "./dom";
-import { isWatermarkVisible, resolveWatermarkSettings, watermarkSettingsEqual } from "./settings";
+import {
+  isWatermarkVisible,
+  resolveWatermarkSettings,
+  WATERMARK_DEFAULT_ANGLE,
+  WATERMARK_DEFAULT_COLOR,
+  WATERMARK_DEFAULT_FONT_SIZE,
+  WATERMARK_DEFAULT_OPACITY,
+  WATERMARK_DEFAULT_TEXT,
+  watermarkSettingsEqual,
+  watermarkSettingsKey
+} from "./settings";
 import type { WatermarkExtensionOptions, WatermarkSettings, WatermarkStorage } from "./typing";
 
 /**
@@ -85,6 +95,7 @@ export {
   WATERMARK_DEFAULT_COLOR,
   WATERMARK_DEFAULT_FONT_SIZE,
   WATERMARK_DEFAULT_OPACITY,
+  WATERMARK_DEFAULT_TEXT,
   WATERMARK_GREY,
   WATERMARK_IMAGE_TILE_VIEW_BOX,
   WATERMARK_MARK_CLASS,
@@ -95,6 +106,7 @@ export {
   watermarkFontSizePx,
   watermarkMarkDeclarations,
   watermarkSettingsEqual,
+  watermarkSettingsKey,
   watermarkTileImageAttributes,
   watermarkTileSvgAttributes,
   watermarkTileTextAttributes
@@ -180,7 +192,7 @@ export function buildWatermarkDecorations(
   doc.descendants((node, pos) => {
     if (node.type.name !== PAGE_NODE_NAME) return true;
 
-    const key = `s-editor-watermark-${pageIndex}`;
+    const key = `s-editor-watermark-${pageIndex}-${watermarkSettingsKey(settings)}`;
     pageIndex += 1;
 
     decorations.push(
@@ -229,14 +241,16 @@ export const Watermark = Extension.create<WatermarkExtensionOptions, WatermarkSt
   addOptions() {
     return {
       enabled: false,
-      text: "",
+      // A visible mark the moment it is enabled, at the documented 45°: see the two defaults in
+      // `settings.ts`. An explicit `text: ""` from a caller is still honoured.
+      text: WATERMARK_DEFAULT_TEXT,
       imageSrc: "",
-      angle: -30,
-      opacity: 0.12,
+      angle: WATERMARK_DEFAULT_ANGLE,
+      opacity: WATERMARK_DEFAULT_OPACITY,
       greyscale: false,
       tiled: false,
-      fontSize: "48px",
-      color: "#000000"
+      fontSize: WATERMARK_DEFAULT_FONT_SIZE,
+      color: WATERMARK_DEFAULT_COLOR
     };
   },
 

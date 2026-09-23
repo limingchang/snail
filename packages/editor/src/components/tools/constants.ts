@@ -224,9 +224,20 @@ export const ALIGN_OPTIONS: readonly Choice<"left" | "center" | "right" | "justi
   { label: "两端对齐", value: "justify" }
 ];
 
-/** 二维码的单位。 / The QR code units. */
-export const QRCODE_UNITS: readonly Choice<"mm" | "cm" | "px">[] = [
+/**
+ * 二维码的单位：毫米与厘米。
+ *
+ * `px` 刻意不在清单里：二维码是要印在纸上的，屏幕像素不是一个能拿去印刷的尺寸，而模型与
+ * `qrcode` 扩展都仍然认识它（旧模板里存下来的 `px` 尺寸照样能打开）。这里只决定面板提供
+ * 什么。
+ *
+ * The QR code units: millimetres and centimetres.
+ *
+ * `px` is deliberately absent: a QR code is printed on paper, and screen pixels are not a
+ * printable size — while both the model and the `qrcode` extension still understand it (a `px`
+ * size stored in an old template opens fine). This list only decides what the panel offers.
+ */
+export const QRCODE_UNITS: readonly Choice<"mm" | "cm">[] = [
   { label: "mm", value: "mm" },
-  { label: "cm", value: "cm" },
-  { label: "px", value: "px" }
+  { label: "cm", value: "cm" }
 ];

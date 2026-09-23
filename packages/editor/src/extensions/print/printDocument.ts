@@ -5,13 +5,15 @@
  *
  * 1. 读取文档自身的页面设置，并把它变成一段 `@media print` 块；
  * 2. 把该块注入编辑器自己的 `<head>` —— 单个 `<style>` 元素，每次打印都复用，绝不用 iframe，
- *    也绝不开新窗口，所以打印快照就是实时文档，应用的样式表、字体和图片都已就位；
- * 3. 等待 `document.fonts.ready` 以及编辑器里的每一个 `<img>`，因为在网页字体完成切换之前
- *    取得的打印快照显示的是回退字体的度量，并会让每一页发生重排（旧扩展什么都不等 ——
- *    缺陷 35）；
- * 4. 运行 `onBeforePrint`，设置 `document.title`，让「另存为 PDF」给出一个像样的文件名，然后
+ *    也绝不开新窗口；
+ * 3. 把编辑器自己的纸张深拷贝进一个 `<div class="s-editor-print-root">`，挂成 `<body>` 的直接
+ *    孩子，并给它挂一份只属于这次打印的样式表：打印时 `<body>` 下只有它可见，所以纸上只有纸张，
+ *    宿主页面的侧边栏与工具栏都印不出来（缺陷 43）；
+ * 4. 等待 `document.fonts.ready` 以及容器里的每一个 `<img>`，因为在网页字体完成切换之前取得的
+ *    打印快照显示的是回退字体的度量，并会让每一页发生重排（旧扩展什么都不等 —— 缺陷 35）；
+ * 5. 运行 `onBeforePrint`，设置 `document.title`，让「另存为 PDF」给出一个像样的文件名，然后
  *    调用 `window.print()`；
- * 5. 在 `afterprint` 时恢复标题并运行 `onAfterPrint`。
+ * 6. 在 `afterprint` 时把容器从文档里摘掉、恢复标题并运行 `onAfterPrint`。
  *
  * ## 为什么没有 `alert()`，也不拒绝打印
  *
@@ -24,15 +26,19 @@
  * ## The pipeline
  *
  * 1. read the document's own page setup and turn it into one `@media print` block;
- * 2. inject that block into the editor's own `<head>` — a single `<style>` element, reused
- *    on every print, never an iframe and never a new window, so the print snapshot is the
- *    live document with the application's stylesheets, fonts and images already applied;
- * 3. wait for `document.fonts.ready` and for every `<img>` in the editor, because a print
- *    snapshot taken before a web font swaps shows the fallback metrics and reflows every
- *    page (the legacy extension waited for nothing — defect 35);
- * 4. run `onBeforePrint`, set `document.title` so "Save as PDF" proposes a sensible file
- *    name, call `window.print()`;
- * 5. restore the title and run `onAfterPrint` on `afterprint`.
+ * 2. inject that block into the editor's own `<head>` as a single `<style>` element, reused on
+ *    every print, never an iframe and never a new window;
+ * 3. deep-clone the editor's own sheets into a `<div class="s-editor-print-root">` appended as a
+ *    direct child of `<body>`, with a stylesheet that belongs to this print alone: it is the only
+ *    visible `<body>` child while printing, so the paper holds the sheets and nothing of the host
+ *    page — no sidebar, no toolbar (defect 43);
+ * 4. wait for `document.fonts.ready` and for every `<img>` in the container, because a print
+ *    snapshot taken before a web font swaps shows the fallback metrics and reflows every page (the
+ *    legacy extension waited for nothing — defect 35);
+ * 5. run `onBeforePrint`, set `document.title` so "Save as PDF" proposes a sensible file name, call
+ *    `window.print()`;
+ * 6. on `afterprint`, take the container back out of the document, restore the title and run
+ *    `onAfterPrint`.
  *
  * ## Why there is no `alert()` and no refusal
  *
@@ -50,6 +56,7 @@ import type { NamedPaperFormat, PaperFormat } from "../../typings/paper";
 
 import { buildPrintStyles, PRINT_DEFAULT_SETUP, PRINT_STYLE_ELEMENT_ID } from "./styles";
 import type { PrintStylesResult } from "./styles";
+import { collectPrintPages, mountPrintRoot, resolvePrintSource } from "./printRoot";
 import type { PrintExtensionOptions, PrintPageSetup, PrintWarning } from "./typing";
 
 /**
@@ -338,11 +345,22 @@ export async function runPrint(editor: Editor, options: PrintExtensionOptions): 
     options.onWarning?.(mixedPageSetupWarning(pages, styles));
   }
 
-  // The image wait runs against the editor's own DOM, which also covers the watermark's
-  // `<img>` (it is a decoration inside a page) — so an image watermark is fully loaded
-  // before the snapshot is taken.
+  // A clone rather than a move: the live document keeps every page exactly where ProseMirror left
+  // it, which is what makes taking the container back out of the document a no-op for the editor.
+  // Mounted before the waits below, because the clone — not the live editor — is what is printed,
+  // so its fonts and images are the ones that have to be ready.
+  const editorRoot = editor.view.dom;
+  const printRoot = mountPrintRoot(
+    resolvePrintSource(editorRoot),
+    collectPrintPages(editorRoot, options.pageSelector)
+  );
+
   await waitForFonts();
-  await waitForImages(editor.view.dom);
+
+  // Waited for on the clone: these are the `<img>` elements that will actually be printed —
+  // including an image watermark, which is a decoration inside a page and therefore travelled into
+  // the clone with it — and one that has not decoded prints as an empty box.
+  await waitForImages(printRoot.container);
 
   await options.onBeforePrint?.();
 
@@ -356,6 +374,7 @@ export async function runPrint(editor: Editor, options: PrintExtensionOptions): 
     if (settled) return;
     settled = true;
     window.removeEventListener("afterprint", finish);
+    printRoot.remove();
     if (options.documentTitle !== undefined && options.documentTitle.length > 0) {
       document.title = previousTitle;
     }
@@ -364,9 +383,10 @@ export async function runPrint(editor: Editor, options: PrintExtensionOptions): 
 
   // `afterprint` fires **whether or not the user actually printed** (react-to-print documents
   // this explicitly), and on newer Safari it can fire *before* `print()` returns — so the
-  // title is restored and `onAfterPrint` is called from both the listener and the `finally`,
-  // with a flag making the pair idempotent. (`window.print()` is documented as blocking while
-  // the dialog is open, but that is no longer reliable on newer Safari.)
+  // container is removed, the title restored and `onAfterPrint` called from both the listener and
+  // the `finally`, with a flag making the pair idempotent. It is also what removes the clone when
+  // the user cancels the dialog. (`window.print()` is documented as blocking while the dialog is
+  // open, but that is no longer reliable on newer Safari.)
   window.addEventListener("afterprint", finish, { once: true });
 
   try {

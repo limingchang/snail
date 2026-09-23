@@ -66,6 +66,23 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
   dom.setAttribute("data-type", context.name);
   dom.setAttribute("data-variable-type", context.attrs.data.type);
 
+  /**
+   * 画出来的内容与悬停提示是两个兄弟元素。
+   *
+   * 中文：把绘制目标单独放一层，是因为提示必须能在每次重绘中活下来 —— 直接对 `dom` 调用
+   * `replaceChildren` 会把提示一起删掉。
+   *
+   * The painted content and the hover tip are two siblings. The painted text lives in its own element
+   * so that a repaint (`replaceChildren`) cannot delete the tip along with it.
+   */
+  const content = document.createElement("span");
+  content.className = "s-editor-variable-content";
+  const tip = document.createElement("span");
+  tip.className = "s-editor-variable-tip";
+  tip.setAttribute("role", "tooltip");
+  tip.hidden = true;
+  dom.replaceChildren(content, tip);
+
   let attrs: VariableAttrs = context.attrs;
 
   /**
@@ -123,9 +140,97 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
   };
 
   /**
+   * 提示里的每一行：描述、默认值、key。
+   *
+   * 中文：这三项正是「这个变量是什么」的全部答案，而它们都不在文档正文里 —— 悬停提示是唯一
+   * 能在不打断阅读的前提下把它们呈现出来的地方。旧版把这些信息塞进原生 `title`，而 `title`
+   * 只显示一行纯文本。
+   *
+   * The tip's three rows: description, default value and key — the whole answer to "what is this
+   * variable", none of which is in the document's text. A native `title` can only show one line of
+   * plain text, which is what the previous version used.
+   */
+  /**
+   * 提示里那三行的纯文本摘要；{@link applyTipLabel} 用它作为无障碍名称。
+   *
+   * The plain-text summary of the tip's three rows; {@link applyTipLabel} uses it as the
+   * accessible name.
+   */
+  let tipSummary = "";
+
+  const paintTip = (): void => {
+    const rows: Array<[string, string]> = [
+      [locale.tipDescription, attrs.desc ?? "—"],
+      [locale.tipDefault, formatDefault(attrs.defaultValue)],
+      [locale.tipKey, attrs.key]
+    ];
+
+    tip.replaceChildren(
+      ...rows.map(([label, value]) => {
+        const row = document.createElement("span");
+        row.className = "s-editor-variable-tip__row";
+        const term = document.createElement("span");
+        term.className = "s-editor-variable-tip__term";
+        term.textContent = label;
+        const text = document.createElement("span");
+        text.className = "s-editor-variable-tip__value";
+        text.textContent = value;
+        row.replaceChildren(term, text);
+        return row;
+      })
+    );
+
+    // The same summary for assistive technology, which never hovers.
+    tipSummary = rows.map(([label, value]) => `${label}: ${value}`).join("; ");
+  };
+
+  /**
+   * 把摘要写成无障碍名称，或者去掉它。
+   *
+   * 中文：只有提示*可以*出现时才写：填写模式下已经填好的变量画的就是值，一个把值换掉的
+   * `aria-label` 会让读屏用户听不到那个值 —— 而这正是他们要的东西。
+   *
+   * Write the summary as the accessible name, or remove it.
+   *
+   * Only while the tip *can* appear: in fill mode a filled variable paints its value, and an
+   * `aria-label` that replaced that value would leave a screen-reader user without the one thing
+   * they need.
+   */
+  const applyTipLabel = (show: boolean): void => {
+    if (show) dom.setAttribute("aria-label", tipSummary);
+    else dom.removeAttribute("aria-label");
+  };
+
+  /** 只有当节点位于所在块的第一个内联位置时，徽标左侧不需要额外空隙。 */
+  const paintFirstInline = (): void => {
+    const pos = currentPos();
+    if (pos === undefined) {
+      dom.removeAttribute("data-first-inline");
+      return;
+    }
+    try {
+      const $pos = editor.state.doc.resolve(pos);
+      dom.setAttribute("data-first-inline", $pos.parentOffset === 0 ? "true" : "false");
+    } catch {
+      dom.removeAttribute("data-first-inline");
+    }
+  };
+
+  /**
    * 按当前模式绘制当前属性。
    *
+   * ## 填写模式下「未填写」画的是名字
+   *
+   * 中文：值还没填时画面必须是*可读的模板*，所以画变量名（并保留提示），而不是 `(未填写)` ——
+   * 后者的信息量为零：读者既不知道这里该填什么，也无法从名称推断。一旦有值就画值。
+   *
    * Paint the current attributes under the current mode.
+   *
+   * ## In fill mode an unfilled variable is painted as its *name*
+   *
+   * A template whose values are not in yet still has to read as a template, so it shows the variable's
+   * name (with the tip) rather than `(未填写)`, which says nothing about what belongs there. Once a
+   * value exists, the value is painted.
    */
   const paint = (): void => {
     const mode = context.getMode();
@@ -136,19 +241,65 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
     // the correspondence visible.
     dom.setAttribute("data-variable-type", attrs.data.type);
     dom.setAttribute("data-variable-mode", mode);
+    paintTip();
+    paintFirstInline();
 
     if (mode === "design") {
-      // The badge is chrome, and `title` gives the description a place to live without
-      // putting it in the document. Styling lives in the theme; the *state* lives here.
-      dom.textContent = attrs.label;
-      dom.title = attrs.desc ?? attrs.label;
+      // The badge is chrome; the tip carries the description.
+      content.textContent = attrs.label;
+      dom.setAttribute("data-variable-empty", "false");
+      dom.setAttribute("data-variable-painted", "label");
+      applyTipLabel(true);
       return;
     }
 
-    dom.removeAttribute("title");
-    dom.setAttribute("data-variable-empty", resolved.display.length === 0 ? "true" : "false");
+    const hasValue = resolved.display.length > 0;
 
-    if (attrs.data.type === "image" && resolved.display.length > 0) {
+    /**
+     * 填写模式下「还没填」是按**填写数据**判断的，不是按解析结果。
+     *
+     * 中文：解析的取值顺序是 `fill[key]` → `attrs.defaultValue` → 类型对应的空值，所以一份带
+     * `defaultValue` 的模板在没填时也会解析出「值」。可模板里的默认值不是「用户填过」——
+     * 按设计意图，没填就该显示名称（提示里照样能看到默认值），填过才显示值。
+     * `system` 类型是例外：它本来就没有填写数据，值由系统算出。
+     *
+     * In fill mode "not filled yet" is decided by the **fill data**, not by the resolved text: the
+     * resolver's precedence is `fill[key]` → `attrs.defaultValue` → a type-appropriate empty, so a
+     * template that declares a default resolves to something even when nothing was filled. A default
+     * is not a filled value — an unfilled variable shows its name (the tip still shows the default),
+     * and a filled one shows the value. `system` variables are the exception: nothing fills them, the
+     * system supplies the value.
+     */
+    const filled = store.getValues()[attrs.key];
+    const fromFill = filled !== undefined && filled !== null;
+    const unfilled = !fromFill && attrs.data.type !== "system";
+
+    if (unfilled) {
+      content.textContent = attrs.label;
+      dom.setAttribute("data-variable-empty", "true");
+      // The tip is available here (see `showTip`), so the accessible name may carry it.
+      applyTipLabel(true);
+      // "Nothing was filled, so the *name* is on screen" — the partner of the `empty` case below.
+      dom.setAttribute("data-variable-painted", "label");
+      return;
+    }
+
+    dom.setAttribute("data-variable-empty", hasValue ? "false" : "true");
+    // Filled: whatever is painted below *is* the accessible content.
+    applyTipLabel(false);
+
+    if (!hasValue) {
+      // Filled with nothing (or a system value that resolved to nothing): the locale's
+      // "(未填写)" is the honest text here, because the user *did* clear it — and it is the one fill
+      // state that keeps a muted colour (`data-variable-painted`).
+      dom.setAttribute("data-variable-painted", "empty");
+      content.textContent = locale.empty;
+      return;
+    }
+
+    dom.setAttribute("data-variable-painted", "value");
+
+    if (attrs.data.type === "image") {
       // An image variable renders as a picture rather than as its URL: the display
       // *is* the source, and showing a base64 blob would be unreadable.
       const image = document.createElement("img");
@@ -157,14 +308,13 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
       image.alt = attrs.label;
       image.setAttribute("data-variable-image", attrs.key);
       if (attrs.data.width) image.style.width = attrs.data.width;
-      dom.replaceChildren(image);
+      content.replaceChildren(image);
       return;
     }
 
     // `replaceChildren` rather than `textContent`: it also removes an `<img>` left
     // over from a previous image value, which `textContent` alone would not.
-    const text = resolved.display.length === 0 ? locale.empty : resolved.display;
-    dom.replaceChildren(document.createTextNode(text));
+    content.replaceChildren(document.createTextNode(resolved.display));
   };
 
   /**
@@ -204,6 +354,29 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
   };
 
   dom.addEventListener("click", handleClick);
+
+  /**
+   * 悬停显示提示。
+   *
+   * 中文：设计模式下每个变量都能看到提示；填写模式下只有**还没填**的变量才显示 —— 已经填好的
+   * 变量画的就是值本身，再弹一层说明只会挡住阅读。
+   *
+   * Show the tip on hover: every variable in design mode, and in fill mode only the ones that are
+   * still unfilled — a filled variable paints its value, and a panel over it would only get in the
+   * way of reading.
+   */
+  const showTip = (): void => {
+    const unfilled = dom.getAttribute("data-variable-empty") === "true";
+    if (context.getMode() !== "design" && !unfilled) return;
+    tip.hidden = false;
+  };
+  const hideTip = (): void => {
+    tip.hidden = true;
+  };
+  dom.addEventListener("mouseenter", showTip);
+  dom.addEventListener("mouseleave", hideTip);
+  dom.addEventListener("focusin", showTip);
+  dom.addEventListener("focusout", hideTip);
 
   // Subscribe in the constructor, unsubscribe in `destroy`: a node view is created and
   // destroyed constantly while a document is edited, and a leaked listener would keep
@@ -258,7 +431,31 @@ export function createVariableNodeView(context: VariableNodeViewContext): Variab
     ignoreMutation: () => true,
     destroy: () => {
       dom.removeEventListener("click", handleClick);
+      dom.removeEventListener("mouseenter", showTip);
+      dom.removeEventListener("mouseleave", hideTip);
+      dom.removeEventListener("focusin", showTip);
+      dom.removeEventListener("focusout", hideTip);
       store.unsubscribe(subscription);
     }
   };
+}
+
+/**
+ * 默认值的展示文本。
+ *
+ * 中文：默认值可以是字符串、数字或 `null`（未声明）。数字按原样写出来就够了；对象/数组（例如
+ * `select` 的 `options` 之外的复合默认值）用 JSON，因为「显示成一个数字」会撒谎。
+ *
+ * The default value as display text. It may be a string, a number or `null` (not declared). A number
+ * prints as itself; an object or array is JSON, because rendering one as a scalar would be a lie.
+ */
+function formatDefault(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string") return value === "" ? "—" : value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "—";
+  }
 }

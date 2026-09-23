@@ -51,38 +51,55 @@
       registered all along (`TextStyleKit` includes `Color` and `BackgroundColor` unless they
       are explicitly disabled), they simply had no control.
 
-      Both triggers are drawn as Word's capital "A": see the `.s-tool-font__color` rules below
-      for why the glyph is CSS rather than an SVG icon.
+      Each control is a real element tree — a capital "A" plus one coloured bar/block — and the
+      Element Plus picker is an invisible layer on top of it. See the `.s-tool-font__color` rules
+      below for why the glyph is markup rather than either an SVG icon or a pseudo-element hung on
+      the picker's own trigger.
     -->
     <div class="s-tool-font__row s-tool-font__row--colors">
       <span class="s-tool-font__label">{{ t.font.color }}</span>
-      <!--
-        未选颜色时不写这个变量，交给样式表里的默认值（字体颜色：黑色色条；字体背景色：白底加描边）。
-        Setting the custom property only when a colour exists lets the stylesheet's defaults apply —
-        writing `transparent` for "not set" left both controls looking dead.
-      -->
-      <el-color-picker
-        v-model="color"
-        class="s-tool-font__color s-tool-font__color--text"
-        size="small"
-        :title="t.font.color"
-        :predefine="TEXT_COLORS"
-        popper-class="s-editor-popper"
-        :style="color ? { '--s-tool-color-value': color } : undefined"
-        @change="applyColor"
-      />
+      <span class="s-tool-font__color s-tool-font__color--text">
+        <el-color-picker
+          v-model="color"
+          class="s-tool-font__color-input"
+          size="small"
+          :title="t.font.color"
+          :predefine="TEXT_COLORS"
+          popper-class="s-editor-popper"
+          @change="applyColor"
+        />
+        <!-- `aria-hidden`: the picker underneath carries the name and the value; this is its face. -->
+        <span class="s-tool-font__swatch" aria-hidden="true">
+          <span class="s-tool-font__glyph">A</span>
+          <span
+            class="s-tool-font__bar"
+            :data-color="color || DEFAULT_TEXT_COLOR"
+            :style="{ backgroundColor: color || DEFAULT_TEXT_COLOR }"
+          />
+        </span>
+      </span>
 
       <span class="s-tool-font__label">{{ t.font.backgroundColor }}</span>
-      <el-color-picker
-        v-model="backgroundColor"
-        class="s-tool-font__color s-tool-font__color--background"
-        size="small"
-        :title="t.font.backgroundColor"
-        :predefine="BACKGROUND_COLORS"
-        popper-class="s-editor-popper"
-        :style="backgroundColor ? { '--s-tool-color-value': backgroundColor } : undefined"
-        @change="applyBackgroundColor"
-      />
+      <span class="s-tool-font__color s-tool-font__color--background">
+        <el-color-picker
+          v-model="backgroundColor"
+          class="s-tool-font__color-input"
+          size="small"
+          :title="t.font.backgroundColor"
+          :predefine="BACKGROUND_COLORS"
+          popper-class="s-editor-popper"
+          @change="applyBackgroundColor"
+        />
+        <!-- Same two parts; the variant's rules put the bar *behind* the "A" instead of under it. -->
+        <span class="s-tool-font__swatch" aria-hidden="true">
+          <span
+            class="s-tool-font__bar"
+            :data-color="backgroundColor || DEFAULT_BACKGROUND_COLOR"
+            :style="{ backgroundColor: backgroundColor || DEFAULT_BACKGROUND_COLOR }"
+          />
+          <span class="s-tool-font__glyph">A</span>
+        </span>
+      </span>
     </div>
   </div>
 </template>
@@ -147,6 +164,20 @@ const fontFamily = ref("");
 const fontSize = ref("");
 const color = ref("");
 const backgroundColor = ref("");
+
+/**
+ * 没有选中颜色时，两个控件显示的颜色。
+ *
+ * 中文：字体颜色默认黑（色条），字体背景色默认白（色块）。写在样式表里也能做到，但值同时要进
+ * `data-color`，所以它必须对模板可见。
+ *
+ * The colour each control shows when none is set.
+ *
+ * Black for the text variant's bar and white for the background variant's block. A stylesheet could
+ * hold these, but the value also has to reach `data-color`, so it has to be visible to the template.
+ */
+const DEFAULT_TEXT_COLOR = "#000000";
+const DEFAULT_BACKGROUND_COLOR = "#ffffff";
 const bold = ref(false);
 const italic = ref(false);
 const underline = ref(false);
@@ -353,96 +384,111 @@ function applyBackgroundColor(value: string | null): void {
   }
 
   /**
-   * The two colour controls, drawn as Word draws them: a capital "A" with a bar under it for
-   * the text colour, and a capital "A" on a filled block for the highlight colour.
+   * The two colour controls, drawn as Word draws them: a capital "A" with a bar under it for the
+   * text colour, and a capital "A" standing on a filled block for the highlight colour.
    *
-   * ## Why the glyph is CSS and not an SVG icon
+   * ## The shape of the control
    *
-   * Element Plus's colour picker has **no trigger slot** — it always renders its own swatch
-   * and caret — so an SVG icon could only appear by laying it over an invisible picker. That
-   * is two elements for one control: the visible one cannot be focused or clicked, the real
-   * one cannot be seen, and any change to the picker's trigger box breaks the alignment.
+   * A real element tree — `swatch > (glyph "A", bar)` — with the Element Plus picker as an
+   * **invisible layer on top of it**. The picker has no trigger slot, so it always renders its own
+   * swatch, its caret and (with no colour set) an `empty` marker that is a *close icon*; making the
+   * control look right therefore cannot mean styling those children. It means covering them: the
+   * picker keeps the click, the focus and the panel, while everything the user sees is markup this
+   * component owns. Nothing about Element Plus's internals has to stay true for the glyph to keep
+   * working, and the colour follows the model through a plain inline style on the bar.
    *
-   * A glyph plus a bar has none of that: it *is* the real trigger, it inherits the toolbar's
-   * font and colour, and one custom property (`--s-tool-color-value`, set from the model
-   * value in the template) makes it follow the picked colour exactly, which is what the
-   * control is for. Nothing here needs an extra icon asset, and Element Plus's panel — its
-   * predefined colours, its hex field, its 清空/确定 buttons — is untouched.
+   * The bar carries `data-color` as well, so a consumer (or a test) can read the value off the DOM
+   * without knowing which element is the visible one.
    */
   &__color {
-    // 未选颜色时的默认值：字形与色条都是黑色（`背景色` 变体把它覆盖成白色，否则黑底黑字看不见）。
-    // Defaults when no colour is set: a black glyph and a black bar. The background variant overrides
-    // the bar to white — a black block under a black "A" would be invisible.
-    --s-tool-color-value: #000000;
-    --s-tool-color-glyph: #000000;
-
-    :deep(.el-color-picker__trigger) {
-      position: relative;
-      box-sizing: border-box;
-      width: 30px;
-      height: 24px;
-      padding: 0;
-      border: none;
-      border-radius: 3px;
-      background: none;
-      // Element Plus draws its own trigger content — the swatch, the caret, and an `empty` marker
-      // that renders as a **cross** when no colour is set. The "A" replaces all of it, so every child
-      // is hidden rather than a hand-picked list: `__empty` was the one that leaked through and made
-      // the control look like a close button.
-      > * {
-        display: none;
-      }
-    }
-
+    position: relative;
+    display: inline-flex;
     /**
-     * "A" 本身。
+     * 与 Element Plus `size="small"` 的触发器**同尺寸**，这不是审美问题。
      *
-     * The glyph, in the glyph colour (black unless a variant changes it). It sits above the bar /
-     * block, both of which are drawn by the variants below.
+     * 中文：picker 是不可见的一层，点击要能落到它自己的触发器上才打得开面板。EP 的 `--small`
+     * 触发器是 24×24 且填满它的根元素，所以控件做成同样大小，控件的每一个像素就都在触发器的
+     * 范围内 —— 不会出现「边缘那几像素点不动」。
+     *
+     * The same size as Element Plus's `size="small"` trigger, and that is not a matter of taste.
+     *
+     * The picker is the invisible layer, and a click has to land on *its* trigger for the panel to
+     * open. EP's `--small` trigger is 24×24 and fills its root, so a control of the same size puts
+     * every one of its pixels inside that trigger — no dead strip along the edge.
      */
-    :deep(.el-color-picker__trigger)::before {
-      content: "A";
+    width: 24px;
+    height: 24px;
+    flex: none;
+
+    // The picker fills the control and is transparent, so the click, the focus ring and the panel
+    // all belong to it while the visible layer stays purely presentational.
+    &-input {
       position: absolute;
-      inset: 0 0 4px 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      line-height: 1;
-      color: var(--s-tool-color-glyph);
+      inset: 0;
+      opacity: 0;
     }
 
-    &:hover :deep(.el-color-picker__trigger) {
+    // A visible focus ring: the real control is invisible, so it has to come from the layer below.
+    &:focus-within &__swatch {
+      outline: 2px solid var(--el-color-primary);
+      outline-offset: 1px;
+    }
+
+    &:hover &__swatch {
       background-color: var(--el-color-primary-light-9);
     }
+  }
 
-    // 字体颜色：选中的颜色就是 "A" 脚下那条色条。
-    // Text colour: the picked colour is the bar the "A" stands on.
-    &--text :deep(.el-color-picker__trigger)::after {
-      content: "";
+  /**
+   * 可见的那一层：一个 "A" 加一条色条（字体颜色），或一个 "A" 坐在色块上（字体背景色）。
+   *
+   * The visible layer: an "A" plus a bar (text colour), or an "A" standing on a block (highlight).
+   */
+  &__swatch {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    border-radius: 3px;
+    // The picker lies on top; this layer must never take the click away from it.
+    pointer-events: none;
+  }
+
+  &__glyph {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--se-color-text);
+  }
+
+  &__bar {
+    width: 16px;
+    height: 4px;
+    border-radius: 1px;
+    // A ring, so that a white bar (or block) is still visible on the toolbar's background.
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 15%);
+  }
+
+  // 字体颜色：色条在 "A" 下方。 / Text colour: the bar sits under the "A".
+  &__color--text &__bar {
+    flex: none;
+  }
+
+  // 字体背景色：色块在 "A" 后面，所以先画块、再画字。 / Highlight: the block is behind the "A".
+  &__color--background {
+    & .s-tool-font__bar {
       position: absolute;
-      inset: auto 1px 0;
-      height: 3px;
-      border-radius: 1px;
-      background-color: var(--s-tool-color-value);
+      inset: 2px 3px;
+      width: auto;
+      height: auto;
     }
 
-    // 字体背景色：选中的颜色是 "A" 所坐的色块，加一圈描边，白色才看得见（「清空」表示不要底色）。
-    // Highlight colour: the picked colour is the block the "A" sits on, ringed so that white stays
-    // visible. "No highlight" is expressed by clearing the value, not by choosing white.
-    &--background {
-      --s-tool-color-value: #ffffff;
-
-      :deep(.el-color-picker__trigger) {
-        background-color: var(--s-tool-color-value);
-        box-shadow: inset 0 0 0 1px var(--se-color-cell-border);
-      }
-
-      :deep(.el-color-picker__trigger)::before {
-        inset: 0;
-      }
+    & .s-tool-font__glyph {
+      position: relative;
     }
   }
 

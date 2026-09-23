@@ -30,6 +30,7 @@ import {
   isFurnitureEditAllowed,
   planEnterFurniture,
   planExitFurniture,
+  planFurnitureMousedown,
   readFurnitureEditing
 } from "../../src/extensions/page/utils/furnitureEditing";
 import type { FurnitureEditingState } from "../../src/extensions/page/utils/furnitureEditing";
@@ -211,6 +212,52 @@ describe("isFurnitureEditAllowed", () => {
     const base = createState();
     const transaction = base.tr.setSelection(TextSelection.near(base.doc.resolve(2), 1));
     expect(isFurnitureEditAllowed(base, transaction, null)).toBe(true);
+  });
+});
+
+describe("planFurnitureMousedown", () => {
+  /** A state with the header's left third open. */
+  function openHeader(): EditorState {
+    const base = createState();
+    return base.apply(planEnterFurniture(base, "top", "left")!);
+  }
+
+  it("does **not** open a band on a single click", () => {
+    // The point of "double-click to edit": a click the user did not mean as an entry must not put the
+    // caret in a header. The CSS used to prevent that by refusing the pointer on the region entirely,
+    // which also swallowed the double-click — so a band could never be opened at all.
+    const base = createState();
+    expect(planFurnitureMousedown(base, { side: "top", slot: "left" })).toBeNull();
+    expect(planFurnitureMousedown(base, { side: "bottom", slot: "right" })).toBeNull();
+  });
+
+  it("switches to another region of the band that is already open", () => {
+    const open = openHeader();
+    const transaction = planFurnitureMousedown(open, { side: "top", slot: "right" });
+
+    expect(transaction).not.toBeNull();
+    expect(readFurnitureEditing(open.apply(transaction!))).toEqual({ side: "top", slot: "right" });
+  });
+
+  it("leaves the caret alone when the click is inside the open region", () => {
+    // The browser places the caret exactly where the pointer is; moving it here would fight that.
+    expect(planFurnitureMousedown(openHeader(), { side: "top", slot: "left" })).toBeNull();
+  });
+
+  it("does not switch to the other band on a single click", () => {
+    expect(planFurnitureMousedown(openHeader(), { side: "bottom", slot: "left" })).toBeNull();
+  });
+
+  it("leaves the furniture when the click lands outside it", () => {
+    const open = openHeader();
+    const transaction = planFurnitureMousedown(open, null);
+
+    expect(transaction).not.toBeNull();
+    expect(readFurnitureEditing(open.apply(transaction!))).toBeNull();
+  });
+
+  it("does nothing when a click outside lands while no band is open", () => {
+    expect(planFurnitureMousedown(createState(), null)).toBeNull();
   });
 });
 

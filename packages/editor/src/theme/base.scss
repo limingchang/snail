@@ -186,6 +186,10 @@
   // stops a descendant's layout from invalidating the whole workspace — which is what
   // makes pagination measurement cheap. Neither rule ever applied in the legacy build
   // (defect 18), which is why an over-long line used to stretch the page.
+  //
+  // `position: relative` here is what makes this region the containing block for the QR
+  // code, and its padding *edge* is the sheet's own edge — so the code's `left`/`top` are
+  // measured from the paper, not from the margin. See the exclusion below.
   .s-editor-page-content,
   .page-content {
     position: relative;
@@ -198,9 +202,23 @@
     word-break: break-word;
     contain: layout style;
 
-    // An absolutely positioned child (the QR code) must stay inside the region, so
-    // this is the containing block and every direct child is kept in flow.
-    > * {
+    /**
+     * Direct children are kept in flow and inside the region.
+     *
+     * 中文：**但页面的内层包裹元素必须排除在外。**它是一个正常的 `div`，其左边缘在正文盒的
+     * *内容* 边上 —— 也就是页边距之内 20 mm 处。一旦它成为包含块，二维码的 `left: 10mm` 就落在
+     * 「页边距 + 10mm」处，页边距一改位置就漂，而面板里的「位置」说的是纸上的位置。普通块仍然
+     * 被这条规则约束；被排除的只有那一个包裹元素。
+     *
+     * Direct children are kept in flow and inside the region.
+     *
+     * **The body's inner wrapper is excluded.** It is an ordinary `div` whose left edge sits on the
+     * *content* edge of the body box — 20 mm inside the page margin. The moment it becomes a containing
+     * block, the QR code's `left: 10mm` lands at "margin + 10mm" and drifts whenever the margin changes,
+     * while what the panel calls 「位置」 is a spot on the paper. Ordinary blocks are still covered by
+     * this rule; exactly one element is excepted.
+     */
+    > *:not(.s-editor-page-content-inner) {
       max-width: 100%;
       position: relative;
     }
@@ -233,80 +251,230 @@
 .s-editor {
   .s-editor-variable {
     display: inline-block;
-    margin: 0 5px;
-    padding: 2px 6px;
+    // Tight and symmetrical on purpose: a 5px outer margin plus 6px of padding read as a hole in
+    // front of the label, which is exactly the "大量空白 to the left of the name" report. The badge
+    // carries its own background, so it does not need that much air around it.
+    position: relative;
+    margin: 0 2px;
+    padding: 2px 5px;
+    /**
+     * `text-indent: 0` is the *other* half of that report, and the one that actually mattered.
+     *
+     * 中文：`text-indent` 是**继承**的，而徽标是 `inline-block`，也就是一个块容器 —— 于是合同条款上
+     * 的 `text-indent: 2em`（一个汉字一个 `em`，所以是两个汉字的缩进）会落在徽标内部的**第一行**
+     * 上，把变量名（以及填写模式下的值）向右推两个字符。这正是「容器左侧有大量空白」，而不是什么
+     * 内边距：外层的 margin/padding 加起来只有 7px，而看到的是 2em。缩进属于段落的第一行，不属于
+     * 段落里的一个原子。
+     *
+     * `text-indent` is **inherited**, and the badge is an `inline-block` — a block container — so a
+     * clause's `text-indent: 2em` (one `em` per Han character, i.e. a two-character indent) landed on
+     * the badge's own **first line** and pushed the variable's name (and, in fill mode, its value) two
+     * characters to the right. That is the "大量空白 to the left of the container", and it was never
+     * padding: the outer margin and padding add up to 7px, while what was on screen was 2em. An indent
+     * belongs to the paragraph's first line, not to an atom inside it.
+     */
+    text-indent: 0;
     // `0.8em` rather than a fixed size: the badge must follow the paragraph's font size,
     // because the variable's *value* is normal inline content (defect 23's fix).
     font-size: 0.8em;
     line-height: 1.4;
     color: var(--se-variable-color);
-    background-color: var(--se-variable-bg);
+    // One custom property per badge, so the hover tip can be painted the same colour without
+    // repeating the whole per-type table (see `.s-editor-variable-tip` below).
+    --se-variable-surface: var(--se-variable-bg);
+    background-color: var(--se-variable-surface);
     border-radius: var(--se-variable-radius);
     cursor: pointer;
     white-space: nowrap;
+
+    // A badge that *starts* a line needs no gap on its left: the paragraph's own first-line indent
+    // already provides the visual separation, and the margin would sit on top of it.
+    &[data-first-inline="true"] {
+      margin-left: 0;
+    }
+
+    /**
+     * 悬停提示。
+     *
+     * 中文：它是徽标内部的绝对定位元素，因此不参与内联布局、也不会被 ProseMirror 当作内容读回
+     * （节点视图的 `ignoreMutation` 已经忽略一切变更）。三行分别是描述、默认值与 key。
+     *
+     * The hover tip. Absolutely positioned inside the badge, so it takes no part in the inline layout
+     * and is never read back as content (the node view ignores every mutation). Its three rows are the
+     * description, the default value and the key.
+     */
+    .s-editor-variable-tip {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      min-width: 160px;
+      max-width: 280px;
+      padding: 6px 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #ffffff;
+      // The badge's own colour, so the tip reads as that variable rather than as a generic black
+      // tooltip. Every type colour is dark enough to carry white text.
+      background-color: var(--se-variable-surface, var(--se-variable-bg));
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+      white-space: normal;
+      // Absolutely positioned, but `text-align` is inherited: a variable inside a centred or
+      // right-aligned heading used to centre its own tip's rows.
+      text-align: left;
+      cursor: default;
+
+      &[hidden] {
+        display: none;
+      }
+
+      &__row {
+        display: flex;
+        gap: 6px;
+        align-items: baseline;
+        padding: 2px 0;
+
+        // A separator between rows rather than one measured gap: the three facts are distinct
+        // fields of the same variable, and reading them as one paragraph loses that.
+        & + & {
+          border-top: 1px solid rgb(255 255 255 / 28%);
+        }
+      }
+
+      &__term {
+        flex: none;
+        min-width: 3.5em;
+        opacity: 0.75;
+      }
+
+      &__value {
+        word-break: break-all;
+      }
+    }
 
     &.s-editor-variable--selected {
       box-shadow: var(--se-shadow-selected);
     }
 
+    /**
+     * 填写模式下，变量不再是「徽标」，而是正文。规则本身在类型表**之后**（同特异性，后者胜）。
+     *
+     * 中文：设计模式要给设计者看见「这里有个变量」，所以徽标有底色；填写模式输出的是给填写者看的成
+     * 品，一个带底色的色块只会让人以为那是高亮。所以这一模式下变量继承所在段落的**文字颜色**、没有
+     * 背景、也没有内边距 —— 值读起来就是那句话的一部分。
+     *
+     * 唯一保留颜色的情形是「填过但又清空了」：那时画的是 `(未填写)`，需要一个提示性的灰，而
+     * `data-variable-painted="empty"` 就是为它准备的（只按 `data-variable-empty` 分不出「还没填所以显示
+     * 名称」和「清空了所以显示占位文案」）。
+     *
+     * In fill mode a variable is text, not a badge. The rule itself lives *after* the type table below
+     * (same specificity, so the later one wins).
+     *
+     * Design mode has to show the designer that *a variable* stands here, which is what the badge's
+     * background is for; fill mode outputs the finished document for the person filling it, where a
+     * coloured block only reads as a highlight. So in this mode a variable inherits its paragraph's
+     * **text colour**, has no background and no padding — a value is part of the sentence.
+     *
+     * The one case that keeps a colour is "filled and then cleared": that paints the locale's
+     * `(未填写)`, which wants a muted grey, and `data-variable-painted="empty"` exists for exactly that
+     * (`data-variable-empty` alone cannot tell "nothing filled, so the name is shown" from "cleared, so
+     * the placeholder is shown").
+     */
+
     // A fill value that resolved to nothing is painted as the locale's "(未填写)"; the
     // attribute lets a consumer style it without matching on the text.
     &[data-variable-mode="fill"][data-variable-empty="true"] {
-      color: var(--el-text-color-placeholder);
       background-color: transparent;
     }
 
-    // One colour per discriminant. `--se-variable-bg` is the badge's *foreground* for
-    // every colour below: each is chosen to carry white text.
+    // One colour per discriminant, published as `--se-variable-surface` so the badge *and* its
+    // hover tip paint the same colour: each of these is chosen to carry white text.
     &[data-variable-type="text"] {
+      --se-variable-surface: var(--se-variable-text);
       color: #ffffff;
-      background-color: var(--se-variable-text);
     }
 
     &[data-variable-type="number"] {
+      --se-variable-surface: var(--se-variable-number);
       color: #ffffff;
-      background-color: var(--se-variable-number);
     }
 
     &[data-variable-type="money"] {
+      --se-variable-surface: var(--se-variable-money);
       color: #ffffff;
-      background-color: var(--se-variable-money);
     }
 
     &[data-variable-type="boolean"] {
+      --se-variable-surface: var(--se-variable-boolean);
       color: #ffffff;
-      background-color: var(--se-variable-boolean);
     }
 
     &[data-variable-type="date"] {
+      --se-variable-surface: var(--se-variable-date);
       color: #ffffff;
-      background-color: var(--se-variable-date);
     }
 
     &[data-variable-type="select"] {
+      --se-variable-surface: var(--se-variable-select);
       color: #ffffff;
-      background-color: var(--se-variable-select);
     }
 
     &[data-variable-type="image"] {
+      --se-variable-surface: var(--se-variable-image);
       color: #ffffff;
-      background-color: var(--se-variable-image);
     }
 
     &[data-variable-type="formula"] {
+      --se-variable-surface: var(--se-variable-formula);
       color: #ffffff;
-      background-color: var(--se-variable-formula);
     }
 
     &[data-variable-type="system"] {
+      --se-variable-surface: var(--se-variable-system);
       color: #ffffff;
-      background-color: var(--se-variable-system);
     }
 
     // `keySource: "inner"` keeps the legacy `#ee3f4d` that `object` also used.
     &[data-variable-key-source="inner"] {
+      --se-variable-surface: var(--se-variable-inner);
       color: #ffffff;
-      background-color: var(--se-variable-inner);
+    }
+
+    /**
+     * 填写模式：变量就是正文（理由见上方那段注释）。
+     *
+     * Fill mode: a variable is text (the reasoning is in the comment above the type table).
+     */
+    &[data-variable-mode="fill"] {
+      color: inherit;
+      background-color: transparent;
+      border-radius: 0;
+      padding: 0;
+      /**
+       * 字号也要继承。
+       *
+       * 中文：徽标在**设计**模式下是 0.8em 的标签，那是「它是 chrome，不是正文」的表达；填写模式下
+       * 画的是正文里的值，0.8em 会让合同上的编号、金额比周围的字小一圈 —— 正是「变量显示的字体与其
+       * 所在段落不一致」。行高同理，否则值会把所在段落撑高。
+       *
+       * The font size is inherited too.
+       *
+       * The badge is a 0.8em label in **design** mode, which is how it says "this is chrome, not text";
+       * in fill mode what is painted is a value in the prose, and 0.8em would make a contract number or
+       * amount visibly smaller than the words around it — exactly "the variable's font does not match its
+       * paragraph". The line height follows for the same reason: a value must not make its paragraph
+       * taller than the same paragraph without one.
+       */
+      font-size: inherit;
+      line-height: inherit;
+
+      // The one fill state that keeps a muted colour: "filled, then cleared" paints `(未填写)`.
+      &[data-variable-painted="empty"] {
+        color: var(--el-text-color-placeholder);
+      }
     }
   }
 
@@ -331,6 +499,9 @@
     display: block;
     box-sizing: border-box;
     max-width: 100%;
+    // Design mode: the code is adjustable, and a hand says so before the click. Fill mode
+    // takes that back below — there the code is content and none of it can be changed.
+    cursor: pointer;
 
     img {
       display: block;
@@ -341,6 +512,12 @@
       // one, so it belongs here.
       image-rendering: pixelated;
     }
+  }
+
+  &.s-editor-fill .s-editor-qrcode,
+  &.s-editor-fill [data-type="qrcode"] {
+    // The default arrow, which is also what an exported document gets outside an editor.
+    cursor: default;
   }
 }
 
@@ -452,6 +629,38 @@
     tr:has(.selectedCell) + tr .selectedCell::after {
       top: 0;
       border-top: none;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// Layout tables in fill mode
+// ---------------------------------------------------------------------------------
+
+/**
+ * 填写模式下，布局表一条边线都不画。
+ *
+ * 设计模式里的虚线是给设计者看的网格提示，而填写模式输出的是给填写者看的成品：布局表在那里只剩
+ * 定位的作用，一条线都不该留下。这条规则用编辑器的填写模式类压掉设计模式那条 `border-style`，
+ * 因此文档属性与命令都无需改动；它的选择器比设计模式那条多一个类，所以它一定赢。
+ *
+ * In fill mode a layout table draws no edge at all.
+ *
+ * The dashed lines of design mode are a grid hint for the designer, while what fill mode outputs is
+ * the finished document for the person filling it: there the layout table is left with only its
+ * positioning job and not a single line. This rule overrides the design rule's `border-style`
+ * through the editor's fill-mode class, so neither the document attributes nor any command has to
+ * change; its selector carries one class more than the design rule, so it always wins.
+ */
+.s-editor-scope.s-editor-fill {
+  .tiptap table,
+  .ProseMirror table {
+    tr.layout-mode,
+    tr[data-layout] {
+      td,
+      th {
+        border-style: none;
+      }
     }
   }
 }

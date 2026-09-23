@@ -14,8 +14,13 @@
  * encoding table in `attributes.ts`.
  */
 
+import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Decoration, NodeView } from "@tiptap/pm/view";
+
+// Type-only, so nothing is imported at run time and there is no cycle to worry about: the
+// design/fill mode is the editor's, and the variable extension is where it is defined.
+import type { VariableMode } from "../variable/store";
 
 /**
  * 二维码的尺寸与位置可用的长度单位。
@@ -36,18 +41,48 @@ export interface QRLength {
 }
 
 /**
- * 二维码的左上角，相对页面内容盒原点测量。
+ * 二维码的左上角，相对**页面**（纸张）左上角测量。
  *
- * The QR code's top-left corner, measured from the page's content-box origin.
+ * 是页面原点，不是正文盒原点：正文盒从页边距开始，因此按正文盒测量的 `10mm, 10mm` 实际落在
+ * 「页边距 + 10mm」处，页边距一改它就跟着漂。面板里的「位置」说的就是纸上的位置。
+ *
+ * The QR code's top-left corner, measured from the **page's** (sheet's) top-left corner.
+ *
+ * The page origin, not the body box: the body box starts at the page margin, so `10mm, 10mm` measured
+ * from it landed at "margin + 10mm" and drifted whenever the margin changed. What the panel's
+ * 「位置」 means is a spot on the paper.
  */
 export interface QRPosition {
-  /** 距内容盒原点的横向偏移。 / Horizontal offset from the content-box origin. */
+  /** 距页面原点的横向偏移。 / Horizontal offset from the page origin. */
   x: number;
-  /** 距内容盒原点的纵向偏移。 / Vertical offset from the content-box origin. */
+  /** 距页面原点的纵向偏移。 / Vertical offset from the page origin. */
   y: number;
   /** `x` 与 `y` 共用的单位。 / The unit both `x` and `y` are given in. */
   unit: QRUnit;
 }
+
+/**
+ * 二维码被放在哪一页。
+ *
+ * `"first"` 与 `"last"` 是*相对*的：页数变化时它们跟着变，所以一份「印章盖在最后一页」的合同
+ * 在追加一页之后仍然盖在最后一页。数字是绝对的 1 起页码，用于「就在第 3 页」这种要求。
+ *
+ * `null` 表示「没有指定过」，此时二维码就留在它自然所在的那一页。用 `null` 而不是把
+ * `"first"` 当默认值，是因为一个从未被设置过的属性必须能与「用户明确选择了第一页」区分开：
+ * 前者应当显示它实际所在的那一页，后者才应当把码移到第一页。
+ *
+ * Which page a QR code is placed on.
+ *
+ * `"first"` and `"last"` are *relative*: they follow the page count, so a contract whose stamp is
+ * "on the last page" still is after a page is appended. A number is an absolute 1-based page,
+ * for "page 3 exactly".
+ *
+ * `null` means "never specified", and the code then stays on the page it naturally sits on.
+ * `null` rather than defaulting to `"first"` because an attribute that was never set has to be
+ * distinguishable from "the user chose the first page": the former must report the page the code
+ * is actually on, while only the latter moves it.
+ */
+export type QRPageAnchor = "first" | "last" | number | null;
 
 /** `qrcode` 渲染所用的两种颜色。 / The two colours `qrcode` renders with. */
 export interface QRColor {
@@ -67,9 +102,9 @@ export interface QRCodeConfig {
   size: QRLength;
 
   /**
-   * 相对页面内容盒原点的偏移。默认 `{ x: 10, y: 10, unit: "mm" }`。
+   * 相对页面左上角的偏移。默认 `{ x: 10, y: 10, unit: "mm" }`。
    *
-   * Offset from the page's content-box origin. Default `{ x: 10, y: 10, unit: "mm" }`.
+   * Offset from the page's top-left corner. Default `{ x: 10, y: 10, unit: "mm" }`.
    */
   position: QRPosition;
 
@@ -88,6 +123,14 @@ export interface QRCodeConfig {
    * code that has to be scanned off paper. `qrcode`'s own default is also `4`.
    */
   margin: number;
+
+  /**
+   * 二维码所在的那一页。默认 `null`，即「不指定」，见 {@link QRPageAnchor}。
+   *
+   * The page the code is placed on. Defaults to `null`, i.e. "unspecified" — see
+   * {@link QRPageAnchor}.
+   */
+  page: QRPageAnchor;
 }
 
 /**
@@ -200,6 +243,20 @@ export interface QRCodeOptions {
    * subscribe here.
    */
   onError: (error: unknown) => void;
+
+  /**
+   * 设计模式下二维码被点击时调用，参数是它的文档位置。
+   *
+   * 与变量扩展的 `onRequestEdit` 同一个思路：扩展不知道对话框怎么写，只把请求交出去，宿主
+   * 决定要不要开、开成什么样。填写模式下从不调用。
+   *
+   * Called when the code is clicked in design mode, with its document position.
+   *
+   * The same idea as the variable extension's `onRequestEdit`: the extension does not know how a
+   * dialog is spelled, it only hands the request over and the host decides whether and how to
+   * open one. Never called in fill mode.
+   */
+  onRequestEdit?: (pos: number) => void;
 }
 
 /** 传给节点视图的内容。 / What the node view is handed. */
@@ -223,6 +280,41 @@ export interface QRCodeNodeViewContext {
    * reads the node, so there is no second accessor to fall out of step with it.
    */
   attrs: QRCodeAttrs;
+
+  /**
+   * 承载这个节点的编辑器。选中节点时要用到它的 view 与 state。
+   *
+   * The editor hosting this node. Its view and state are what selecting the node needs.
+   */
+  editor?: Editor;
+
+  /**
+   * 节点的当前文档位置，实时解析。
+   *
+   * The node's current document position, resolved live.
+   */
+  getPos?: () => number | undefined;
+
+  /**
+   * 当前模式，实时读取。设计模式下这个码可以调整，填写模式下它只是内容。
+   *
+   * The current mode, read live. In design mode the code is adjustable; in fill mode it is
+   * content and nothing else.
+   */
+  getMode?: () => VariableMode;
+
+  /**
+   * 设计模式下二维码被点击时调用，参数是它的文档位置。
+   *
+   * 与变量完全相同的通道：视图不拥有对话框，宿主拥有。填写模式下从不调用——那时这个码
+   * 不是可以调整的东西。
+   *
+   * Called when the code is clicked in design mode, with its document position.
+   *
+   * The same channel the variable uses: the view does not own a dialog, the host does. Never
+   * called in fill mode, where the code is not something to adjust.
+   */
+  onRequestEdit?: (pos: number) => void;
 }
 
 /**

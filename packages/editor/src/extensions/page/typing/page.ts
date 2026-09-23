@@ -18,6 +18,7 @@
 
 import type { Margins, Orientation, PaperFormat, ResolvedMargins } from "../../../typings/paper";
 import type { PageFooterOptions, PageHeaderOptions, RegionOptions } from "./headerFooter";
+import type { FurnitureSide, FurnitureSlot } from "./headerFooter";
 import type { PageContentOptions } from "./pageContent";
 import type { PageLogoOptions } from "./pageLogo";
 import type { PageNumberOptions } from "./pageNumber";
@@ -86,6 +87,20 @@ export interface PageOptions {
    * node but never split anything.
    */
   pagination: PageContentOptions | false;
+
+  /**
+   * 双击到一个**被锁定**的区域（承载页码或 Logo）时调用。
+   *
+   * 锁定区域按设计不可编辑，但「双击了却什么都没发生」看起来像坏了，所以把这件事交给宿主去说。
+   * 与 `Variable` 的 `onRequestEdit` 同一个通道：扩展不知道提示怎么写，宿主知道。
+   *
+   * Called when a **locked** region (one holding a page number or a logo) is double-clicked.
+   *
+   * A locked region is not editable by design, but "I double-clicked and nothing happened" reads as
+   * broken, so the host is asked to say why. The same channel as `Variable`'s `onRequestEdit`: the
+   * extension does not know how a message is spelled, the host does.
+   */
+  onLockedFurniture?: (region: { side: FurnitureSide; slot: FurnitureSlot }) => void;
 
   /** 渲染 `<section>` 的额外属性。 / Extra attributes for the rendered `<section>`. */
   HTMLAttributes: Record<string, string>;

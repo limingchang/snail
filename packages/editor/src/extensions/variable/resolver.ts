@@ -136,6 +136,9 @@ export interface SystemContext {
  */
 export const DEFAULT_VARIABLE_LOCALE: VariableLocale = {
   empty: "(未填写)",
+  tipDescription: "描述",
+  tipDefault: "默认值",
+  tipKey: "key",
   textOverflow: "已超出长度限制",
   required: "必填项未填写",
   outOfRange: "超出允许的范围",

@@ -14,68 +14,76 @@
     </div>
 
     <!-- Margins --------------------------------------------------------------- -->
-    <div class="s-tool-page__group">
-      <el-dropdown trigger="click" @command="applyMarginPreset">
-        <el-button size="small">
-          <SIcon :icon="IconPageMargin" />
-          <span class="s-tool-page__label">{{ t.page.margins }}</span>
-        </el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item v-for="preset in MARGIN_PRESETS" :key="preset.label" :command="preset.label">
-              <span class="s-tool-page__preset">{{ preset.label }}</span>
-              <span class="s-tool-page__preset-values">
-                {{ t.page.top }}:{{ preset.value.top }} {{ t.page.bottom }}:{{ preset.value.bottom }}
-                {{ t.page.left }}:{{ preset.value.left }} {{ t.page.right }}:{{ preset.value.right }}
-              </span>
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+    <div class="s-tool-page__section">
+      <div class="s-tool-page__group">
+        <el-dropdown trigger="click" @command="applyMarginPreset">
+          <el-button size="small">
+            <SIcon :icon="IconPageMargin" />
+            <span class="s-tool-page__label">{{ t.page.margins }}</span>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-for="preset in MARGIN_PRESETS" :key="preset.label" :command="preset.label">
+                <span class="s-tool-page__preset">{{ preset.label }}</span>
+                <span class="s-tool-page__preset-values">
+                  {{ t.page.top }}:{{ preset.value.top }} {{ t.page.bottom }}:{{ preset.value.bottom }}
+                  {{ t.page.left }}:{{ preset.value.left }} {{ t.page.right }}:{{ preset.value.right }}
+                </span>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
 
-      <!-- Custom margins, in the model's own unit (mm) and initialised from the
-           document. The legacy panel held centimetres against a millimetre model
-           (defect 42), which displayed 2.54 cm for a 2 cm page. -->
-      <div class="s-tool-page__margins">
-        <div v-for="side in MARGIN_SIDES" :key="side.key" class="s-tool-page__margin">
-          <span class="s-tool-page__side">{{ side.label }}</span>
-          <el-input-number
-            v-model="margins[side.key]"
-            size="small"
-            :min="0"
-            :step="1"
-            :precision="1"
-            :controls="false"
-            class="s-tool-page__number"
-            @change="applyMargins"
-          />
-          <span class="s-tool-page__unit">mm</span>
+        <!-- Custom margins, in the model's own unit (mm) and initialised from the
+             document. The legacy panel held centimetres against a millimetre model
+             (defect 42), which displayed 2.54 cm for a 2 cm page. -->
+        <div class="s-tool-page__margins">
+          <div v-for="side in MARGIN_SIDES" :key="side.key" class="s-tool-page__margin">
+            <span class="s-tool-page__side">{{ side.label }}</span>
+            <el-input-number
+              v-model="margins[side.key]"
+              size="small"
+              :min="0"
+              :step="1"
+              :precision="1"
+              :controls="false"
+              class="s-tool-page__number"
+              @change="applyMargins"
+            />
+            <span class="s-tool-page__unit">mm</span>
+          </div>
         </div>
       </div>
+
+      <el-divider direction="vertical" class="s-tool-page__divider" />
     </div>
 
     <!-- Header / footer -------------------------------------------------------- -->
-    <div class="s-tool-page__group s-tool-page__group--column">
-      <div class="s-tool-page__row">
-        <el-switch :model-value="hasHeader" size="small" :active-text="t.page.header" @change="toggleHeader" />
-        <el-switch :model-value="hasFooter" size="small" :active-text="t.page.footer" @change="toggleFooter" />
+    <div class="s-tool-page__section">
+      <div class="s-tool-page__group s-tool-page__group--column">
+        <div class="s-tool-page__row">
+          <el-switch :model-value="hasHeader" size="small" :active-text="t.page.header" @change="toggleHeader" />
+          <el-switch :model-value="hasFooter" size="small" :active-text="t.page.footer" @change="toggleFooter" />
+        </div>
+        <div class="s-tool-page__row">
+          <span class="s-tool-page__side">{{ t.page.headerFooterHeight }}</span>
+          <el-input-number
+            v-model="regionHeight"
+            size="small"
+            :min="0"
+            :step="4"
+            :controls="false"
+            :disabled="!hasHeader && !hasFooter"
+            class="s-tool-page__number"
+            @change="applyRegionHeight"
+          />
+          <span class="s-tool-page__unit">px</span>
+          <!-- No 对齐 control: a band is three regions, each with its own alignment. See the
+               `SLOT_ALIGN` table and the note in `typing/headerFooter.ts`. -->
+        </div>
       </div>
-      <div class="s-tool-page__row">
-        <span class="s-tool-page__side">{{ t.page.headerFooterHeight }}</span>
-        <el-input-number
-          v-model="regionHeight"
-          size="small"
-          :min="0"
-          :step="4"
-          :controls="false"
-          :disabled="!hasHeader && !hasFooter"
-          class="s-tool-page__number"
-          @change="applyRegionHeight"
-        />
-        <span class="s-tool-page__unit">px</span>
-        <!-- No 对齐 control: a band is three regions, each with its own alignment. See the
-             `SLOT_ALIGN` table and the note in `typing/headerFooter.ts`. -->
-      </div>
+
+      <el-divider direction="vertical" class="s-tool-page__divider" />
     </div>
 
     <!-- Page number ------------------------------------------------------------ -->
@@ -233,7 +241,7 @@ import type { ToolProps } from "../../editor/props";
 import { findNodes, readDocumentPageSetup, readPageNumberFormat } from "../../editor/documentNodes";
 import { useEditorSelection } from "../../editor/useEditorSelection";
 import { MARGIN_PRESETS, ORIENTATION_OPTIONS, PAGE_NUMBER_PRESETS, PAPER_FORMAT_OPTIONS } from "./constants";
-import { ElMessage, ElSelect, ElOption, ElDropdown, ElButton, ElDropdownMenu, ElDropdownItem, ElInputNumber, ElSwitch, ElTooltip, ElIcon, ElUpload } from "element-plus";
+import { ElMessage, ElSelect, ElOption, ElDropdown, ElButton, ElDivider, ElDropdownMenu, ElDropdownItem, ElInputNumber, ElSwitch, ElTooltip, ElIcon, ElUpload } from "element-plus";
 
 /**
  * 面板选中的 logo 默认落在页眉左侧三分之一处，除非另选了位置。
@@ -643,6 +651,23 @@ function readAsDataUrl(file: File): Promise<string> {
   gap: 12px;
   align-items: flex-start;
 
+  // A section is one group of controls plus the divider that bounds it on the right. The divider is
+  // a child of the section rather than of the pane, so it always stays on the line of the group it
+  // closes — with the pane's own wrapping it could otherwise be left alone on a new line.
+  &__section {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  // Stretched to the height of its section, the same rule `ToolInsert` uses for its dividers.
+  &__divider {
+    height: auto;
+    align-self: stretch;
+    margin: 0;
+  }
+
   &__group {
     display: flex;
     flex-direction: column;
@@ -668,8 +693,14 @@ function readAsDataUrl(file: File): Promise<string> {
     width: 110px;
   }
 
+  // The placement and pattern selects carry a width of their own: Element Plus's `.el-select`
+  // resolves `--el-select-width: 100%` by default, so without one it stretches across the column.
+  &__placement {
+    width: 120px;
+  }
+
   &__page-number {
-    width: 200px;
+    width: 140px;
   }
 
   &__margins {

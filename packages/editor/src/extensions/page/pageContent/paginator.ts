@@ -242,6 +242,29 @@ interface PassContext {
 }
 
 /**
+ * 列宽拖动期间 `prosemirror-tables` 给被拖动单元格加的类。
+ *
+ * The class `prosemirror-tables` puts on the cells of a column that is being dragged.
+ */
+const COLUMN_RESIZE_DRAGGING_CLASS = "column-resize-dragging";
+
+/**
+ * 是否正在拖动表格列宽。
+ *
+ * 从 DOM 读而不是去问表格扩展的插件状态：拖动期间那个类就挂在单元格上，而这层只需要知道「现在有一个
+ * 旷日持久的指针交互在进行，别动文档」。见 `extensions/table/resizeGuard.ts`。
+ *
+ * Whether a table column is being dragged right now.
+ *
+ * Read from the DOM rather than from the table extension's plugin state: the class is on the cells for
+ * exactly as long as the drag lasts, and this layer only needs to know "a long-lived pointer interaction is
+ * in flight, do not touch the document". See `extensions/table/resizeGuard.ts`.
+ */
+function isDraggingColumn(view: EditorView): boolean {
+  return view.dom.querySelector(`.${COLUMN_RESIZE_DRAGGING_CLASS}`) !== null;
+}
+
+/**
  * {@link paginateDocument} 在 pass 上下文之上额外接受的选项。
  *
  * What {@link paginateDocument} accepts on top of the pass context.
@@ -419,6 +442,12 @@ export function createPaginationPlugin(options: { editor: Editor; tolerance: num
         // Never change the document while the user is composing: see the module comment. The
         // composition's own `compositionend` schedules the pass that was skipped here.
         if (isComposing()) return false;
+        // …nor while a table column is being dragged. That drag remembers an absolute position at
+        // `mousedown` and applies the new width at `mouseup`; moving content in between makes that
+        // position stale, which is what left the resize plugin stuck (see
+        // `extensions/table/resizeGuard.ts`). The drop itself is a document change, so it schedules
+        // the pass that is skipped here.
+        if (isDraggingColumn(view)) return false;
         if (!fontsReady()) return false;
 
         running = true;

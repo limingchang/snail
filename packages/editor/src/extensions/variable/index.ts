@@ -612,12 +612,39 @@ export const Variable = Node.create<VariableOptions, VariableStorage>({
      */
     const extension = this as unknown as { editor: Editor };
 
+    /**
+     * 三份初值都直接取扩展的配置，存值对象也在这里建好。
+     *
+     * `storage.mode` 是节点视图判断当前处于设计模式还是填写模式的唯一来源，而
+     * `setVariableMode` 是它唯一的写入者。编辑器创建时那条命令不会运行，所以如果这里写死
+     * `"design"`，一个以 `Variable.configure({ mode: "fill" })` 建起来的编辑器就会一直把
+     * 自己报告成设计模式。
+     *
+     * 存值对象必须在这里建、并且被 `onCreate` 原样沿用，而不是在 `onCreate` 里重建：Tiptap
+     * 的 `create` 事件是从一个零延时定时器里发出来的，而节点视图在挂载时就已建好并订阅了
+     * 当时读到的那一个 store。若 `onCreate` 换一个新的，这些节点视图就会订阅到一个再也不会
+     * 被通知的对象——填写值与模式的变化都到不了它们那里。
+     *
+     * All three initial values come from the extension options, and the store is built here.
+     *
+     * `storage.mode` is the single source of truth the node view reads to tell design mode from fill
+     * mode, and `setVariableMode` is its only writer. That command does not run while the editor is
+     * being created, so hardcoding `"design"` here would leave an editor built from
+     * `Variable.configure({ mode: "fill" })` reporting itself as design mode.
+     *
+     * The store has to be built here and reused as-is by `onCreate` rather than rebuilt there:
+     * Tiptap emits its `create` event from a zero-delay timer, while node views are built at mount
+     * time and subscribe to whichever store they read then. A fresh instance in `onCreate` would
+     * leave those node views subscribed to an object nothing ever notifies — neither fill values
+     * nor mode changes would reach them.
+     */
+    const mode = this.options.mode ?? "design";
+    const values = this.options.values ?? {};
+
     return {
-      mode: "design",
-      values: {},
-      // Replaced in `onCreate`; declared here so `storage.store` has a real value from
-      // the first moment it can be read, and so `VariableStorage` stays non-optional.
-      store: new VariableStore({}),
+      mode,
+      values,
+      store: new VariableStore(values, mode),
       /**
        * 文档里的每一个变量，实时读取。
        *
@@ -640,10 +667,12 @@ export const Variable = Node.create<VariableOptions, VariableStorage>({
     const editor = this.editor;
     const extension = this;
 
-    // The store is the single notification channel for both value and mode changes. It
-    // writes back into storage so plain consumers (`editor.storage.variable.values`)
-    // never read a stale copy, and it starts from the configured values.
-    const store = new VariableStore(this.options.values, this.options.mode);
+    // The store is the single notification channel for both value and mode changes. It is the
+    // one `addStorage` built — reusing it, not replacing it, is what keeps the node views built
+    // at mount time subscribed to the object that gets notified (see `addStorage`). It writes
+    // back into storage so plain consumers (`editor.storage.variable.values`) never read a
+    // stale copy.
+    const store = this.storage.store;
     const originalSetValues = store.setValues.bind(store);
     store.setValues = (values) => {
       const fill = { ...values };
@@ -652,9 +681,10 @@ export const Variable = Node.create<VariableOptions, VariableStorage>({
       extension.options.values = fill;
     };
 
-    this.storage.store = store;
     this.storage.mode = this.options.mode;
-    this.storage.values = this.options.values;
+    this.storage.values = { ...(this.options.values ?? {}) };
+    // A no-op when the mode already matches; it only repaints if something raced ahead.
+    store.setMode(this.storage.mode);
 
     editorStores.set(editor, store);
   },
@@ -758,16 +788,37 @@ export const Variable = Node.create<VariableOptions, VariableStorage>({
   },
 
   renderHTML({ HTMLAttributes, node }) {
-    // `data-variable-type` is duplicated out of the config blob for CSS and for a
-    // consumer that wants to style by type without parsing JSON — see the table above
-    // for the whole encoding.
+    const attrs = node.attrs as VariableAttrs;
+
+    /**
+     * 一个**叶子**节点的 spec 里不能有内容占位符。
+     *
+     * 中文：`variable` 是 `atom: true` 的内联原子，也就是说它没有内容 —— 而 `0` 的含义正是「节点的内容
+     * 放这里」。ProseMirror 的 `DOMSerializer.serializeNodeInner` 看到叶子带占位符就直接抛
+     * `RangeError: Content hole not allowed in a leaf node spec`，于是**任何含变量的文档**
+     * `getHTML()` 都会失败 —— 也就是 `onChange` / `update:modelValue` / 导出 HTML 的保存路径全都断在
+     * 这里。这里改为渲染出与节点视图一致的标签文本（嵌一层元素，不是占位符），导出的文档因此既有意义
+     * 又合法。
+     *
+     * A **leaf** node's spec may not contain a content hole.
+     *
+     * `variable` is an `atom: true` inline node, i.e. it has no content — while `0` means "the node's content
+     * goes here". ProseMirror's `DOMSerializer.serializeNodeInner` throws
+     * `RangeError: Content hole not allowed in a leaf node spec` when a leaf carries one, so `getHTML()`
+     * failed for **every document containing a variable** — which is the whole `onChange` /
+     * `update:modelValue` / export-to-HTML save path. This renders the same label the node view paints
+     * (as a nested element, not a hole), so an exported document is both meaningful and valid.
+     *
+     * `data-variable-type` is duplicated out of the config blob for CSS and for a consumer that wants to
+     * style by type without parsing JSON — see the table above for the whole encoding.
+     */
     return [
       "span",
       mergeAttributes(HTMLAttributes, {
         "data-type": "variable",
-        "data-variable-type": (node.attrs as VariableAttrs).data.type
+        "data-variable-type": attrs.data.type
       }),
-      0
+      ["span", { class: "s-editor-variable-content" }, attrs.label]
     ];
   },
 

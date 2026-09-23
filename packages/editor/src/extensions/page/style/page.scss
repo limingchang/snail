@@ -38,18 +38,49 @@
 }
 
 .s-editor-page-inner {
-  display: flex;
-  flex-direction: column;
+  // The bands are positioned **over** the margins now, so the only child in flow is the body. A
+  // definite height plus `position: relative` is what lets both of them size against the sheet.
+  position: relative;
   height: 100%;
 }
 
 .s-editor-page-content {
-  // The body takes whatever the furniture leaves, and `min-height: 0` stops a tall child
-  // from growing the flex item past the sheet.
-  flex: 1 1 auto;
-  min-height: 0;
+  /**
+   * 正文盒：整张纸、没有内边距，**页边距是它内层包裹元素的内边距**。
+   *
+   * 中文：内边距为什么不在这一层？因为这一层是**已定位**的，因而也是绝对定位后代的包含块 —— 而浏览器
+   * 用它的*内容*边（不是内边距边）当原点，于是页边距会被算进二维码的位置里：`left: 10mm` 实际落在
+   * 「页边距 + 10mm」处（实测：二维码 `x: 0` 时左边缘位于纸的左边缘内 20 mm）。把内边距下移一层，
+   * 这一层的内边距为 0，内容边与内边距边重合 —— 无论浏览器取哪一个，原点都是纸的左上角。
+   *
+   * The body box: the whole sheet, with no padding of its own — **the page margins are the padding of the
+   * element inside it**.
+   *
+   * Why not here? This element is **positioned**, and therefore the containing block of absolutely positioned
+   * descendants — and the browser uses its *content* edge (not its padding edge) as the origin, which folded
+   * the page margin into the QR code's position: `left: 10mm` landed at "margin + 10mm" (measured: with the
+   * code at `x: 0` its left edge sat 20 mm inside the sheet). Moving the padding one level down makes this
+   * element's content edge and padding edge coincide, so the origin is the sheet's top-left corner whichever
+   * of the two the browser picks.
+   */
+  height: 100%;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+/**
+ * 内层包裹元素：页边距在这里，而且它**不是**已定位的。
+ *
+ * 它的内容边在纸内 20 mm 处，一旦它成为包含块，二维码就会额外多出这段边距（这正是缺陷现场）。
+ *
+ * The inner wrapper: the page margins live here, and it is deliberately **not** positioned.
+ *
+ * Its content edge is 20 mm inside the sheet, so the moment it becomes a containing block the QR code gains
+ * that margin — which is exactly the defect.
+ */
+.s-editor-page-content-inner {
+  height: 100%;
+  box-sizing: border-box;
   padding:
     var(--snail-page-margin-top, 20mm)
     var(--snail-page-margin-right, 20mm)
@@ -57,13 +88,25 @@
     var(--snail-page-margin-left, 20mm);
 }
 
-.s-editor-page-content-inner {
-  position: relative;
-}
+// The body's inner wrapper is deliberately **not** positioned. Anything absolutely positioned inside
+// the body — the QR code — must be measured against the page, not against the body's box: the body's
+// box starts at the page margin, so a code at `10mm, 10mm` used to sit at "margin + 10mm" and drifted
+// whenever the margin changed. Leaving this element static makes `page-inner` the containing block,
+// which is what the QR panel's `position` means.
 
+/**
+ * The header and the footer sit *inside* the page margins, over the body.
+ *
+ * `position: absolute` is the whole point: the band occupies the top (respectively bottom) margin
+ * area, so the body keeps the margins the page declares. They are painted above the body
+ * (`z-index`) so a click in the band lands on the band, not on the text underneath it.
+ */
 .s-editor-page-header,
 .s-editor-page-footer {
-  flex: 0 0 auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
   box-sizing: border-box;
   overflow: hidden;
   color: var(--snail-page-furniture-color);
@@ -72,10 +115,12 @@
 }
 
 .s-editor-page-header {
+  top: 0;
   padding-top: var(--snail-page-furniture-padding);
 }
 
 .s-editor-page-footer {
+  bottom: 0;
   padding-bottom: var(--snail-page-furniture-padding);
 }
 
@@ -90,6 +135,9 @@
 }
 
 .s-editor-page-furniture-content {
+  // **Full width.** Without it the three regions only spanned their content, so the thirds did not
+  // reach the band's right edge and a click near it landed on the band instead of on a region.
+  width: 100%;
   height: 100%;
   overflow: hidden;
 
@@ -137,27 +185,39 @@
   }
 
   /**
-   * A region the user has not opened refuses the pointer.
+   * A region the user has not opened refuses the **caret**, but not the click.
    *
-   * This is the mechanism behind "double-click to edit": the caret cannot be placed in a region
-   * that is not being edited, so typing, selecting and Ctrl+A cannot reach a header by accident.
+   * The rule is on the region's *children*, not on the region: `pointer-events: none` on the region
+   * itself also swallowed the double-click that is supposed to open it, so a band could never be
+   * entered at all. With the children refusing the pointer, a click's target is the region — the
+   * handler can enter it — while no caret can be placed in it, so typing, selecting and Ctrl+A
+   * cannot reach a header by accident.
+   *
    * The transaction filter in `utils/furnitureEditing.ts` is the second half of the same rule, for
    * the paths CSS cannot cover (a paste whose selection spans the band, a consumer's own command).
    */
-  &:not(.is-editing) {
+  &:not(.is-editing) > *,
+  &.is-locked > * {
     pointer-events: none;
     user-select: none;
   }
 
   /**
-   * The region that is open, and the page number or logo that owns a region.
+   * Where the three thirds are.
    *
-   * A locked region is refused for good: it holds an atom (a number, an image), so there is
-   * nothing to type, and letting the caret in would only offer a way to delete the placement.
+   * Hovering a band outlines every region, and the one under the pointer is highlighted: without it
+   * only the band's own edge was visible, so the left / centre / right split was invisible until the
+   * user guessed at it.
    */
-  &.is-locked {
-    pointer-events: none;
-    user-select: none;
+  .s-editor-page-header:hover &,
+  .s-editor-page-footer:hover & {
+    outline: 1px dashed var(--se-color-cell-border, #d9d9d9);
+    outline-offset: -1px;
+  }
+
+  &:hover {
+    outline-style: solid;
+    outline-color: var(--el-color-primary, #1677ff);
   }
 
   /**

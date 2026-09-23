@@ -33,6 +33,7 @@ import type {
   QRCodeConfig,
   QRColor,
   QRLength,
+  QRPageAnchor,
   QRPosition,
   QRUnit
 } from "./typing";
@@ -96,7 +97,7 @@ const MM_PER_INCH = 25.4;
 /** 默认渲染尺寸，与旧扩展一致。 / Default rendered size, unchanged from the legacy extension. */
 export const QR_DEFAULT_SIZE: QRLength = { value: 30, unit: "mm" };
 
-/** 相对页面内容盒原点的默认偏移。 / Default offset from the page's content-box origin. */
+/** 相对页面左上角的默认偏移。 / Default offset from the page's top-left corner. */
 export const QR_DEFAULT_POSITION: QRPosition = { x: 10, y: 10, unit: "mm" };
 
 /** 白底黑码。 / Black on white. */
@@ -115,6 +116,13 @@ export const QR_DEFAULT_MARGIN = 4;
  * Default accessible label. A Chinese default, like the rest of the product.
  */
 export const QR_DEFAULT_ALT = "二维码";
+
+/**
+ * 默认的页面锚定：不指定，二维码留在它自然所在的那一页。
+ *
+ * The default page anchor: unspecified, so the code stays on the page it naturally sits on.
+ */
+export const QR_DEFAULT_PAGE: QRPageAnchor = null;
 
 /**
  * 默认载荷。为空：调用方必须说明这个码指向*什么*。
@@ -201,6 +209,48 @@ export function normalizeMargin(input: unknown, fallback: number = QR_DEFAULT_MA
   return Math.max(0, Math.round(input));
 }
 
+/**
+ * 强制转换为页面锚定。
+ *
+ * 只认识三种取值：`"first"`、`"last"`、以及 1 起的页码。页码会向下取整并钳到 `1`——「第
+ * 0.5 页」和「第 0 页」都不存在，而静默地接受它们会让 {@link resolvePageIndex} 的钳制看起来
+ * 像是用户的选择被改了。其他任何东西（包括 `null`）都是「不指定」。
+ *
+ * Coerce a page anchor.
+ *
+ * Only three shapes are understood: `"first"`, `"last"` and a 1-based page number. A number is
+ * floored and clamped to `1` — "page 0.5" and "page 0" do not exist, and silently accepting them
+ * would make {@link resolvePageIndex}'s clamping look like the user's choice was altered.
+ * Anything else, `null` included, means "unspecified".
+ */
+export function normalizePage(input: unknown, fallback: QRPageAnchor = QR_DEFAULT_PAGE): QRPageAnchor {
+  if (input === "first" || input === "last") return input;
+  if (isFiniteNumber(input)) return Math.max(1, Math.floor(input));
+  return fallback;
+}
+
+/**
+ * 锚定在页数为 `total` 的文档里指的是第几页（1 起，已钳制）。
+ *
+ * `"last"` 在这里才变成具体页码，这正是页数变化时它会跟着变的原因。`total` 小于 1（文档没有
+ * 页面节点）时按 1 页处理，于是这个函数在单页编辑器里也有定义良好的答案。
+ *
+ * Which page (1-based, clamped) an anchor means in a document of `total` pages.
+ *
+ * `"last"` becomes a concrete number only here, which is what makes it follow the page count.
+ * A `total` below 1 (a document with no page nodes) is treated as one page, so the function has
+ * a well-defined answer in a plain single-page editor too.
+ */
+export function resolvePageIndex(anchor: QRPageAnchor, total: number): number {
+  const pages = isFiniteNumber(total) ? Math.max(1, Math.floor(total)) : 1;
+  if (anchor === "first") return 1;
+  if (anchor === "last") return pages;
+  if (isFiniteNumber(anchor)) return Math.min(pages, Math.max(1, Math.floor(anchor)));
+  // Unspecified: the first page is the only answer available without asking the document,
+  // and callers that care pass the code's own page in instead.
+  return 1;
+}
+
 /** 一次强制转换所有结构化属性。 / Coerce every structured attribute at once. */
 export function normalizeConfig(input: Partial<QRCodeConfig> | undefined): QRCodeConfig {
   const source: Partial<QRCodeConfig> = input ?? {};
@@ -208,7 +258,8 @@ export function normalizeConfig(input: Partial<QRCodeConfig> | undefined): QRCod
     size: normalizeLength(source.size),
     position: normalizePosition(source.position),
     color: normalizeColor(source.color),
-    margin: normalizeMargin(source.margin)
+    margin: normalizeMargin(source.margin),
+    page: normalizePage(source.page)
   };
 }
 
@@ -251,6 +302,8 @@ export function sameQRCodeAttrs(a: QRCodeAttrs, b: QRCodeAttrs): boolean {
     a.src === b.src &&
     a.alt === b.alt &&
     a.margin === b.margin &&
+    // `page` is three-way (`null` / a keyword / a number), so identity is the whole comparison.
+    a.page === b.page &&
     a.color.dark === b.color.dark &&
     a.color.light === b.color.light &&
     sameLength(a.size, b.size) &&
@@ -327,6 +380,12 @@ export function toRasterPixels(size: QRLength, dpi: number = QR_PRINT_DPI): numb
  * 写到活动元素上——所以导出的 HTML 与编辑器不可能走偏。旧工具栏直接写 DOM 造成的正是这种
  * 走偏：文档说一个尺寸，屏幕显示另一个（缺陷 32）。
  *
+ * ## 坐标相对什么
+ *
+ * `position: absolute` 的包含块是最近的那个**已定位**祖先，而在页面里那就是 `.s-editor-page-inner`
+ * —— 整张纸。正文盒（`pageContent`）刻意不是已定位元素：它从页边距开始，若以它为原点，
+ * `10mm, 10mm` 会落在「页边距 + 10mm」处，页边距一改，二维码就跟着漂（见 `page.scss`）。
+ *
  * The inline styles the node renders from, as a declaration map.
  *
  * One function serves both halves of the extension — `renderHTML` joins it into a `style`
@@ -334,6 +393,13 @@ export function toRasterPixels(size: QRLength, dpi: number = QR_PRINT_DPI): numb
  * exported HTML and the editor cannot drift apart. That drift is exactly what the legacy
  * toolbar's direct DOM write caused: the document said one size and the screen showed
  * another (defect 32).
+ *
+ * ## What the coordinates are relative to
+ *
+ * An absolutely positioned element resolves against its nearest **positioned** ancestor, and inside a
+ * page that is `.s-editor-page-inner` — the sheet. The body (`pageContent`) is deliberately not
+ * positioned: it starts at the page margin, so using it as the origin put `10mm, 10mm` at
+ * "margin + 10mm", and the code drifted whenever the margin changed (see `page.scss`).
  */
 export function qrCodeStyle(attrs: QRCodeAttrs): Record<string, string> {
   return {
@@ -376,7 +442,8 @@ export function encodeQRCodeConfig(config: QRCodeConfig): string {
     size: config.size,
     position: config.position,
     color: config.color,
-    margin: config.margin
+    margin: config.margin,
+    page: config.page
   });
 }
 
@@ -434,6 +501,11 @@ export function decodeQRCodeConfig(raw: string | null | undefined): Partial<QRCo
   }
 
   if (isFiniteNumber(parsed.margin)) config.margin = Math.max(0, Math.round(parsed.margin));
+
+  // A `null` (or absent) `page` stays absent, so the caller's default of "unspecified"
+  // applies rather than being written over with an explicit `null`.
+  if (parsed.page === "first" || parsed.page === "last") config.page = parsed.page;
+  else if (isFiniteNumber(parsed.page)) config.page = Math.max(1, Math.floor(parsed.page));
 
   return config;
 }
