@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: "@snail-js"
-  text: 请求、生成、编辑、组件
+  text: 现代的API请求管理，专注模板的富文本编辑器，基于`element plus`扩展的组件
   tagline: 请求管理、模板文档编辑器、vue扩展组件。同时提供请求自动化生成cli。
   actions:
     - theme: brand
