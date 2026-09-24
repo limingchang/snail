@@ -53,8 +53,6 @@ import wordCloudCustomSource from "./examples/word-cloud/custom.vue?raw";
 哪一个是「本包的」。所以这里的判断标准是硬的：**只有 Element Plus 没有等价物时，组件才会被加进来。**
 :::
 
-本页的实时示例用站点全局注册的 `DemoBlock` 渲染（[@snail-js/editor](/editor/) 的文档用的是同一个），
-下面每一段展示的源码就是页面上真正运行的那个 `.vue` 文件 —— 它由 `?raw` 直接导入，不可能和示例脱节。
 
 ## 安装
 
