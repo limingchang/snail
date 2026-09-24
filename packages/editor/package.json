@@ -1,6 +1,6 @@
 {
   "name": "@snail-js/editor",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Tiptap-based template document editor: a Word-like workspace with real pages, headers and footers, automatic pagination, variables, QR codes, a watermark and browser printing.",
   "keywords": [
     "vue",
