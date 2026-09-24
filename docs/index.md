@@ -24,7 +24,7 @@ features:
     linkText: 阅读文档
   - title: "@snail-js/editor"
     details: 基于 Tiptap 的模板文档编辑器。真实分页与页眉页脚、变量填充、二维码、水印，以及浏览器原生打印。
-    link: /editor/
+    link: /editor/introduction
     linkText: 阅读文档
   - title: "@snail-js/vue"
     details: Vue 3 组件库。新增图标，阿里验证码、点击复制、右键菜单与 3D 词云。
@@ -41,7 +41,7 @@ axios**，以及**可选能力一律按需引入**，所以不用的东西不会
 | --- | --- | --- |
 | [`@snail-js/api`](/guide/introduction) | 用装饰器描述接口，用插件承载缓存、校验、转换、请求池 | [快速上手](/guide/getting-started) · [API 参考](/api/reference) |
 | [`@snail-js/cli`](/cli/) | 把 OpenAPI 文档变成上面那种接口类 | [`snail generate`](/cli/#snail-generate) |
-| [`@snail-js/editor`](/editor/) | 合同模板的编写、变量填充与打印 | [快速上手](/editor/#快速上手) |
+| [`@snail-js/editor`](/editor/introduction) | 合同模板的编写、变量填充与打印 | [快速开始](/editor/getting-start) |
 | [`@snail-js/vue`](/vue/) | Element Plus 没有的图标，以及几个自用组件 | [组件总览](/vue/#组件总览) |
 
 ## 从这里开始（@snail-js/api）
